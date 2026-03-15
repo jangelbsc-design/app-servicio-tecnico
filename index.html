@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Soporte Dismac</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        .hidden {
+            display: none !important;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #E31837;
+            border-radius: 50%;
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .sync-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: transparent;
+            color: #64748b;
+            padding: 8px 15px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .sync-bar i.spin {
+            animation: spin 1.5s linear infinite;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <header class="header blur-effect">
+            <div class="header-content"
+                style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div style="flex: 1; min-width: 0;">
+                    <h1 class="header-title"
+                        style="font-size: 1.15rem; color: #111; font-weight: 800; text-transform: uppercase;">Soporte
+                    </h1>
+                    <p class="header-subtitle" style="font-size: 0.8rem;">DISMATEC</p>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button id="btn-search-toggle" class="hidden"
+                        style="background:none;border:none;font-size:1.2rem;color:#111;cursor:pointer;"><i
+                            class="bi bi-search"></i></button>
+                    <div class="dismac-logo"
+                        style="display: flex; font-size: 1.6rem; font-weight: 900; letter-spacing: -1px; border-radius: 2px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex-shrink: 0; margin: 0 0.5rem; align-items: stretch;">
+                        <div
+                            style="background-color: #E31837; color: white; padding: 2px 4px 2px 8px; display: flex; align-items: center;">
+                            dis</div>
+                        <div
+                            style="background-color: white; color: black; padding: 2px 8px 2px 2px; display: flex; align-items: center;">
+                            mac<sup style="font-size: 0.45em; margin-top: -12px; margin-left: 1px;">®</sup></div>
+                    </div>
+                </div>
+            </div>
+            <div id="search-container" class="hidden" style="margin-top: 10px; position: relative;">
+                <input type="text" id="search-input" placeholder="Buscar taller, marca, ODT o cliente..."
+                    style="width:100%;padding:10px 35px 10px 15px;border-radius:20px;border:1px solid #ddd;font-family:'Outfit',sans-serif;">
+                <button id="btn-search-clear" class="hidden"
+                    style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#999;font-size:1.1rem;cursor:pointer;"><i
+                        class="bi bi-x-circle-fill"></i></button>
+            </div>
+        </header>
+
+        <main class="main-content" id="view-dashboard">
+            <section class="welcome-section">
+                <h2>¿Qué necesitas hoy?</h2>
+                <p>Selecciona una opción para continuar.</p>
+            </section>
+            <div class="dashboard-grid" style="grid-template-columns: 1fr;">
+                <button class="dash-card" data-action="open-red-talleres"
+                    style="height: auto; min-height: 120px; display: flex; align-items: center; gap: 1rem; padding: 1.5rem;">
+                    <div class="card-icon-wrapper"
+                        style="width: 65px; height: 65px; flex-shrink: 0; border-radius: 12px; overflow: hidden;">
+                        <img src="mapa-talleres.png" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                    <div style="text-align: left; flex: 1;">
+                        <span class="card-title" style="display: block; font-size: 1.2rem; margin-bottom: 0.3rem;">Red
+                            de Talleres</span>
+                        <span class="card-subtitle" style="font-size: 0.85rem; color: #666;">Contactos regionales</span>
+                    </div>
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+
+                <button class="dash-card" data-action="open-estados-servicio"
+                    style="height: auto; min-height: 120px; display: flex; align-items: center; gap: 1rem; padding: 1.5rem;">
+                    <div class="card-icon-wrapper"
+                        style="width: 65px; height: 65px; flex-shrink: 0; border-radius: 12px; overflow: hidden;">
+                        <img src="icono-servicio-tecnico.png" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                    <div style="text-align: left; flex: 1;">
+                        <span class="card-title"
+                            style="display: block; font-size: 1.2rem; margin-bottom: 0.3rem;">Estados de Servicio</span>
+                        <span class="card-subtitle" style="font-size: 0.85rem; color: #666;">Seguimiento de
+                            órdenes</span>
+                    </div>
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        </main>
+
+        <main class="main-content hidden" id="view-red-talleres">
+            <div class="view-header">
+                <button class="btn-back" id="btn-back-red-talleres"><i class="bi bi-arrow-left"></i> Volver</button>
+                <h2>Regiones</h2>
+            </div>
+            <div class="dashboard-grid">
+                <button class="dash-card" data-action="view-tarija"><span class="card-title">Tarija</span></button>
+                <button class="dash-card" data-action="view-sucre"><span class="card-title">Sucre</span></button>
+                <button class="dash-card" data-action="view-santacruz"><span class="card-title">Santa
+                        Cruz</span></button>
+                <button class="dash-card" data-action="view-protocolo"><span class="card-title">Protocolo de
+                        Recepción</span></button>
+            </div>
+        </main>
+
+        <main class="main-content hidden" id="view-estados-menu">
+            <div class="view-header">
+                <button class="btn-back" id="btn-back-estados-menu"><i class="bi bi-arrow-left"></i> Volver</button>
+                <h2>Órdenes</h2>
+            </div>
+            <div class="dashboard-grid">
+                <button class="dash-card" data-action="view-estados-tarija"><span
+                        class="card-title">Tarija</span></button>
+                <button class="dash-card" data-action="view-estados-sucre"><span
+                        class="card-title">Sucre</span></button>
+            </div>
+        </main>
+
+        <main class="main-content hidden" id="view-estados-servicio">
+            <div class="view-header">
+                <button class="btn-back" id="btn-back-estados-list"><i class="bi bi-arrow-left"></i> Volver</button>
+                <h2 id="view-estados-title">Órdenes</h2>
+            </div>
+            <div id="estados-loading" class="hidden" style="text-align: center; padding: 2rem;">
+                <div class="spinner"></div>
+                <p>Cargando datos...</p>
+            </div>
+            <div id="estados-content" style="padding: 10px;"></div>
+        </main>
+
+        <main class="main-content hidden" id="view-details">
+            <div class="view-header">
+                <button class="btn-back" id="btn-back"><i class="bi bi-arrow-left"></i> Volver</button>
+                <h2 id="view-title">Resultados</h2>
+            </div>
+            <div id="view-content" style="padding: 10px;"></div>
+        </main>
+
+        <div id="sync-status" class="sync-bar hidden">
+            <span id="sync-status-text"><i class="bi bi-exclamation-triangle" style="margin-right:8px;"></i> Fallo de
+                conexión</span>
+        </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
