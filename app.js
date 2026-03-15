@@ -60,6 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             showView(viewRedTalleres);
             currentView = 'red-talleres';
             selectedRegion = null;
+            attachRegionListeners();
         });
     }
 
@@ -72,6 +73,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // ✅ NUEVA FUNCIÓN para agregar listeners a botones de regiones
+    function attachRegionListeners() {
+        const regionButtons = document.querySelectorAll('[data-action="view-tarija"], [data-action="view-sucre"], [data-action="view-santacruz"], [data-action="view-protocolo"]');
+        console.log(`🔗 Agregando listeners a ${regionButtons.length} botones de región`);
+        
+        regionButtons.forEach(button => {
+            // Remover listeners previos para evitar duplicados
+            const newButton = button.cloneNode(true);
+            button.parentNode.replaceChild(newButton, button);
+            
+            newButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const action = this.getAttribute('data-action');
+                console.log(`🔘 Click en región: ${action}`);
+                handleNavigation(action);
+            });
+        });
+    }
+
     function handleNavigation(action) {
         console.log(`🧭 handleNavigation: ${action}`);
         switch (action) {
@@ -79,6 +99,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.log("📍 Abriendo RED DE TALLERES");
                 showView(viewRedTalleres);
                 currentView = 'red-talleres';
+                attachRegionListeners();
                 break;
             case 'open-estados-servicio':
                 console.log("📊 Abriendo ESTADOS DE SERVICIO");
