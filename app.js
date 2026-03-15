@@ -107,24 +107,41 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        const html = talleres.map(t => `
-            <div class="workshop-card">
-                <div class="workshop-header">
-                    <h3 class="workshop-title">${t.TALLER || 'Sin nombre'}</h3>
-                </div>
-                <div class="workshop-body">
-                    <div class="info-row">
-                        <i class="bi bi-tag-fill" style="color: #2563eb;"></i>
-                        <span style="font-weight: 600;">${t.MARCA || 'Sin marca'}</span>
+        const html = talleres.map(t => {
+            // Convertir contacto a string de forma segura
+            const contactoStr = String(t.CONTACTO || '').trim();
+            
+            // Procesar teléfonos
+            let phonesHTML = '';
+            if (contactoStr) {
+                const phones = contactoStr.split(/[\/\-–,\s]+/).filter(p => p.length >= 6);
+                phonesHTML = phones.map(phone => {
+                    const clean = phone.replace(/\D/g, '');
+                    return `
+                        <a href="tel:${clean}" class="btn-action" style="background:#007AFF;color:white;padding:10px;border-radius:8px;text-align:center;text-decoration:none;display:block;">
+                            <i class="bi bi-telephone-fill"></i> ${phone}
+                        </a>
+                    `;
+                }).join('');
+            }
+
+            return `
+                <div class="workshop-card">
+                    <div class="workshop-header">
+                        <h3 class="workshop-title">${t.TALLER || 'Sin nombre'}</h3>
+                    </div>
+                    <div class="workshop-body">
+                        <div class="info-row">
+                            <i class="bi bi-tag-fill" style="color: #2563eb;"></i>
+                            <span style="font-weight: 600;">${t.MARCA || 'Sin marca'}</span>
+                        </div>
+                    </div>
+                    <div class="workshop-actions" style="display:flex;flex-direction:column;gap:0.5rem;margin-top:1rem;">
+                        ${phonesHTML || '<p style="padding:10px;color:#999;">Sin teléfono</p>'}
                     </div>
                 </div>
-                <div class="workshop-actions" style="display:flex;flex-direction:column;gap:0.5rem;margin-top:1rem;">
-                    <a href="tel:${(t.CONTACTO || '').replace(/\D/g, '')}" class="btn-action" style="background:#007AFF;color:white;padding:10px;border-radius:8px;text-align:center;text-decoration:none;">
-                        <i class="bi bi-telephone-fill"></i> ${t.CONTACTO || 'Sin teléfono'}
-                    </a>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
 
         if (viewContent) viewContent.innerHTML = html;
         showView(viewDetails);
@@ -163,7 +180,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     function showProtocol() {
         if (viewTitle) viewTitle.textContent = 'Protocolo de recepción';
         if (viewContent) {
-            viewContent.innerHTML = `<p style="padding:1rem;">Protocolo de recepción aquí</p>`;
+            viewContent.innerHTML = `
+                <div style="padding:1rem;">
+                    <h3>Protocolo de recepción</h3>
+                    <p>Contenido del protocolo aquí...</p>
+                </div>
+            `;
         }
         showView(viewDetails);
     }
