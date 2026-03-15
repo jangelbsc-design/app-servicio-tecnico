@@ -157,30 +157,46 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const cleanNum = num.replace(/\D/g, '');
                 return `
                     <div class="contact-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem;">
-                        <a href="tel:${cleanNum}" class="btn-action" style="background:#007AFF;color:white;padding:8px;border-radius:8px;text-align:center;text-decoration:none;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:5px;">
-                            <i class="bi bi-telephone-fill"></i> Llamar
+                        <a href="tel:${cleanNum}" class="btn-action" style="background:#f1f5f9;color:#1e293b;padding:10px;border-radius:8px;text-align:center;text-decoration:none;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:600;">
+                            <div style="background:#dbeafe;color:#1e40af;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;"><i class="bi bi-telephone-fill" style="font-size:0.75rem;"></i></div> Ll. ${cleanNum}
                         </a>
-                        <a href="https://wa.me/591${cleanNum}" target="_blank" class="btn-action" style="background:#25D366;color:white;padding:8px;border-radius:8px;text-align:center;text-decoration:none;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:5px;">
-                            <i class="bi bi-whatsapp"></i> WhatsApp
+                        <a href="https://wa.me/591${cleanNum}" target="_blank" class="btn-action" style="background:#dcfce7;color:#166534;padding:10px;border-radius:8px;text-align:center;text-decoration:none;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:600;">
+                            <div style="background:#bbf7d0;color:#15803d;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;"><i class="bi bi-whatsapp" style="font-size:0.75rem;"></i></div> WA ${cleanNum}
                         </a>
                     </div>
-                    <p style="font-size:0.75rem;color:#666;text-align:center;margin-top:-3px;margin-bottom:8px;">${num}</p>
                 `;
             }).join('');
 
+            let mapHtml = '';
+            if (t.UBICACION) {
+                let mapUrl = t.UBICACION;
+                if (!mapUrl.startsWith('http')) mapUrl = 'https://' + mapUrl;
+                mapHtml = `
+                    <div style="display:flex; justify-content:center; margin-top:20px; margin-bottom:10px;">
+                        <a href="${mapUrl}" target="_blank" style="text-decoration:none; color:#111; display:flex; flex-direction:column; align-items:center; gap:8px;">
+                            <div style="background:#dcfce7; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#111;">
+                                <i class="bi bi-geo-alt-fill" style="font-size:1.1rem;"></i>
+                            </div>
+                            <span style="font-size:0.85rem; font-weight:700;">Abrir Ubicación GPS</span>
+                        </a>
+                    </div>
+                `;
+            }
+
             return `
-                <div class="workshop-card" style="margin-bottom:1rem; border-radius:15px;">
-                    <div class="workshop-header" style="margin-bottom:10px;">
-                        <h3 class="workshop-title" style="margin:0; font-size:1.1rem; color:#111;">${t.TALLER || 'Sin nombre'}</h3>
+                <div class="workshop-card" style="margin-bottom:1rem; border-radius:15px; border:1px solid #f8eaeb; padding:1.25rem;">
+                    <div class="workshop-header" style="margin-bottom:15px;">
+                        <h3 class="workshop-title" style="margin:0; font-size:1.2rem; font-weight:800; color:#111;">${t.TALLER || 'Sin nombre'}</h3>
                     </div>
                     <div class="workshop-body">
-                        <div class="info-row" style="margin-bottom:12px;">
-                            <i class="bi bi-tag-fill" style="color: #E31837;"></i>
-                            <span style="font-weight: 600; font-size:0.9rem;">${t.MARCA || 'Sin marca'}</span>
+                        <div class="info-row" style="margin-bottom:20px; align-items:flex-start;">
+                            <i class="bi bi-tag-fill" style="color: #E31837; font-size:1rem; margin-top:2px;"></i>
+                            <span style="font-weight: 500; font-size:0.9rem; color:#555; line-height:1.4;">${t.MARCA || 'Sin marca'}</span>
                         </div>
                         <div class="workshop-actions-container">
                             ${contactsHtml || '<p style="font-size:0.85rem;color:#999;text-align:center;">Sin teléfono disponible</p>'}
                         </div>
+                        ${mapHtml}
                     </div>
                 </div>
             `;
@@ -225,39 +241,47 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const cleanNum = num.replace(/\D/g, '');
                     return `
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:5px;">
-                            <a href="tel:${cleanNum}" style="background:#007AFF; color:white; text-decoration:none; padding:5px; border-radius:5px; font-size:0.75rem; text-align:center;"><i class="bi bi-telephone"></i> ${num}</a>
-                            <a href="https://wa.me/591${cleanNum}" target="_blank" style="background:#25D366; color:white; text-decoration:none; padding:5px; border-radius:5px; font-size:0.75rem; text-align:center;"><i class="bi bi-whatsapp"></i> WA</a>
+                            <a href="tel:${cleanNum}" style="background:#f1f5f9; color:#1e293b; text-decoration:none; padding:8px; border-radius:5px; font-size:0.75rem; text-align:center; font-weight:600;"><i class="bi bi-telephone-fill" style="color:#1e40af;"></i> Ll. ${cleanNum}</a>
+                            <a href="https://wa.me/591${cleanNum}" target="_blank" style="background:#dcfce7; color:#166534; text-decoration:none; padding:8px; border-radius:5px; font-size:0.75rem; text-align:center; font-weight:600;"><i class="bi bi-whatsapp" style="color:#15803d;"></i> WA ${cleanNum}</a>
                         </div>
                     `;
                 }).join('');
 
                 workshopHtml = `
-                    <div style="margin-top:10px; padding:10px; background:#f0f7ff; border-radius:10px; border:1px solid #dbeafe;">
-                        <p style="font-weight:700; font-size:0.85rem; margin-bottom:5px; color:#1e40af;"><i class="bi bi-tools"></i> Taller: ${workshop.TALLER}</p>
+                    <div style="margin-top:15px; padding:10px; background:#f0f7ff; border-radius:10px; border:1px solid #dbeafe;">
+                        <p style="font-weight:700; font-size:0.85rem; margin-bottom:5px; color:#1e40af; display:flex; align-items:center; gap:5px;"><i class="bi bi-tools"></i> Taller: ${workshop.TALLER}</p>
                         ${buttonsHtml}
                     </div>
                 `;
             }
 
             return `
-                <div class="accordion-item" style="margin-bottom:10px; border-radius:12px; border:1px solid #e2e8f0; background:white; overflow:hidden;">
+                <div class="accordion-item" style="margin-bottom:12px; border-radius:15px; border:1px solid #e2e8f0; border-left:4px solid #3b82f6; background:white; overflow:hidden;">
                     <button class="accordion-header" style="width:100%; border:none; background:none; padding:15px; text-align:left; cursor:pointer;" onclick="this.parentElement.classList.toggle('active')">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div style="flex:1;">
-                                <p style="margin:0; font-weight:700; color:#111; font-size:0.95rem;">${o['Número de orden de trabajo'] || 'ODT S/N'}</p>
-                                <p style="margin:0; font-size:0.8rem; color:#666;">${o['Cuenta: Nombre de la cuenta'] || 'Cliente S/N'}</p>
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <div style="flex:1; padding-right:10px;">
+                                <p style="margin:0 0 4px 0; font-size:0.75rem; font-weight:700; color:#94a3b8; text-transform:uppercase;">ODT: ${o['Número de orden de trabajo'] || 'S/N'}</p>
+                                <p style="margin:0 0 8px 0; font-weight:800; color:#111; font-size:1.05rem; line-height:1.2;">${o['Cuenta: Nombre de la cuenta'] || 'CLIENTE S/N'}</p>
+                                <div style="display:flex; align-items:center; gap:12px; font-size:0.8rem; color:#64748b;">
+                                    <span style="display:flex; align-items:center; gap:4px;"><i class="bi bi-geo-alt-fill" style="color:#ef4444;"></i> ${o['Territorio de servicio: Nombre'] || 'Sin región'}</span>
+                                    <span style="display:flex; align-items:center; gap:4px;"><i class="bi bi-clock-fill" style="color:#f59e0b;"></i> ${o['Tiempo desde apertura (Días)'] || '0'}d</span>
+                                </div>
                             </div>
-                            <div style="text-align:right; margin-right:10px;">
-                                <span style="background:#e3f2fd; color:#1976d2; padding:3px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;">${o.Estado || 'S/E'}</span>
+                            <div style="display:flex; flex-direction:column; align-items:flex-end; justify-content:space-between; height:100%; min-height:60px;">
+                                <span style="background:#e0e7ff; color:#3b82f6; padding:4px 10px; border-radius:12px; font-size:0.7rem; font-weight:700; white-space:nowrap;">${o.Estado || 'S/E'}</span>
+                                <i class="bi bi-chevron-down acc-arrow" style="transition: transform 0.3s ease; color:#cbd5e1; font-size:1.2rem; margin-top:auto;"></i>
                             </div>
-                            <i class="bi bi-chevron-down acc-arrow" style="transition: transform 0.3s ease; color:#94a3b8;"></i>
                         </div>
                     </button>
                     <div class="accordion-content" style="padding:0 15px; max-height:0; overflow:hidden; transition: max-height 0.3s ease-out;">
-                        <div style="padding:0 0 15px 0; border-top:1px solid #f1f5f9; margin-top:5px; font-size:0.85rem; color:#444;">
-                            <p style="margin-top:10px;"><strong>Producto:</strong> ${o['Producto ST'] || '—'}</p>
-                            <p><strong>Fecha:</strong> ${o['Fecha de creación'] || '—'}</p>
-                            <p><strong>Síntoma:</strong> ${o['Síntoma de falla'] || '—'}</p>
+                        <div style="padding:15px 0; border-top:1px solid #f1f5f9; font-size:0.85rem; color:#333; display:grid; grid-template-columns:1fr; gap:8px;">
+                            <p style="margin:0;"><strong>Tiempo desde apertura (Días):</strong> ${o['Tiempo desde apertura (Días)'] || '—'}</p>
+                            <p style="margin:0;"><strong>Nro de orden de trabajo (Marca):</strong> ${o['Nro de orden de trabajo (Marca)'] || '—'}</p>
+                            <p style="margin:0;"><strong>Producto ST:</strong> ${o['Producto ST'] || '—'}</p>
+                            <p style="margin:0;"><strong>Fecha de compra:</strong> ${o['Fecha de compra'] || '—'}</p>
+                            <p style="margin:0;"><strong>Fecha de ingreso a la marca:</strong> ${o['Fecha de ingreso a la marca'] || '—'}</p>
+                            <p style="margin:0;"><strong>Referencia:</strong> ${o['Referencia'] || '—'}</p>
+                            <p style="margin:0;"><strong>Estado:</strong> ${o.Estado || '—'}</p>
                             ${workshopHtml}
                         </div>
                     </div>
@@ -303,6 +327,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const taller = getVal(row, 'TALLER', 'Taller', 'taller');
                 const marca = getVal(row, 'MARCA', 'Marca', 'marca');
                 const contacto = getVal(row, 'CONTACTO', 'Contacto', 'contacto');
+                const ubicacion = getVal(row, 'UBICACIÓN POR GPS', 'Ubicación', 'UBICACION');
 
                 if (ciudad !== "") {
                     currentCity = ciudad;
@@ -315,7 +340,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         CIUDAD: currentCity,
                         TALLER: taller,
                         MARCA: marca,
-                        CONTACTO: contacto
+                        CONTACTO: contacto,
+                        UBICACION: ubicacion
                     };
                 }
                 return null;
