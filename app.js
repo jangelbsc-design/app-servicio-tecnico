@@ -17,6 +17,14 @@ console.log("🔧 APP.JS CARGADO");
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("✅ DOMContentLoaded DISPARADO");
 
+    const viewDashboard = document.getElementById('view-dashboard');
+    const viewRedTalleres = document.getElementById('view-red-talleres');
+    const viewEstadosMenu = document.getElementById('view-estados-menu');
+    const viewEstadosServicio = document.getElementById('view-estados-servicio');
+    const viewDetails = document.getElementById('view-details');
+    const viewTitle = document.getElementById('view-title');
+    const viewContent = document.getElementById('view-content');
+
     // Cargar datos
     console.log("📥 Cargando datos...");
     await loadAllData();
