@@ -604,15 +604,19 @@ body {
     margin-bottom: 0;
 }
 
-/* Animations */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
+/* Regional Search Focus */
+#workshop-search-input:focus, #estados-search-input:focus {
+    border-color: var(--primary) !important;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(227, 24, 55, 0.1) !important;
+}
 
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+/* Accordion Expansion */
+.accordion-item.active .accordion-content {
+    max-height: 500px !important;
+    padding: 10px 15px 15px 15px !important;
+}
+
+.accordion-item.active .acc-arrow {
+    transform: rotate(180deg);
 }

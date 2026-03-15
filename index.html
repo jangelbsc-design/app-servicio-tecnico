@@ -69,9 +69,6 @@
                     <p class="header-subtitle" style="font-size: 0.8rem;">DISMATEC</p>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center;">
-                    <button id="btn-search-toggle" class="hidden"
-                        style="background:none;border:none;font-size:1.2rem;color:#111;cursor:pointer;"><i
-                            class="bi bi-search"></i></button>
                     <div class="dismac-logo"
                         style="display: flex; font-size: 1.6rem; font-weight: 900; letter-spacing: -1px; border-radius: 2px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex-shrink: 0; margin: 0 0.5rem; align-items: stretch;">
                         <div
@@ -83,13 +80,7 @@
                     </div>
                 </div>
             </div>
-            <div id="search-container" class="hidden" style="margin-top: 10px; position: relative;">
-                <input type="text" id="search-input" placeholder="Buscar taller, marca, ODT o cliente..."
-                    style="width:100%;padding:10px 35px 10px 15px;border-radius:20px;border:1px solid #ddd;font-family:'Outfit',sans-serif;">
-                <button id="btn-search-clear" class="hidden"
-                    style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#999;font-size:1.1rem;cursor:pointer;"><i
-                        class="bi bi-x-circle-fill"></i></button>
-            </div>
+
         </header>
 
         <main class="main-content" id="view-dashboard">
@@ -158,6 +149,10 @@
                 <button class="btn-back" id="btn-back-estados-list"><i class="bi bi-arrow-left"></i> Volver</button>
                 <h2 id="view-estados-title">Órdenes</h2>
             </div>
+            <div id="estados-search-container" style="padding: 0 10px 10px 10px;">
+                <input type="text" id="estados-search-input" placeholder="Buscar por ODT, cliente o producto..."
+                    style="width:100%;padding:10px 15px;border-radius:10px;border:1px solid #ddd;font-family:'Outfit',sans-serif;">
+            </div>
             <div id="estados-loading" class="hidden" style="text-align: center; padding: 2rem;">
                 <div class="spinner"></div>
                 <p>Cargando datos...</p>
@@ -169,6 +164,10 @@
             <div class="view-header">
                 <button class="btn-back" id="btn-back"><i class="bi bi-arrow-left"></i> Volver</button>
                 <h2 id="view-title">Resultados</h2>
+            </div>
+            <div id="workshop-search-container" style="padding: 0 10px 10px 10px;">
+                <input type="text" id="workshop-search-input" placeholder="Buscar por taller o marca..."
+                    style="width:100%;padding:10px 15px;border-radius:10px;border:1px solid #ddd;font-family:'Outfit',sans-serif;">
             </div>
             <div id="view-content" style="padding: 10px;"></div>
         </main>
