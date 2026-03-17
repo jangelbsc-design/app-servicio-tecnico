@@ -170,14 +170,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             let mapHtml = '';
             if (t.UBICACION) {
                 let mapUrl = t.UBICACION;
-                if (!mapUrl.startsWith('http')) mapUrl = 'https://' + mapUrl;
+                // Si parece ser un par de coordenadas (ej: -17.7637107, -63.1741556), armar enlace a Google Maps
+                if (/^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(mapUrl)) {
+                    mapUrl = `https://www.google.com/maps?q=${mapUrl.replace(/\s+/g, '')}`;
+                } else if (!mapUrl.startsWith('http')) {
+                    mapUrl = 'https://' + mapUrl;
+                }
+                
                 mapHtml = `
-                    <div style="display:flex; justify-content:center; margin-top:20px; margin-bottom:10px;">
-                        <a href="${mapUrl}" target="_blank" style="text-decoration:none; color:#111; display:flex; flex-direction:column; align-items:center; gap:8px;">
-                            <div style="background:#dcfce7; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#111;">
-                                <i class="bi bi-geo-alt-fill" style="font-size:1.1rem;"></i>
+                    <div style="margin-top:20px; border-radius:12px; overflow:hidden; border:1px solid #e2e8f0; position:relative; height:120px;">
+                        <a href="${mapUrl}" target="_blank" style="display:block; width:100%; height:100%; text-decoration:none; position:relative;">
+                            <div style="width:100%; height:100%; background-image:url('https://upload.wikimedia.org/wikipedia/commons/4/41/Typical_OpenStreetMap_map_of_a_city_dense_area.png'); background-size:cover; background-position:center; filter:brightness(0.95); transition:filter 0.3s;"></div>
+                            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); display:flex; flex-direction:column; align-items:center;">
+                                <div style="background:#E31837; width:40px; height:40px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3); border:2px solid white;">
+                                    <div style="width:12px; height:12px; background:white; border-radius:50%;"></div>
+                                </div>
                             </div>
-                            <span style="font-size:0.85rem; font-weight:700;">Abrir Ubicación GPS</span>
+                            <div style="position:absolute; bottom:0; left:0; right:0; background:rgba(255,255,255,0.9); padding:8px; text-align:center; font-size:0.85rem; font-weight:700; color:#111; backdrop-filter:blur(4px); border-top:1px solid #f1f5f9;">
+                                Abrir en Google Maps
+                            </div>
                         </a>
                     </div>
                 `;
@@ -236,13 +247,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             let workshopHtml = "";
             if (workshop) {
+                // Preparar mensaje de WhatsApp predeterminado
+                const textMsg = `Hola Taller ${workshop.TALLER}, les escribo por la orden de trabajo ODT: ${o['Número de orden de trabajo'] || 'S/N'}, correspondiente al cliente ${o['Cuenta: Nombre de la cuenta'] || 'S/N'}. Producto: ${o['Producto ST'] || '—'}. Tiempo en la marca: ${o['Tiempo desde apertura (Días)'] || '0'} días. Quisiera consultar sobre el estado de reparación de este equipo.`;
+                const encodedMsg = encodeURIComponent(textMsg);
+
                 const numList = (workshop.CONTACTO || "").split(/[-/,]/).map(n => n.trim()).filter(n => n.length >= 7);
                 const buttonsHtml = numList.map(num => {
                     const cleanNum = num.replace(/\D/g, '');
                     return `
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:5px;">
                             <a href="tel:${cleanNum}" style="background:#f1f5f9; color:#1e293b; text-decoration:none; padding:8px; border-radius:5px; font-size:0.75rem; text-align:center; font-weight:600;"><i class="bi bi-telephone-fill" style="color:#1e40af;"></i> Ll. ${cleanNum}</a>
-                            <a href="https://wa.me/591${cleanNum}" target="_blank" style="background:#dcfce7; color:#166534; text-decoration:none; padding:8px; border-radius:5px; font-size:0.75rem; text-align:center; font-weight:600;"><i class="bi bi-whatsapp" style="color:#15803d;"></i> WA ${cleanNum}</a>
+                            <a href="https://wa.me/591${cleanNum}?text=${encodedMsg}" target="_blank" style="background:#dcfce7; color:#166534; text-decoration:none; padding:8px; border-radius:5px; font-size:0.75rem; text-align:center; font-weight:600;"><i class="bi bi-whatsapp" style="color:#15803d;"></i> WA ${cleanNum}</a>
                         </div>
                     `;
                 }).join('');
@@ -315,10 +330,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             let currentCity = "";
             appWorkshopData = workshopData.map(row => {
-                // Normalizar claves y valores (algunos valores pueden venir como números)
+                // Normalizar claves (ignorar mayúsculas y espacios molestos en las columnas de Google Sheets)
                 const getVal = (row, ...keys) => {
+                    const rowKeys = Object.keys(row);
                     for (const key of keys) {
-                        if (row[key] !== undefined && row[key] !== null) return row[key].toString().trim();
+                        const exactKey = rowKeys.find(k => k.trim().toUpperCase() === key.toUpperCase());
+                        if (exactKey && row[exactKey] !== undefined && row[exactKey] !== null) {
+                            return row[exactKey].toString().trim();
+                        }
                     }
                     return "";
                 };
@@ -327,7 +346,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const taller = getVal(row, 'TALLER', 'Taller', 'taller');
                 const marca = getVal(row, 'MARCA', 'Marca', 'marca');
                 const contacto = getVal(row, 'CONTACTO', 'Contacto', 'contacto');
-                const ubicacion = getVal(row, 'UBICACIÓN POR GPS', 'Ubicación', 'UBICACION');
+                const ubicacion = getVal(row, 'UBICACIÓN POR GPS', 'Ubicación', 'UBICACION', 'UBICACIÓN GPS');
 
                 if (ciudad !== "") {
                     currentCity = ciudad;
