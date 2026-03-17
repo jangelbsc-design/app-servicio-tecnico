@@ -156,12 +156,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             const contactsHtml = numList.map(num => {
                 const cleanNum = num.replace(/\D/g, '');
                 return `
-                    <div class="contact-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem;">
-                        <a href="tel:${cleanNum}" class="btn-action" style="background:#f1f5f9;color:#1e293b;padding:10px;border-radius:8px;text-align:center;text-decoration:none;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:600;">
-                            <div style="background:#dbeafe;color:#1e40af;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;"><i class="bi bi-telephone-fill" style="font-size:0.75rem;"></i></div> Ll. ${cleanNum}
+                    <div class="contact-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                        <a href="tel:${cleanNum}" class="btn-action" style="background:#f4f5f7;color:#111;padding:15px 10px;border-radius:12px;text-align:center;text-decoration:none;font-size:0.9rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;font-weight:700;">
+                            <div style="background:#dbeafe;color:#111;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;"><i class="bi bi-telephone-fill" style="font-size:1rem; transform:scaleX(-1);"></i></div> Ll. ${cleanNum}
                         </a>
-                        <a href="https://wa.me/591${cleanNum}" target="_blank" class="btn-action" style="background:#dcfce7;color:#166534;padding:10px;border-radius:8px;text-align:center;text-decoration:none;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:600;">
-                            <div style="background:#bbf7d0;color:#15803d;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;"><i class="bi bi-whatsapp" style="font-size:0.75rem;"></i></div> WA ${cleanNum}
+                        <a href="https://wa.me/591${cleanNum}" target="_blank" class="btn-action" style="background:#e3f5d5;color:#064e3b;padding:15px 10px;border-radius:12px;text-align:center;text-decoration:none;font-size:0.9rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;font-weight:700;">
+                            <div style="background:#bbf7d0;color:#16a34a;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;"><i class="bi bi-whatsapp" style="font-size:1rem;"></i></div> WA ${cleanNum}
                         </a>
                     </div>
                 `;
@@ -170,7 +170,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             let mapHtml = '';
             if (t.UBICACION) {
                 let mapUrl = t.UBICACION;
-                // Si parece ser un par de coordenadas (ej: -17.7637107, -63.1741556), armar enlace a Google Maps
                 if (/^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(mapUrl)) {
                     mapUrl = `https://www.google.com/maps?q=${mapUrl.replace(/\s+/g, '')}`;
                 } else if (!mapUrl.startsWith('http')) {
@@ -178,19 +177,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 
                 mapHtml = `
-                    <div style="margin-top:20px; border-radius:12px; overflow:hidden; border:1px solid #e2e8f0; position:relative; height:120px;">
-                        <a href="${mapUrl}" target="_blank" style="display:block; width:100%; height:100%; text-decoration:none; position:relative;">
-                            <div style="width:100%; height:100%; background-image:url('https://upload.wikimedia.org/wikipedia/commons/4/41/Typical_OpenStreetMap_map_of_a_city_dense_area.png'); background-size:cover; background-position:center; filter:brightness(0.95); transition:filter 0.3s;"></div>
-                            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); display:flex; flex-direction:column; align-items:center;">
-                                <div style="background:#E31837; width:40px; height:40px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3); border:2px solid white;">
-                                    <div style="width:12px; height:12px; background:white; border-radius:50%;"></div>
-                                </div>
-                            </div>
-                            <div style="position:absolute; bottom:0; left:0; right:0; background:rgba(255,255,255,0.9); padding:8px; text-align:center; font-size:0.85rem; font-weight:700; color:#111; backdrop-filter:blur(4px); border-top:1px solid #f1f5f9;">
-                                Abrir en Google Maps
-                            </div>
-                        </a>
-                    </div>
+                    <a href="${mapUrl}" target="_blank" class="btn-action" style="background:#ffffff;color:#111;padding:15px;border-radius:12px;text-align:center;text-decoration:none;font-size:1rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;font-weight:700;margin-top:0.5rem;width:100%;box-sizing:border-box;border:1px solid #e2e8f0;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+                        <div style="background:radial-gradient(circle at 30% 30%, #ff4b68, #E31837); width:32px; height:32px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); display:flex; align-items:center; justify-content:center; box-shadow:2px 2px 5px rgba(0,0,0,0.2);">
+                            <div style="width:10px; height:10px; background:white; border-radius:50%;"></div>
+                        </div>
+                        Abrir en Google Maps
+                    </a>
                 `;
             }
 
@@ -247,8 +239,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             let workshopHtml = "";
             if (workshop) {
-                // Preparar mensaje de WhatsApp predeterminado
-                const textMsg = `Hola Taller ${workshop.TALLER}, les escribo por la orden de trabajo ODT: ${o['Número de orden de trabajo'] || 'S/N'}, correspondiente al cliente ${o['Cuenta: Nombre de la cuenta'] || 'S/N'}. Producto: ${o['Producto ST'] || '—'}. Tiempo en la marca: ${o['Tiempo desde apertura (Días)'] || '0'} días. Quisiera consultar sobre el estado de reparación de este equipo.`;
+                // Preparar mensaje de WhatsApp solicitado
+                const nombreCliente = o['Cuenta: Nombre de la cuenta'] || 'N/A';
+                const ordenDismac = o['Número de orden de trabajo'] || 'N/A';
+                const activo = o['Producto ST'] || 'N/A';
+                const fecha = o['Fecha de creación'] || o['Fecha'] || 'N/A';
+                const dias = o['Tiempo desde apertura (Días)'] || '0';
+
+                // Formatear mensaje
+                const textMsg = `Buenos días, Servicio Técnico ${workshop.TALLER} - ${workshop.CIUDAD}.\n\nSolicitamos información del estado de las siguientes órdenes:\n\nOrden DISMAC: ${ordenDismac}\nNombre del cliente: ${nombreCliente}\nActivo: ${activo}\nFecha de inicio: ${fecha}\nDías en el ST: ${dias}`;
                 const encodedMsg = encodeURIComponent(textMsg);
 
                 const numList = (workshop.CONTACTO || "").split(/[-/,]/).map(n => n.trim()).filter(n => n.length >= 7);
@@ -257,7 +256,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     return `
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:5px;">
                             <a href="tel:${cleanNum}" style="background:#f1f5f9; color:#1e293b; text-decoration:none; padding:8px; border-radius:5px; font-size:0.75rem; text-align:center; font-weight:600;"><i class="bi bi-telephone-fill" style="color:#1e40af;"></i> Ll. ${cleanNum}</a>
-                            <a href="https://wa.me/591${cleanNum}?text=${encodedMsg}" target="_blank" style="background:#dcfce7; color:#166534; text-decoration:none; padding:8px; border-radius:5px; font-size:0.75rem; text-align:center; font-weight:600;"><i class="bi bi-whatsapp" style="color:#15803d;"></i> WA ${cleanNum}</a>
+                            <a href="https://wa.me/?text=${encodedMsg}" target="_blank" style="background:#dcfce7; color:#166534; text-decoration:none; padding:8px; border-radius:5px; font-size:0.75rem; text-align:center; font-weight:600;"><i class="bi bi-whatsapp" style="color:#15803d;"></i> Mensaje WA</a>
                         </div>
                     `;
                 }).join('');
@@ -345,7 +344,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const ciudad = getVal(row, 'CIUDAD', 'Ciudad', 'ciudad');
                 const taller = getVal(row, 'TALLER', 'Taller', 'taller');
                 const marca = getVal(row, 'MARCA', 'Marca', 'marca');
-                const contacto = getVal(row, 'CONTACTO', 'Contacto', 'contacto');
+                
+                // Búsqueda más robusta para contactos (cualquier columna que contenga contacto, tel o cel)
+                let contacto = getVal(row, 'CONTACTO', 'Contacto', 'contacto', 'CONTACTOS', 'CELULAR', 'TELEFONO');
+                if (!contacto) {
+                    const rowKeys = Object.keys(row);
+                    const contactKey = rowKeys.find(k => k.toUpperCase().includes('CONTACTO') || k.toUpperCase().includes('TEL') || k.toUpperCase().includes('CEL'));
+                    if (contactKey && row[contactKey]) {
+                        contacto = row[contactKey].toString().trim();
+                    }
+                }
+
+                // Hardcode rescate para Electronica JKA Tarija
+                if (taller && taller.toUpperCase().includes("ELECTRONICA DIGITAL JKA") && !contacto) {
+                    contacto = "60263531 - 60264988";
+                }
+                
                 const ubicacion = getVal(row, 'UBICACIÓN POR GPS', 'Ubicación', 'UBICACION', 'UBICACIÓN GPS');
 
                 if (ciudad !== "") {
@@ -403,4 +417,46 @@ document.addEventListener('DOMContentLoaded', async () => {
             throw err;
         }
     }
+
+    // Funcionalidad Scroll to Top
+    const scrollTopBtn = document.createElement('button');
+    scrollTopBtn.innerHTML = '<i class="bi bi-arrow-up-short" style="font-size:2rem; line-height:1;"></i>';
+    scrollTopBtn.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background-color: #E31837;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        cursor: pointer;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+        z-index: 1000;
+    `;
+    document.body.appendChild(scrollTopBtn);
+
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 300) {
+            scrollTopBtn.style.opacity = '1';
+            scrollTopBtn.style.visibility = 'visible';
+        } else {
+            scrollTopBtn.style.opacity = '0';
+            scrollTopBtn.style.visibility = 'hidden';
+        }
+    });
+
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    });
 });
