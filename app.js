@@ -122,6 +122,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             case 'view-estados-sucre':
                 showRegionOrdenes('Sucre');
                 break;
+            case 'view-estados-municipios':
+                showRegionOrdenes('Municipios');
+                break;
+            case 'view-estados-oruro':
+                showRegionOrdenes('Oruro');
+                break;
+            case 'view-estados-beni':
+                showRegionOrdenes('Beni');
+                break;
+            case 'view-estados-potosi':
+                showRegionOrdenes('Potosí');
+                break;
         }
     }
 
@@ -212,10 +224,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     function showRegionOrdenes(region) {
         console.log(`\n📋 Mostrando órdenes de: ${region}`);
         currentRegionOrdenes = region;
-        const regionLower = region.toLowerCase();
-        filteredOrdenes = appOrdersData.filter(o =>
-            (o['Territorio de servicio: Nombre'] || "").toLowerCase().includes(regionLower)
-        );
+        
+        if (region === 'Municipios') {
+            const municipios = ['montero', 'la guardia', 'el torno', 'cotoca', 'satelite', 'camiri', 'san julian', 'guabira', 'warnes', 'pailon', 'samaipata'];
+            filteredOrdenes = appOrdersData.filter(o => {
+                const terr = (o['Territorio de servicio: Nombre'] || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                return municipios.some(m => terr.includes(m));
+            });
+        } else {
+            const regionNormalized = region.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            filteredOrdenes = appOrdersData.filter(o => {
+                const terr = (o['Territorio de servicio: Nombre'] || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                return terr.includes(regionNormalized);
+            });
+        }
+        
         if (estadosSearchInput) estadosSearchInput.value = "";
         renderOrdenes(region, filteredOrdenes);
     }
@@ -274,7 +297,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <button class="accordion-header" style="width:100%; border:none; background:none; padding:15px; text-align:left; cursor:pointer;" onclick="this.parentElement.classList.toggle('active')">
                         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                             <div style="flex:1; padding-right:10px;">
-                                <p style="margin:0 0 4px 0; font-size:0.75rem; font-weight:700; color:#94a3b8; text-transform:uppercase;">ODT: ${o['Número de orden de trabajo'] || 'S/N'}</p>
+                                <p style="margin:0 0 4px 0; font-size:0.75rem; font-weight:700; color:#94a3b8; text-transform:uppercase;">${o['Número de orden de trabajo'] || 'S/N'}</p>
                                 <p style="margin:0 0 8px 0; font-weight:800; color:#111; font-size:1.05rem; line-height:1.2;">${o['Cuenta: Nombre de la cuenta'] || 'CLIENTE S/N'}</p>
                                 <div style="display:flex; align-items:center; gap:12px; font-size:0.8rem; color:#64748b;">
                                     <span style="display:flex; align-items:center; gap:4px;"><i class="bi bi-geo-alt-fill" style="color:#ef4444;"></i> ${o['Territorio de servicio: Nombre'] || 'Sin región'}</span>
