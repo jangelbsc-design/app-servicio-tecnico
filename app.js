@@ -261,15 +261,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             const workshop = appWorkshopData.find(w => w.TALLER && w.TALLER.toUpperCase() === workshopName.toUpperCase());
             
             let workshopHtml = "";
-            if (workshop) {
-                // Preparar mensaje de WhatsApp solicitado
-                const nombreCliente = o['Cuenta: Nombre de la cuenta'] || 'N/A';
-                const ordenDismac = o['Número de orden de trabajo'] || 'N/A';
-                const activo = o['Producto ST'] || 'N/A';
-                const fecha = o['Fecha de creación'] || o['Fecha'] || 'N/A';
-                const dias = o['Tiempo desde apertura (Días)'] || '0';
+            
+            // Preparar mensaje de WhatsApp solicitado (siempre disponible)
+            const nombreCliente = o['Cuenta: Nombre de la cuenta'] || 'N/A';
+            const ordenDismac = o['Número de orden de trabajo'] || 'N/A';
+            const activo = o['Producto ST'] || 'N/A';
+            const fecha = o['Fecha de creación'] || o['Fecha'] || 'N/A';
+            const dias = o['Tiempo desde apertura (Días)'] || '0';
 
-                // Formatear mensaje
+            if (workshop) {
+                // Formatear mensaje para taller específico
                 const textMsg = `Buenos días, Servicio Técnico ${workshop.TALLER} - ${workshop.CIUDAD}.\n\nSolicitamos información del estado de las siguientes órdenes:\n\nOrden DISMAC: ${ordenDismac}\nNombre del cliente: ${nombreCliente}\nActivo: ${activo}\nFecha de inicio: ${fecha}\nDías en el ST: ${dias}`;
                 const encodedMsg = encodeURIComponent(textMsg);
 
@@ -288,6 +289,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div style="margin-top:15px; padding:10px; background:#f0f7ff; border-radius:10px; border:1px solid #dbeafe;">
                         <p style="font-weight:700; font-size:0.85rem; margin-bottom:5px; color:#1e40af; display:flex; align-items:center; gap:5px;"><i class="bi bi-tools"></i> Taller: ${workshop.TALLER}</p>
                         ${buttonsHtml}
+                    </div>
+                `;
+            } else {
+                // Formatear mensaje genérico cuando no hay taller
+                const textMsg = `Buenos días.\n\nSolicitamos información del estado de la siguiente orden:\n\nOrden DISMAC: ${ordenDismac}\nNombre del cliente: ${nombreCliente}\nActivo: ${activo}\nFecha de inicio: ${fecha}\nDías en el ST: ${dias}`;
+                const encodedMsg = encodeURIComponent(textMsg);
+                
+                workshopHtml = `
+                    <div style="margin-top:15px; padding:10px; background:#f8fafc; border-radius:10px; border:1px dashed #cbd5e1; text-align:center;">
+                        <p style="font-weight:600; font-size:0.85rem; margin-bottom:8px; color:#64748b;">No hay taller asignado</p>
+                        <a href="https://wa.me/?text=${encodedMsg}" target="_blank" style="display:inline-block; background:#dcfce7; color:#166534; text-decoration:none; padding:8px 15px; border-radius:8px; font-size:0.8rem; font-weight:700;"><i class="bi bi-whatsapp" style="color:#15803d; margin-right:5px;"></i> Enviar consulta general por WA</a>
                     </div>
                 `;
             }
