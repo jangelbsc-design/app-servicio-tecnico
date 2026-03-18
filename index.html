@@ -15,6 +15,14 @@
     <link rel="stylesheet" href="style.css?v=9">
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
+    <script type="module">
+        import firebaseConfig from './firebase-config.js';
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        window.firebaseConfig = firebaseConfig;
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         .hidden {
@@ -74,8 +82,8 @@
                     <p class="header-subtitle" style="font-size: 0.8rem;">DISMATEC</p>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center;">
-                    <div class="dismac-logo"
-                        style="display: flex; font-size: 1.6rem; font-weight: 900; letter-spacing: -1px; border-radius: 2px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex-shrink: 0; margin: 0 0.5rem; align-items: stretch;">
+                    <div class="dismac-logo" id="dismac-logo-btn"
+                        style="cursor: pointer; display: flex; font-size: 1.6rem; font-weight: 900; letter-spacing: -1px; border-radius: 2px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex-shrink: 0; margin: 0 0.5rem; align-items: stretch;">
                         <div
                             style="background-color: #E31837; color: white; padding: 2px 4px 2px 8px; display: flex; align-items: center;">
                             dis</div>
