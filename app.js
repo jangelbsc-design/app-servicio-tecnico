@@ -26,16 +26,12 @@ async function sendTelegram(message) {
         return;
     }
     try {
-        const url = `https://api.telegram.org/bot${TELEGRAM_CONFIG.token}/sendMessage`;
-        await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat_id: TELEGRAM_CONFIG.chatId,
-                text: message,
-                parse_mode: 'HTML'
-            })
-        });
+        // Usamos Image() para evitar bloqueo CORS en file://
+        // Telegram acepta GET requests para sendMessage
+        const text = encodeURIComponent(message);
+        const url = `https://api.telegram.org/bot${TELEGRAM_CONFIG.token}/sendMessage?chat_id=${TELEGRAM_CONFIG.chatId}&text=${text}&parse_mode=HTML`;
+        const img = new Image();
+        img.src = url;
         console.log('✅ Notificación Telegram enviada.');
     } catch (e) {
         console.error('Error enviando Telegram:', e);
