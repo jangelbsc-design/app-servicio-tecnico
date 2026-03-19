@@ -12,6 +12,108 @@ const SHEETS_CONFIG = {
     }
 };
 
+// ── CONFIGURACIÓN TELEGRAM ─────────────────────────────────────────────────
+// 1. Pon aquí el token que te dio @BotFather
+// 2. El Chat ID ya está configurado con el tuyo
+const TELEGRAM_CONFIG = {
+    token: '8769379678:AAFjYMA5UXyWQ0QTyUSHhBEXhl2FAxmomLA',
+    chatId: '363865053'                  // Juan Angel Bustos
+};
+
+async function sendTelegram(message) {
+    if (!TELEGRAM_CONFIG.token || TELEGRAM_CONFIG.token === 'PONER_TOKEN_DEL_BOT_AQUI') {
+        console.warn('Telegram: token no configurado.');
+        return;
+    }
+    try {
+        const url = `https://api.telegram.org/bot${TELEGRAM_CONFIG.token}/sendMessage`;
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: TELEGRAM_CONFIG.chatId,
+                text: message,
+                parse_mode: 'HTML'
+            })
+        });
+        console.log('✅ Notificación Telegram enviada.');
+    } catch (e) {
+        console.error('Error enviando Telegram:', e);
+    }
+}
+
+function parseFecha(str) {
+    if (!str) return null;
+    // Soporta: "dd/mm/yyyy", "yyyy-mm-dd", "mm/dd/yyyy hh:mm:ss" y variantes
+    const s = str.toString().trim();
+    let m;
+    // dd/mm/yyyy o d/m/yyyy
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+    // yyyy-mm-dd
+    m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+    // fallback
+    const d = new Date(s);
+    return isNaN(d) ? null : d;
+}
+
+function diasDesde(fechaStr) {
+    const f = parseFecha(fechaStr);
+    if (!f) return null;
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    return Math.floor((hoy - f) / 86400000);
+}
+
+function chequearOrdenesEstancadas() {
+    const estados_excluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
+    const isExcluido = (o) => {
+        const e = (o.Estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return estados_excluidos.some(ex => e.includes(ex));
+    };
+
+    const alertas = [];
+
+    for (const o of appOrdersData) {
+        if (isExcluido(o)) continue;
+
+        const diasCreacion = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10);
+        const diasMod = diasDesde(o['Fecha de la última modificación']);
+        const odt = o['Número de orden de trabajo'] || 'S/N';
+        const cliente = o['Cuenta: Nombre de la cuenta'] || 'S/N';
+        const producto = o['Producto ST'] || '';
+        const region = o['Territorio de servicio: Nombre'] || '';
+        const estado = o.Estado || 'S/E';
+        const razones = [];
+
+        if (diasMod !== null && diasMod >= 4) razones.push(`🕒 ${diasMod}d sin cambios`);
+        if (diasCreacion >= 8) razones.push(`📅 ${diasCreacion}d desde creación`);
+
+        if (razones.length > 0) {
+            alertas.push(`⚠️ <b>${odt}</b> — ${cliente}
+  📦 ${producto}
+  📌 ${region} | Estado: ${estado}
+  ${razones.join(' | ')}`);
+        }
+    }
+
+    if (alertas.length === 0) {
+        console.log('✅ Telegram: sin órdenes estancadas.');
+        return;
+    }
+
+    const fecha = new Date().toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const msg = `🚨 <b>DISMAC — Órdenes estancadas</b> (${fecha})
+
+Se encontraron <b>${alertas.length}</b> orden(es) que requieren atención:
+
+${alertas.join('\n\n')}`;
+
+    sendTelegram(msg);
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 console.log("🔧 APP.JS CARGADO");
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -30,6 +132,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadAllData();
     console.log(`✅ ${appWorkshopData.length} talleres, ${appOrdersData.length} órdenes`);
 
+    // Verificar órdenes estancadas y notificar por Telegram
+    chequearOrdenesEstancadas();
+
     // Variables de estado para búsqueda regional
     let currentRegionTalleres = "";
     let filteredTalleres = [];
@@ -41,10 +146,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     workshopSearchInput?.addEventListener('input', (e) => {
         const query = e.target.value.toLowerCase();
         const regionUpper = currentRegionTalleres.toUpperCase();
-        filteredTalleres = appWorkshopData.filter(t => 
+        filteredTalleres = appWorkshopData.filter(t =>
             (t.CIUDAD || "").toUpperCase() === regionUpper &&
-            ((t.TALLER || "").toLowerCase().includes(query) || 
-             (t.MARCA || "").toLowerCase().includes(query))
+            ((t.TALLER || "").toLowerCase().includes(query) ||
+                (t.MARCA || "").toLowerCase().includes(query))
         );
         renderTalleres(currentRegionTalleres, filteredTalleres);
     });
@@ -57,8 +162,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         filteredOrdenes = appOrdersData.filter(o =>
             (o['Territorio de servicio: Nombre'] || "").toLowerCase().includes(regionLower) &&
             ((o['Número de orden de trabajo'] || "").toLowerCase().includes(query) ||
-             (o['Cuenta: Nombre de la cuenta'] || "").toLowerCase().includes(query) ||
-             (o['Producto ST'] || "").toLowerCase().includes(query))
+                (o['Cuenta: Nombre de la cuenta'] || "").toLowerCase().includes(query) ||
+                (o['Producto ST'] || "").toLowerCase().includes(query) ||
+                (o['Referencia'] || "").toLowerCase().includes(query) ||
+                (o['Nro de orden de trabajo (Marca)'] || "").toLowerCase().includes(query) ||
+                (o['Nombre del Equipo'] || "").toLowerCase().includes(query) ||
+                (o['Producto ST'] || "").toLowerCase().includes(query))
         );
         renderOrdenes(currentRegionOrdenes, filteredOrdenes);
     });
@@ -221,7 +330,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else if (!mapUrl.startsWith('http')) {
                     mapUrl = 'https://' + mapUrl;
                 }
-                
+
                 mapHtml = `
                     <a href="${mapUrl}" target="_blank" class="btn-action" style="background:#ffffff;color:#111;padding:15px;border-radius:12px;text-align:center;text-decoration:none;font-size:1rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;font-weight:700;margin-top:0.5rem;width:100%;box-sizing:border-box;border:1px solid #e2e8f0;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
                         <div style="background:radial-gradient(circle at 30% 30%, #ff4b68, #E31837); width:32px; height:32px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); display:flex; align-items:center; justify-content:center; box-shadow:2px 2px 5px rgba(0,0,0,0.2);">
@@ -258,7 +367,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function showRegionOrdenes(region) {
         console.log(`\n📋 Mostrando órdenes de: ${region}`);
         currentRegionOrdenes = region;
-        
+
         if (region === 'Municipios') {
             const municipios = ['montero', 'la guardia', 'el torno', 'cotoca', 'satelite', 'camiri', 'san julian', 'guabira', 'warnes', 'pailon', 'samaipata'];
             filteredOrdenes = appOrdersData.filter(o => {
@@ -272,7 +381,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return terr.includes(regionNormalized);
             });
         }
-        
+
         if (estadosSearchInput) estadosSearchInput.value = "";
         renderOrdenes(region, filteredOrdenes);
     }
@@ -293,19 +402,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         const html = ordenes.map((o, idx) => {
             const workshopName = (o['¿Qué servicio técnico ?'] || "").trim();
             const workshop = appWorkshopData.find(w => w.TALLER && w.TALLER.toUpperCase() === workshopName.toUpperCase());
-            
+
             let workshopHtml = "";
-            
+
             // Preparar mensaje de WhatsApp solicitado (siempre disponible)
             const nombreCliente = o['Cuenta: Nombre de la cuenta'] || 'N/A';
-            const ordenDismac = o['Número de orden de trabajo'] || 'N/A';
+            const ordenDismac = o['Referencia'] || o['Número de orden de trabajo'] || 'N/A';
             const activo = o['Producto ST'] || 'N/A';
-            const fecha = o['Fecha de creación'] || o['Fecha'] || 'N/A';
-            const dias = o['Tiempo desde apertura (Días)'] || '0';
+            const nroOrdenMarca = o['Nro de orden de trabajo (Marca)'] || 'S/O';
+            const diasST = o['Tiempo desde apertura (Días)'] || '0';
 
             if (workshop) {
                 // Formatear mensaje para taller específico
-                const textMsg = `Buenos días, Servicio Técnico ${workshop.TALLER} - ${workshop.CIUDAD}.\n\nSolicitamos información del estado de las siguientes órdenes:\n\nOrden DISMAC: ${ordenDismac}\nNombre del cliente: ${nombreCliente}\nActivo: ${activo}\nFecha de inicio: ${fecha}\nDías en el ST: ${dias}`;
+                const textMsg = `Hola, servicio técnico ${workshop.TALLER}, por favor ayúdenos con información sobre el estado de las siguientes órdenes de trabajo:\nOrden DISMAC: ${ordenDismac}\nNombre del cliente: ${nombreCliente}\nActivo: ${activo}\nNumero de orden: ${nroOrdenMarca}\nDías en el ST de marca: ${diasST}`;
                 const encodedMsg = encodeURIComponent(textMsg);
 
                 const numList = (workshop.CONTACTO || "").split(/[-/,]/).map(n => n.trim()).filter(n => n.length >= 7);
@@ -327,9 +436,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `;
             } else {
                 // Formatear mensaje genérico cuando no hay taller
-                const textMsg = `Buenos días.\n\nSolicitamos información del estado de la siguiente orden:\n\nOrden DISMAC: ${ordenDismac}\nNombre del cliente: ${nombreCliente}\nActivo: ${activo}\nFecha de inicio: ${fecha}\nDías en el ST: ${dias}`;
+                const textMsg = `Hola, por favor ayúdenos con información sobre el estado de las siguientes órdenes de trabajo:\nOrden DISMAC: ${ordenDismac}\nNombre del cliente: ${nombreCliente}\nActivo: ${activo}\nNumero de orden: ${nroOrdenMarca}\nDías en el ST de marca: ${diasST}`;
                 const encodedMsg = encodeURIComponent(textMsg);
-                
+
                 workshopHtml = `
                     <div style="margin-top:15px; padding:10px; background:#f8fafc; border-radius:10px; border:1px dashed #cbd5e1; text-align:center;">
                         <p style="font-weight:600; font-size:0.85rem; margin-bottom:8px; color:#64748b;">No hay taller asignado</p>
@@ -500,7 +609,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 fetchGoogleSheet(SHEETS_CONFIG.talleres.id, SHEETS_CONFIG.talleres.sheetName),
                 fetchGoogleSheet(SHEETS_CONFIG.seguimiento.id, SHEETS_CONFIG.seguimiento.sheetName)
             ]);
-            
+
             let currentCity = "";
             appWorkshopData = workshopData.map(row => {
                 // Normalizar claves (ignorar mayúsculas y espacios molestos en las columnas de Google Sheets)
@@ -518,7 +627,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const ciudad = getVal(row, 'CIUDAD', 'Ciudad', 'ciudad');
                 const taller = getVal(row, 'TALLER', 'Taller', 'taller');
                 const marca = getVal(row, 'MARCA', 'Marca', 'marca');
-                
+
                 // Búsqueda más robusta para contactos (cualquier columna que contenga contacto, tel o cel)
                 let contacto = getVal(row, 'CONTACTO', 'Contacto', 'contacto', 'CONTACTOS', 'CELULAR', 'TELEFONO');
                 if (!contacto) {
@@ -533,13 +642,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (taller && taller.toUpperCase().includes("ELECTRONICA DIGITAL JKA") && !contacto) {
                     contacto = "60263531 - 60264988";
                 }
-                
+
                 const ubicacion = getVal(row, 'UBICACIÓN POR GPS', 'Ubicación', 'UBICACION', 'UBICACIÓN GPS');
 
                 if (ciudad !== "") {
                     currentCity = ciudad;
                 }
-                
+
                 // Solo incluimos si hay un nombre de taller
                 if (taller !== "") {
                     return {
@@ -569,7 +678,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const res = await fetch(url);
             if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
             const text = await res.text();
-            
+
             // Limpiar la respuesta de Google
             const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
             const json = JSON.parse(jsonStr);
