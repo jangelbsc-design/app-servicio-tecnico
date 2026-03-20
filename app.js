@@ -28,6 +28,21 @@ function escapeHTML(str) {
         .replace(/>/g, '&gt;');
 }
 
+function isRegionApp(territorioStr) {
+    if (!territorioStr) return false;
+    const t = territorioStr.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    
+    // Regiones principales
+    const regiones = ['tarija', 'sucre', 'oruro', 'beni', 'potosi'];
+    if (regiones.some(r => t.includes(r))) return true;
+
+    // Municipios Santa Cruz
+    const municipios = ['montero', 'la guardia', 'el torno', 'cotoca', 'satelite', 'camiri', 'san julian', 'guabira', 'warnes', 'pailon', 'samaipata'];
+    if (municipios.some(m => t.includes(m))) return true;
+
+    return false;
+}
+
 async function sendTelegram(message) {
     if (!TELEGRAM_CONFIG.token || TELEGRAM_CONFIG.token === 'PONER_TOKEN_DEL_BOT_AQUI') {
         console.warn('Telegram: token no configurado.');
@@ -89,6 +104,10 @@ function chequearOrdenesEstancadas() {
     for (const o of appOrdersData) {
         if (isExcluido(o)) continue;
 
+        // FILTRAR POR REGIÓN: Solo alertas de las regiones que figuran en la app
+        const territorio = o['Territorio de servicio: Nombre'] || "";
+        if (!isRegionApp(territorio)) continue;
+
         const diasCreacion = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10);
         const diasMod = diasDesde(o['Fecha de la última modificación']);
         
@@ -96,7 +115,7 @@ function chequearOrdenesEstancadas() {
         const odt = escapeHTML(o['Número de orden de trabajo'] || 'S/N');
         const cliente = escapeHTML(o['Cuenta: Nombre de la cuenta'] || 'S/N');
         const producto = escapeHTML(o['Producto ST'] || '');
-        const region = escapeHTML(o['Territorio de servicio: Nombre'] || '');
+        const region = escapeHTML(territorio);
         const estado = escapeHTML(o.Estado || 'S/E');
         const razones = [];
 
@@ -391,6 +410,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const regionNormalized = region.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             filteredOrdenes = appOrdersData.filter(o => {
                 const terr = (o['Territorio de servicio: Nombre'] || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                // Usamos includes pero validamos que sea la región correcta para evitar falsos positivos
                 return terr.includes(regionNormalized);
             });
         }
