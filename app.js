@@ -112,19 +112,20 @@ function chequearOrdenesEstancadas() {
         const diasMod = diasDesde(o['Fecha de la última modificación']);
         
         // ESCAPAR DATOS PARA EVITAR ERROR 400 EN TELEGRAM
-        const odt = escapeHTML(o['Número de orden de trabajo'] || 'S/N');
         const cliente = escapeHTML(o['Cuenta: Nombre de la cuenta'] || 'S/N');
         const producto = escapeHTML(o['Producto ST'] || '');
         const region = escapeHTML(territorio);
         const estado = escapeHTML(o.Estado || 'S/E');
+        const tipoServicio = escapeHTML(o['Tipo de Servicio'] || 'S/N');
         const razones = [];
 
         if (diasMod !== null && diasMod >= 4) razones.push(`🕒 ${diasMod}d sin cambios`);
         if (diasCreacion >= 8) razones.push(`📅 ${diasCreacion}d desde creación`);
 
         if (razones.length > 0) {
-            alertas.push(`⚠️ <b>${odt}</b> — ${cliente}
+            alertas.push(`⚠️ <b>${cliente}</b>
   📦 ${producto}
+  🛠️ Tipo: ${tipoServicio}
   📌 ${region} | Estado: ${estado}
   ${razones.join(' | ')}`);
         }
@@ -428,13 +429,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         const contentEl = document.getElementById('estados-content');
         if (!contentEl) return;
 
-        if (ordenes.length === 0) {
-            contentEl.innerHTML = '<p style="text-align:center;padding:2rem;">No se encontraron órdenes.</p>';
+        // FILTRO DE ESTADOS: Excluir error, entregado, cerrado
+        const estados_excluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
+        const ordenesFiltradas = ordenes.filter(o => {
+            const e = (o.Estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            return !estados_excluidos.some(ex => e.includes(ex));
+        });
+
+        if (ordenesFiltradas.length === 0) {
+            contentEl.innerHTML = '<p style="text-align:center;padding:2rem;">No se encontraron órdenes activas.</p>';
             showView(viewEstadosServicio);
             return;
         }
 
-        const html = ordenes.map((o, idx) => {
+        const html = ordenesFiltradas.map((o, idx) => {
             const workshopName = (o['¿Qué servicio técnico ?'] || "").trim();
             const workshop = appWorkshopData.find(w => w.TALLER && w.TALLER.toUpperCase() === workshopName.toUpperCase());
 
@@ -487,7 +495,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <button class="accordion-header" style="width:100%; border:none; background:none; padding:15px; text-align:left; cursor:pointer;" onclick="this.parentElement.classList.toggle('active')">
                         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                             <div style="flex:1; padding-right:10px;">
-                                <p style="margin:0 0 4px 0; font-size:0.75rem; font-weight:700; color:#94a3b8; text-transform:uppercase;">${o['Número de orden de trabajo'] || 'S/N'}</p>
                                 <p style="margin:0 0 8px 0; font-weight:800; color:#111; font-size:1.05rem; line-height:1.2;">${o['Cuenta: Nombre de la cuenta'] || 'CLIENTE S/N'}</p>
                                 <div style="display:flex; align-items:center; gap:12px; font-size:0.8rem; color:#64748b;">
                                     <span style="display:flex; align-items:center; gap:4px;"><i class="bi bi-geo-alt-fill" style="color:#ef4444;"></i> ${o['Territorio de servicio: Nombre'] || 'Sin región'}</span>
@@ -502,6 +509,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </button>
                     <div class="accordion-content" style="padding:0 15px; max-height:0; overflow:hidden; transition: max-height 0.3s ease-out;">
                         <div style="padding:15px 0; border-top:1px solid #f1f5f9; font-size:0.85rem; color:#333; display:grid; grid-template-columns:1fr; gap:8px;">
+                            <p style="margin:0;"><strong>Número de orden de trabajo:</strong> ${o['Número de orden de trabajo'] || '—'}</p>
+                            <p style="margin:0;"><strong>Tipo de Servicio:</strong> ${o['Tipo de Servicio'] || '—'}</p>
                             <p style="margin:0;"><strong>Tiempo desde apertura (Días):</strong> ${o['Tiempo desde apertura (Días)'] || '—'}</p>
                             <p style="margin:0;"><strong>Nro de orden de trabajo (Marca):</strong> ${o['Nro de orden de trabajo (Marca)'] || '—'}</p>
                             <p style="margin:0;"><strong>Producto ST:</strong> ${o['Producto ST'] || '—'}</p>
