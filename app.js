@@ -20,6 +20,14 @@ const TELEGRAM_CONFIG = {
     chatId: '363865053'                  // Juan Angel Bustos
 };
 
+function escapeHTML(str) {
+    if (!str) return '';
+    return str.toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 async function sendTelegram(message) {
     if (!TELEGRAM_CONFIG.token || TELEGRAM_CONFIG.token === 'PONER_TOKEN_DEL_BOT_AQUI') {
         console.warn('Telegram: token no configurado.');
@@ -83,11 +91,13 @@ function chequearOrdenesEstancadas() {
 
         const diasCreacion = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10);
         const diasMod = diasDesde(o['Fecha de la última modificación']);
-        const odt = o['Número de orden de trabajo'] || 'S/N';
-        const cliente = o['Cuenta: Nombre de la cuenta'] || 'S/N';
-        const producto = o['Producto ST'] || '';
-        const region = o['Territorio de servicio: Nombre'] || '';
-        const estado = o.Estado || 'S/E';
+        
+        // ESCAPAR DATOS PARA EVITAR ERROR 400 EN TELEGRAM
+        const odt = escapeHTML(o['Número de orden de trabajo'] || 'S/N');
+        const cliente = escapeHTML(o['Cuenta: Nombre de la cuenta'] || 'S/N');
+        const producto = escapeHTML(o['Producto ST'] || '');
+        const region = escapeHTML(o['Territorio de servicio: Nombre'] || '');
+        const estado = escapeHTML(o.Estado || 'S/E');
         const razones = [];
 
         if (diasMod !== null && diasMod >= 4) razones.push(`🕒 ${diasMod}d sin cambios`);
