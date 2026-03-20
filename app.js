@@ -140,7 +140,9 @@ function chequearOrdenesEstancadas() {
 
 Se encontraron <b>${alertas.length}</b> orden(es) que requieren atención:
 
-${alertas.join('\n\n')}`;
+${alertas.join('\n\n')}
+
+🔗 <b>Abrir App:</b> https://jabustos.github.io/app-servicio-tecnico/`;
 
     sendTelegram(msg);
 }
