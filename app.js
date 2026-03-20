@@ -26,15 +26,22 @@ async function sendTelegram(message) {
         return;
     }
     try {
-        // Usamos Image() para evitar bloqueo CORS en file://
-        // Telegram acepta GET requests para sendMessage
         const text = encodeURIComponent(message);
         const url = `https://api.telegram.org/bot${TELEGRAM_CONFIG.token}/sendMessage?chat_id=${TELEGRAM_CONFIG.chatId}&text=${text}&parse_mode=HTML`;
-        const img = new Image();
-        img.src = url;
-        console.log('✅ Notificación Telegram enviada.');
+        const res = await fetch(url);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.ok) {
+                console.log('✅ Notificación Telegram enviada correctamente.');
+            } else {
+                console.error('❌ Telegram respondió con error:', data.description);
+            }
+        } else {
+            console.error('❌ Error HTTP al enviar Telegram:', res.status, res.statusText);
+        }
     } catch (e) {
-        console.error('Error enviando Telegram:', e);
+        console.error('❌ Error enviando Telegram (posible bloqueo CORS si abres con file://):', e.message);
+        console.warn('💡 Solución: abre la app desde un servidor HTTP (ej.: Live Server en VSCode).');
     }
 }
 
