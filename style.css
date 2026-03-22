@@ -14,6 +14,9 @@
     --border-color: #e2e8f0;
     --border-light: #e2e8f0;
 
+    /* Typography */
+    --font-main: 'Outfit', sans-serif;
+
     /* Accordion Colors */
     --acc-bg: #ffffff;
     --acc-border: #cbd5e1;
