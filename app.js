@@ -193,9 +193,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const estadosSearchInput = document.getElementById('estados-search-input');
     estadosSearchInput?.addEventListener('input', (e) => {
         const query = e.target.value.toLowerCase();
-        const regionLower = currentRegionOrdenes.toLowerCase();
         filteredOrdenes = appOrdersData.filter(o =>
-            (o['Territorio de servicio: Nombre'] || "").toLowerCase().includes(regionLower) &&
+            isOrderInRegion(o, currentRegionOrdenes) &&
             ((o['Número de orden de trabajo'] || "").toLowerCase().includes(query) ||
                 (o['Cuenta: Nombre de la cuenta'] || "").toLowerCase().includes(query) ||
                 (o['Producto ST'] || "").toLowerCase().includes(query) ||
@@ -404,24 +403,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         showView(viewDetails);
     }
 
+    function isOrderInRegion(o, region) {
+        if (!o || !region) return false;
+        const terr = (o['Territorio de servicio: Nombre'] || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (region === 'Municipios') {
+            const municipios = ['montero', 'la guardia', 'el torno', 'cotoca', 'satelite', 'camiri', 'san julian', 'guabira', 'warnes', 'pailon', 'samaipata'];
+            return municipios.some(m => terr.includes(m));
+        }
+        const regionNormalized = region.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return terr.includes(regionNormalized);
+    }
+
     function showRegionOrdenes(region) {
         console.log(`\n📋 Mostrando órdenes de: ${region}`);
         currentRegionOrdenes = region;
-
-        if (region === 'Municipios') {
-            const municipios = ['montero', 'la guardia', 'el torno', 'cotoca', 'satelite', 'camiri', 'san julian', 'guabira', 'warnes', 'pailon', 'samaipata'];
-            filteredOrdenes = appOrdersData.filter(o => {
-                const terr = (o['Territorio de servicio: Nombre'] || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                return municipios.some(m => terr.includes(m));
-            });
-        } else {
-            const regionNormalized = region.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            filteredOrdenes = appOrdersData.filter(o => {
-                const terr = (o['Territorio de servicio: Nombre'] || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                // Usamos includes pero validamos que sea la región correcta para evitar falsos positivos
-                return terr.includes(regionNormalized);
-            });
-        }
+        filteredOrdenes = appOrdersData.filter(o => isOrderInRegion(o, region));
 
         if (estadosSearchInput) estadosSearchInput.value = "";
         renderOrdenes(region, filteredOrdenes);
