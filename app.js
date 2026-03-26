@@ -202,7 +202,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 (o['Referencia'] || "").toLowerCase().includes(query) ||
                 (o['Nro de orden de trabajo (Marca)'] || "").toLowerCase().includes(query) ||
                 (o['Nombre del Equipo'] || "").toLowerCase().includes(query) ||
-                (o['Producto ST'] || "").toLowerCase().includes(query))
+                (o['Tipo de Servicio'] || "").toLowerCase().includes(query) ||
+                (o['Tiempo desde apertura (Días)'] || "").toString().toLowerCase().includes(query) ||
+                (o['Fecha de compra'] || "").toLowerCase().includes(query) ||
+                (o['Fecha de ingreso a la marca'] || "").toLowerCase().includes(query) ||
+                (o['¿Qué servicio técnico ?'] || "").toLowerCase().includes(query) ||
+                (o['Fecha de la última modificación'] || "").toLowerCase().includes(query))
         );
         renderOrdenes(currentRegionOrdenes, filteredOrdenes);
     });
