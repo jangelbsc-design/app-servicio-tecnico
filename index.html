@@ -1,206 +1,213 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DISMATEC - Soporte Técnico</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Soporte Dismac</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="style.css?v=14">
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
+    <script type="module">
+        import firebaseConfig from './firebase-config.js';
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        window.firebaseConfig = firebaseConfig;
+    </script>
+    <script type="module">
+        import stitchService from './stitch-service.js';
+        stitchService.init();
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        .hidden {
+            display: none !important;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #E31837;
+            border-radius: 50%;
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .sync-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: transparent;
+            color: #64748b;
+            padding: 8px 15px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .sync-bar i.spin {
+            animation: spin 1.5s linear infinite;
+        }
+    </style>
 </head>
+
 <body>
     <div class="app-container">
-        <!-- Header -->
-        <header class="app-header">
-            <div class="header-content">
-                <div class="logo-section">
-                    <button id="dismac-logo-btn" class="logo-btn" title="Volver al inicio">
-                        <div class="logo-icon">
-                            <span class="logo-text">DM</span>
-                        </div>
-                        <span class="logo-label">DISMATEC</span>
-                    </button>
+        <header class="header blur-effect">
+            <div class="header-content"
+                style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div style="flex: 1; min-width: 0;">
+                    <h1 class="header-title"
+                        style="font-size: 1.15rem; color: #111; font-weight: 800; text-transform: uppercase;">Soporte
+                    </h1>
+                    <p class="header-subtitle" style="font-size: 0.8rem;">DISMATEC</p>
                 </div>
-                <div class="header-status">
-                    <span id="sync-status" class="sync-indicator hidden">
-                        <i class="bi bi-exclamation-circle"></i> Error de conexión
-                    </span>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <div class="dismac-logo" id="dismac-logo-btn"
+                        style="cursor: pointer; display: flex; font-size: 1.6rem; font-weight: 900; letter-spacing: -1px; border-radius: 2px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex-shrink: 0; margin: 0 0.5rem; align-items: stretch;">
+                        <div
+                            style="background-color: #E31837; color: white; padding: 2px 4px 2px 8px; display: flex; align-items: center;">
+                            dis</div>
+                        <div
+                            style="background-color: white; color: black; padding: 2px 8px 2px 2px; display: flex; align-items: center;">
+                            mac<sup style="font-size: 0.45em; margin-top: -12px; margin-left: 1px;">®</sup></div>
+                    </div>
                 </div>
             </div>
+
         </header>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- View: Dashboard -->
-            <div id="view-dashboard" class="main-content-view">
-                <div class="dashboard-container">
-                    <div class="welcome-section">
-                        <h1 class="welcome-title">Bienvenido</h1>
-                        <p class="welcome-subtitle">Sistema de Gestión de Servicio Técnico</p>
+        <main class="main-content" id="view-dashboard">
+            <section class="welcome-section">
+                <h2>¿Qué necesitas hoy?</h2>
+                <p>Selecciona una opción para continuar.</p>
+            </section>
+            <div class="dashboard-grid" style="grid-template-columns: 1fr;">
+                <button class="dash-card" data-action="open-red-talleres"
+                    style="height: auto; min-height: 120px; display: flex; align-items: center; gap: 1rem; padding: 1.5rem;">
+                    <div class="card-icon-wrapper"
+                        style="width: 65px; height: 65px; flex-shrink: 0; border-radius: 12px; overflow: hidden;">
+                        <img src="mapa-talleres.png" style="width: 100%; height: 100%; object-fit: cover;">
                     </div>
-
-                    <div class="options-grid">
-                        <button data-action="open-red-talleres" class="option-card">
-                            <div class="option-icon">
-                                <i class="bi bi-shop"></i>
-                            </div>
-                            <h2 class="option-title">Red de Talleres</h2>
-                            <p class="option-description">Contactos regionales y ubicaciones</p>
-                            <div class="option-arrow">
-                                <i class="bi bi-chevron-right"></i>
-                            </div>
-                        </button>
-
-                        <button data-action="open-estados-servicio" class="option-card">
-                            <div class="option-icon">
-                                <i class="bi bi-clipboard-check"></i>
-                            </div>
-                            <h2 class="option-title">Estados de Servicio</h2>
-                            <p class="option-description">Seguimiento de órdenes de trabajo</p>
-                            <div class="option-arrow">
-                                <i class="bi bi-chevron-right"></i>
-                            </div>
-                        </button>
+                    <div style="text-align: left; flex: 1;">
+                        <span class="card-title" style="display: block; font-size: 1.2rem; margin-bottom: 0.3rem;">Red
+                            de Talleres</span>
+                        <span class="card-subtitle" style="font-size: 0.85rem; color: #666;">Contactos regionales</span>
                     </div>
-                </div>
-            </div>
-
-            <!-- View: Red de Talleres Menu -->
-            <div id="view-red-talleres" class="main-content-view hidden">
-                <div class="view-header">
-                    <h2>Red de Talleres</h2>
-                    <p>Selecciona una región para ver los talleres disponibles</p>
-                </div>
-
-                <div class="regions-grid">
-                    <button data-action="view-tarija" class="region-card">
-                        <span class="region-name">Tarija</span>
-                        <i class="bi bi-chevron-right"></i>
-                    </button>
-                    <button data-action="view-sucre" class="region-card">
-                        <span class="region-name">Sucre</span>
-                        <i class="bi bi-chevron-right"></i>
-                    </button>
-                    <button data-action="view-santacruz" class="region-card">
-                        <span class="region-name">Santa Cruz</span>
-                        <i class="bi bi-chevron-right"></i>
-                    </button>
-                </div>
-
-                <div class="action-section">
-                    <button data-action="view-protocolo" class="protocol-card">
-                        <div class="protocol-icon">
-                            <i class="bi bi-file-earmark-text"></i>
-                        </div>
-                        <div class="protocol-content">
-                            <h3>Protocolo de Recepción</h3>
-                            <p>Procedimientos y pasos a seguir</p>
-                        </div>
-                        <i class="bi bi-chevron-right"></i>
-                    </button>
-                </div>
-
-                <button id="btn-back-red-talleres" class="btn-back">
-                    <i class="bi bi-arrow-left"></i> Volver
+                    <i class="bi bi-chevron-right"></i>
                 </button>
-            </div>
 
-            <!-- View: Estados de Servicio Menu -->
-            <div id="view-estados-menu" class="main-content-view hidden">
-                <div class="view-header">
-                    <h2>Estados de Servicio</h2>
-                    <p>Selecciona una región para consultar órdenes</p>
-                </div>
-
-                <div class="regions-grid">
-                    <button data-action="view-estados-tarija" class="region-card">
-                        <span class="region-name">Tarija</span>
-                        <i class="bi bi-chevron-right"></i>
-                    </button>
-                    <button data-action="view-estados-sucre" class="region-card">
-                        <span class="region-name">Sucre</span>
-                        <i class="bi bi-chevron-right"></i>
-                    </button>
-                    <button data-action="view-estados-municipios" class="region-card">
-                        <span class="region-name">Municipios (SC)</span>
-                        <i class="bi bi-chevron-right"></i>
-                    </button>
-                    <button data-action="view-estados-oruro" class="region-card">
-                        <span class="region-name">Oruro</span>
-                        <i class="bi bi-chevron-right"></i>
-                    </button>
-                    <button data-action="view-estados-beni" class="region-card">
-                        <span class="region-name">Beni</span>
-                        <i class="bi bi-chevron-right"></i>
-                    </button>
-                    <button data-action="view-estados-potosi" class="region-card">
-                        <span class="region-name">Potosí</span>
-                        <i class="bi bi-chevron-right"></i>
-                    </button>
-                </div>
-
-                <button id="btn-back-estados-menu" class="btn-back">
-                    <i class="bi bi-arrow-left"></i> Volver
-                </button>
-            </div>
-
-            <!-- View: Talleres Details -->
-            <div id="view-details" class="main-content-view hidden">
-                <div class="details-header">
-                    <button id="btn-back" class="btn-back-header">
-                        <i class="bi bi-arrow-left"></i>
-                    </button>
-                    <h2 id="view-title">Detalles</h2>
-                    <div class="search-box">
-                        <i class="bi bi-search"></i>
-                        <input 
-                            type="text" 
-                            id="workshop-search-input" 
-                            placeholder="Buscar taller..."
-                            class="search-input"
-                        >
+                <button class="dash-card" data-action="open-estados-servicio"
+                    style="height: auto; min-height: 120px; display: flex; align-items: center; gap: 1rem; padding: 1.5rem;">
+                    <div class="card-icon-wrapper"
+                        style="width: 65px; height: 65px; flex-shrink: 0; border-radius: 12px; overflow: hidden;">
+                        <img src="icono-servicio-tecnico.png" style="width: 100%; height: 100%; object-fit: cover;">
                     </div>
-                </div>
-
-                <div id="view-content" class="view-content"></div>
-
-                <button id="btn-back" class="btn-back">
-                    <i class="bi bi-arrow-left"></i> Volver
-                </button>
-            </div>
-
-            <!-- View: Estados de Servicio -->
-            <div id="view-estados-servicio" class="main-content-view hidden">
-                <div class="estados-header">
-                    <button id="btn-back-estados-header" class="btn-back-header">
-                        <i class="bi bi-arrow-left"></i>
-                    </button>
-                    <h2 id="view-estados-title">Órdenes</h2>
-                    <div class="search-box">
-                        <i class="bi bi-search"></i>
-                        <input 
-                            type="text" 
-                            id="estados-search-input" 
-                            placeholder="Buscar orden..."
-                            class="search-input"
-                        >
+                    <div style="text-align: left; flex: 1;">
+                        <span class="card-title"
+                            style="display: block; font-size: 1.2rem; margin-bottom: 0.3rem;">Estados de Servicio</span>
+                        <span class="card-subtitle" style="font-size: 0.85rem; color: #666;">Seguimiento de
+                            órdenes</span>
                     </div>
-                </div>
-
-                <div id="estados-content" class="view-content"></div>
-
-                <button id="btn-back-estados-list" class="btn-back">
-                    <i class="bi bi-arrow-left"></i> Volver
+                    <i class="bi bi-chevron-right"></i>
                 </button>
             </div>
         </main>
 
-        <!-- Loading Indicator -->
-        <div id="loading-overlay" class="loading-overlay">
-            <div class="spinner"></div>
-            <p>Cargando datos...</p>
+        <main class="main-content hidden" id="view-red-talleres">
+            <div class="view-header">
+                <button class="btn-back" id="btn-back-red-talleres"><i class="bi bi-arrow-left"></i> Volver</button>
+                <h2>Regiones</h2>
+            </div>
+            <div class="dashboard-grid">
+                <button class="dash-card" data-action="view-tarija"><span class="card-title">Tarija</span></button>
+                <button class="dash-card" data-action="view-sucre"><span class="card-title">Sucre</span></button>
+                <button class="dash-card" data-action="view-santacruz"><span class="card-title">Santa
+                        Cruz</span></button>
+                <button class="dash-card" data-action="view-protocolo"><span class="card-title">Protocolo de
+                        recepción</span></button>
+            </div>
+        </main>
+
+        <main class="main-content hidden" id="view-estados-menu">
+            <div class="view-header">
+                <button class="btn-back" id="btn-back-estados-menu"><i class="bi bi-arrow-left"></i> Volver</button>
+                <h2>Órdenes</h2>
+            </div>
+            <div class="dashboard-grid">
+                <button class="dash-card" data-action="view-estados-tarija"><span
+                        class="card-title">Tarija</span></button>
+                <button class="dash-card" data-action="view-estados-sucre"><span
+                        class="card-title">Sucre</span></button>
+                <button class="dash-card" data-action="view-estados-municipios"><span
+                        class="card-title">Municipios</span></button>
+                <button class="dash-card" data-action="view-estados-oruro"><span
+                        class="card-title">Oruro</span></button>
+                <button class="dash-card" data-action="view-estados-beni"><span class="card-title">Beni</span></button>
+                <button class="dash-card" data-action="view-estados-potosi"><span
+                        class="card-title">Potosí</span></button>
+            </div>
+        </main>
+
+        <main class="main-content hidden" id="view-estados-servicio">
+            <div class="view-header">
+                <button class="btn-back" id="btn-back-estados-list"><i class="bi bi-arrow-left"></i> Volver</button>
+                <h2 id="view-estados-title">Órdenes</h2>
+            </div>
+            <div id="estados-search-container" style="padding: 0 10px 10px 10px;">
+                <input type="text" id="estados-search-input" placeholder="Buscar por ODT, cliente o producto..."
+                    style="width:100%;padding:10px 15px;border-radius:10px;border:1px solid #ddd;font-family:'Outfit',sans-serif;">
+            </div>
+            <div id="estados-loading" class="hidden" style="text-align: center; padding: 2rem;">
+                <div class="spinner"></div>
+                <p>Cargando datos...</p>
+            </div>
+            <div id="estados-content" style="padding: 10px;"></div>
+        </main>
+
+        <main class="main-content hidden" id="view-details">
+            <div class="view-header">
+                <button class="btn-back" id="btn-back"><i class="bi bi-arrow-left"></i> Volver</button>
+                <h2 id="view-title">Resultados</h2>
+            </div>
+            <div id="workshop-search-container" style="padding: 0 10px 10px 10px;">
+                <input type="text" id="workshop-search-input" placeholder="Buscar por taller o marca..."
+                    style="width:100%;padding:10px 15px;border-radius:10px;border:1px solid #ddd;font-family:'Outfit',sans-serif;">
+            </div>
+            <div id="view-content" style="padding: 10px;"></div>
+        </main>
+
+        <div id="sync-status" class="sync-bar hidden">
+            <span id="sync-status-text"><i class="bi bi-exclamation-triangle" style="margin-right:8px;"></i> Fallo de
+                conexión</span>
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <!-- <script src="data.js"></script> -->
+    <script src="app.js?v=15"></script>
 </body>
+
 </html>
