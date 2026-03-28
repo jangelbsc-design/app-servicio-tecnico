@@ -16,6 +16,17 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
+    <script type="module">
+        import firebaseConfig from './firebase-config.js';
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        window.firebaseConfig = firebaseConfig;
+    </script>
+    <script type="module">
+        import stitchService from './stitch-service.js';
+        stitchService.init();
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         .hidden {
@@ -91,17 +102,9 @@
 
         <main class="main-content" id="view-dashboard">
             <section class="welcome-section">
-                <h2>¡Hola!</h2>
-                <p>¿Cómo podemos ayudarte?</p>
+                <h2>¿Qué necesitas hoy?</h2>
+                <p>Selecciona una opción para continuar.</p>
             </section>
-
-            <!-- Buscador Global -->
-            <div id="dashboard-search-container" style="padding: 0 10px 15px 10px; margin-bottom: 0.5rem;">
-                <input type="text" id="dashboard-search-input" placeholder="Buscar servicios o talleres..."
-                    style="width:100%;padding:12px 15px;border-radius:12px;border:1px solid #ddd;font-family:'Outfit',sans-serif;font-size:0.95rem;">
-            </div>
-
-            <!-- Tarjetas Principales -->
             <div class="dashboard-grid" style="grid-template-columns: 1fr;">
                 <button class="dash-card" data-action="open-red-talleres"
                     style="height: auto; min-height: 120px; display: flex; align-items: center; gap: 1rem; padding: 1.5rem;">
@@ -132,85 +135,7 @@
                     <i class="bi bi-chevron-right"></i>
                 </button>
             </div>
-
-            <!-- Preguntas Frecuentes -->
-            <section style="margin-top: 2rem;">
-                <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; color: #111;">Preguntas Frecuentes</h3>
-                
-                <!-- Pregunta 1: Garantía -->
-                <div class="accordion-item" style="margin-bottom: 0.75rem;">
-                    <button class="accordion-header" onclick="this.parentElement.classList.toggle('active')" style="text-decoration: underline; text-decoration-color: #E31837; text-decoration-thickness: 2px;">
-                        <span class="acc-title">¿Cómo funciona la garantía?</span>
-                        <i class="bi bi-chevron-right acc-arrow"></i>
-                    </button>
-                    <div class="accordion-content" style="padding: 1rem; font-size: 0.85rem; line-height: 1.6; color: #555;">
-                        <p><strong>Durante el período de validez de la garantía:</strong></p>
-                        <p>Si su producto presenta fallas atribuibles a defectos de fabricación, su equipo será revisado y reparado gratuitamente, incluyendo mano de obra y repuestos.</p>
-                        
-                        <p><strong>Para las marcas Cónsul, Whirlpool, Kernig y Mueller:</strong> Por cargo de DISMATEC S.A., a través de sus servicios técnicos autorizados.</p>
-                        
-                        <p><strong>Línea gratuita:</strong> 800 10 2000</p>
-
-                        <p style="margin-top: 1rem; font-weight: 700; color: #E31837;">La garantía NO cubre:</p>
-                        <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
-                            <li>Producto sin número de serie o con número alterado</li>
-                            <li>Daños por instalación o mantenimiento incorrecto</li>
-                            <li>Mal uso o uso incorrecto del producto</li>
-                            <li>Voltaje inadecuado o instalaciones eléctricas defectuosas</li>
-                            <li>Modificaciones a enchufes o adaptadores no garantizados</li>
-                            <li>Corrosión por líquidos, humedad, polvo, oxidación o salinidad</li>
-                            <li>Objetos extraños introducidos (monedas, botones, etc.)</li>
-                            <li>Daños por limpiadores químicos o abrasivos inadecuados</li>
-                            <li>Daños por roedores, insectos o animales</li>
-                            <li>Daños estéticos (vidrio, porcelana, plásticos, pintura)</li>
-                            <li>Piezas consumibles (baterías, control remoto, cintas, filtros, bombillos)</li>
-                            <li>Daños por golpes, caídas, rayaduras o descoloramiento</li>
-                            <li>Intervención por personal no autorizado</li>
-                            <li>Daños por fuerza mayor (accidente, inundación, terremoto, incendio)</li>
-                            <li>Gastos de flete o manipulación no autorizada</li>
-                            <li>Gastos de revisiones en instalaciones eléctricas, agua, gas, etc.</li>
-                            <li>Desgaste normal del producto y garantía expirada</li>
-                        </ul>
-                        <p style="margin-top: 1rem; font-weight: 700; color: #E31837;">⚠️ NOTA IMPORTANTE:</p>
-                        <p>La garantía queda sin efecto si el producto es manipulado por personal no autorizado por DISMATEC S.A.</p>
-                    </div>
-                </div>
-
-                <!-- Pregunta 2: Protocolo -->
-                <div class="accordion-item">
-                    <button class="accordion-header" onclick="this.parentElement.classList.toggle('active')" style="text-decoration: underline; text-decoration-color: #E31837; text-decoration-thickness: 2px;">
-                        <span class="acc-title">Protocolo de recepción</span>
-                        <i class="bi bi-chevron-right acc-arrow"></i>
-                    </button>
-                    <div class="accordion-content" id="faq-protocolo-content" style="padding: 1rem; font-size: 0.85rem; line-height: 1.6; color: #555;">
-                        <!-- Se llena dinámicamente con app.js -->
-                    </div>
-                </div>
-            </section>
-
-            <!-- Contacto Rápido -->
-            <section style="margin-top: 2rem; margin-bottom: 5rem;">
-                <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; color: #111;">Contacto Rápido</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <a href="https://wa.me/59175010500" target="_blank" class="btn-quick-contact" style="background-color: #25d366; color: white;">
-                        <i class="bi bi-whatsapp" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
-                        <span style="font-weight: 600; font-size: 0.9rem;">WhatsApp</span>
-                    </a>
-                    <a href="tel:800102000" class="btn-quick-contact" style="background-color: #E31837; color: white;">
-                        <i class="bi bi-telephone-fill" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
-                        <span style="font-weight: 600; font-size: 0.9rem;">Llamar</span>
-                    </a>
-                </div>
-            </section>
         </main>
-
-        <!-- Bottom Navigation -->
-        <nav class="bottom-nav">
-            <button class="bottom-nav-item active" onclick="document.getElementById('dismac-logo-btn').click();">
-                <i class="bi bi-house-fill"></i>
-                <span>Inicio</span>
-            </button>
-        </nav>
 
         <main class="main-content hidden" id="view-red-talleres">
             <div class="view-header">
@@ -281,7 +206,8 @@
         </div>
     </div>
 
-    <script src="app.js?v=16"></script>
+    <!-- <script src="data.js"></script> -->
+    <script src="app.js?v=15"></script>
 </body>
 
 </html>
