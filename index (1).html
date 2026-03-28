@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Soporte Dismac</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="style.css?v=14">
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
+    <script type="module">
+        import firebaseConfig from './firebase-config.js';
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        window.firebaseConfig = firebaseConfig;
+    </script>
+    <script type="module">
+        import stitchService from './stitch-service.js';
+        stitchService.init();
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <style>
+        /* ═══════════════════════════════════════════════════
+           DESIGN TOKENS — "Architectural Concierge" System
+           Based on DESIGN.md spec
+           ═══════════════════════════════════════════════════ */
+        :root {
+            --primary:           #b90015;
+            --primary-ctr:       #e21e26;
+            --primary-grad:      linear-gradient(135deg, #b90015 0%, #e21e26 100%);
+            --on-primary:        #ffffff;
+
+            /* Surface tiers — no explicit 1px borders, depth via tonal shift */
+            --surface:           #f9f9fb;
+            --surface-low:       #f3f3f5;
+            --surface-lowest:    #ffffff;
+            --surface-dim:       #eaebee;
+
+            /* Text */
+            --on-surface:        #1a1c1d;
+            --secondary:         #5f5e5e;
+            --ghost:             rgba(26,28,29,0.09);
+
+            --font: 'Inter', sans-serif;
+
+            --r-sm:  0.5rem;
+            --r-md:  0.875rem;
+            --r-lg:  1.25rem;
+            --r-xl:  1.5rem;
+            --r-2xl: 1.75rem;
+
+            --sh-card:  0 2px 10px rgba(26,28,29,0.055);
+            --sh-hover: 0 20px 40px rgba(26,28,29,0.09);
+            --sh-cta:   0 8px 28px rgba(185,0,21,0.30);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: var(--font);
+            background: var(--surface);
+            color: var(--on-surface);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── APP SHELL ──────────────────────────────────── */
+        .app-shell {
+            width: 100%; max-width: 480px; min-height: 100vh;
+            background: var(--surface);
+            display: flex; flex-direction: column;
+            padding-bottom: 80px;
+        }
+        @supports (padding-bottom: env(safe-area-inset-bottom)) {
+            .app-shell  { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+            .bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
+        }
+        .hidden { display: none !important; }
+
+        /* ── TOP BAR ────────────────────────────────────── */
+        .top-bar {
+            position: sticky; top: 0; z-index: 100;
+            padding: 14px 22px 12px;
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(249,249,251,0.85);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 1px 0 var(--ghost);
+        }
+        .top-bar-label {
+            font-size: 0.68rem; font-weight: 700;
+            letter-spacing: 0.14em; text-transform: uppercase;
+            color: var(--secondary);
+        }
+
+        /* ── DISMAC LOGO (faithful to brand image) ──────── */
+        .logo-pill {
+            display: flex; align-items: stretch;
+            border-radius: 10px; overflow: hidden;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.16);
+            cursor: pointer; height: 36px;
+        }
+        .lp-r {
+            background: var(--primary-ctr); color: #fff;
+            font-family: var(--font); font-size: 1.12rem; font-weight: 900;
+            padding: 0 5px 0 10px;
+            display: flex; align-items: center; letter-spacing: -0.5px;
+        }
+        .lp-w {
+            background: #fff; color: var(--on-surface);
+            font-family: var(--font); font-size: 1.12rem; font-weight: 900;
+            padding: 0 10px 0 4px;
+            display: flex; align-items: flex-end; letter-spacing: -0.5px;
+            padding-bottom: 4px;
+        }
+        .lp-w sup { font-size: 0.36em; margin-bottom: 7px; margin-left: 1px; color: var(--secondary); font-weight: 400; }
+
+        /* ── SCROLL AREA ────────────────────────────────── */
+        .scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+        /* ── VIEW ANIMATION ─────────────────────────────── */
+        .view { animation: fadeUp 0.26s ease both; }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+        /* ══════════════════════════════════════════════════
+           DASHBOARD
+           ══════════════════════════════════════════════════ */
+        .greeting { padding: 32px 22px 22px; }
+        .greeting-eyebrow { font-size: 0.82rem; font-weight: 500; color: var(--secondary); margin-bottom: 6px; }
+        .greeting-h1 {
+            font-size: 2rem; font-weight: 800; line-height: 1.12;
+            color: var(--on-surface); letter-spacing: -0.035em;
+        }
+        .greeting-h1 em { font-style: normal; color: var(--primary-ctr); }
+
+        /* Search */
+        .search-wrap { padding: 0 22px 28px; }
+        .search-field {
+            display: flex; align-items: center; gap: 10px;
+            background: var(--surface-low);
+            border-radius: var(--r-lg); padding: 13px 18px;
+            transition: box-shadow 0.2s, background 0.2s;
+        }
+        .search-field:focus-within {
+            background: var(--surface-lowest);
+            box-shadow: 0 0 0 2px var(--primary-ctr), var(--sh-card);
+        }
+        .search-field i { color: var(--secondary); font-size: 1rem; flex-shrink: 0; }
+        .search-field input {
+            flex: 1; border: none; outline: none; background: transparent;
+            font-family: var(--font); font-size: 0.95rem; color: var(--on-surface);
+        }
+        .search-field input::placeholder { color: #adadad; }
+
+        /* Section label */
+        .sec-lbl {
+            font-size: 0.68rem; font-weight: 700;
+            letter-spacing: 0.12em; text-transform: uppercase;
+            color: var(--secondary); padding: 0 22px; margin-bottom: 14px;
+        }
+
+        /* Main cards */
+        .cards-stack { display: flex; flex-direction: column; gap: 10px; padding: 0 22px; margin-bottom: 34px; }
+
+        .main-card {
+            display: flex; align-items: center; gap: 16px;
+            background: var(--surface-lowest);
+            border-radius: var(--r-2xl); padding: 18px;
+            cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: var(--sh-card); border: none;
+            outline: 1px solid var(--ghost);
+            text-align: left; width: 100%;
+        }
+        .main-card:hover { transform: translateY(-3px); box-shadow: var(--sh-hover); }
+        .main-card:active { transform: translateY(0); }
+
+        .cimg {
+            width: 62px; height: 62px; border-radius: var(--r-lg);
+            overflow: hidden; flex-shrink: 0;
+            background: var(--surface-low);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .cimg img { width: 100%; height: 100%; object-fit: cover; }
+        .cimg .ci { font-size: 1.7rem; color: var(--primary-ctr); }
+
+        .cbody { flex: 1; min-width: 0; }
+        .ctitle { display: block; font-size: 1.05rem; font-weight: 700; color: var(--on-surface); margin-bottom: 3px; letter-spacing: -0.01em; }
+        .csub   { font-size: 0.8rem; color: var(--secondary); }
+
+        .cchev { color: #c4cad4; font-size: 1.15rem; flex-shrink: 0; transition: color 0.18s, transform 0.18s; }
+        .main-card:hover .cchev { color: var(--primary); transform: translateX(3px); }
+
+        /* ── FAQ ──────────────────────────────────────────── */
+        .faq-wrap { margin-bottom: 30px; }
+        .faq-list { padding: 0 22px; }
+        .faq-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 15px 0; cursor: pointer;
+        }
+        .faq-row + .faq-row { border-top: 1px solid var(--surface-dim); }
+        .faq-lbl {
+            font-size: 0.92rem; font-weight: 500; color: var(--on-surface);
+            text-decoration: underline; text-decoration-color: transparent;
+            transition: color 0.15s, text-decoration-color 0.2s;
+        }
+        .faq-row:hover .faq-lbl { color: var(--primary); text-decoration-color: var(--primary); }
+        .faq-chev { color: #c4cad4; font-size: 0.9rem; }
+
+        /* ── CONTACTO RÁPIDO ──────────────────────────────── */
+        .contacto-wrap { padding: 0 22px 4px; margin-bottom: 20px; }
+        .contacto-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+
+        .btn-cta {
+            display: flex; align-items: center; justify-content: center; gap: 9px;
+            padding: 15px 10px; border-radius: var(--r-xl);
+            font-family: var(--font); font-size: 1rem; font-weight: 700;
+            border: none; cursor: pointer; text-decoration: none;
+            transition: transform 0.18s, box-shadow 0.18s, filter 0.15s;
+            letter-spacing: -0.01em;
+        }
+        .btn-cta:hover { transform: translateY(-2px); filter: brightness(1.07); }
+        .btn-cta:active { transform: scale(0.97); }
+        .btn-cta.wa, .btn-cta.call {
+            background: var(--primary-grad);
+            color: var(--on-primary);
+            box-shadow: var(--sh-cta);
+        }
+        .btn-cta i { font-size: 1.15rem; }
+
+        /* ══════════════════════════════════════════════════
+           SUB-VIEW SHARED
+           ══════════════════════════════════════════════════ */
+        .view-hdr { display: flex; align-items: center; gap: 12px; padding: 20px 22px 16px; }
+        .btn-back {
+            background: var(--surface-lowest); border: none;
+            outline: 1px solid var(--ghost);
+            padding: 8px 14px; border-radius: var(--r-md);
+            font-family: var(--font); font-size: 0.83rem; font-weight: 600;
+            color: var(--on-surface); cursor: pointer;
+            display: flex; align-items: center; gap: 6px;
+            box-shadow: var(--sh-card); transition: background 0.15s;
+        }
+        .btn-back:hover { background: var(--surface-dim); }
+        .view-hdr h2 { font-size: 1.3rem; font-weight: 800; color: var(--on-surface); flex: 1; letter-spacing: -0.02em; }
+
+        /* Region / Estado grids */
+        .rg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 22px; }
+        .rg-card {
+            background: var(--surface-lowest); border: none;
+            outline: 1px solid var(--ghost);
+            border-radius: var(--r-lg); padding: 22px 14px 18px;
+            cursor: pointer; transition: transform 0.18s, box-shadow 0.18s;
+            text-align: center; box-shadow: var(--sh-card); font-family: var(--font);
+        }
+        .rg-card:hover { transform: translateY(-3px); box-shadow: var(--sh-hover); }
+        .rg-icon  { font-size: 1.6rem; display: block; margin-bottom: 8px; }
+        .rg-title { font-size: 0.95rem; font-weight: 700; color: var(--on-surface); }
+
+        /* Inline sub-search */
+        .sub-search { padding: 0 22px 16px; }
+        .sub-search input {
+            width: 100%; padding: 12px 16px; border: none; outline: none;
+            border-radius: var(--r-lg); font-family: var(--font);
+            font-size: 0.92rem; background: var(--surface-low); color: var(--on-surface);
+            transition: box-shadow 0.2s, background 0.2s;
+        }
+        .sub-search input:focus { background: var(--surface-lowest); box-shadow: 0 0 0 2px var(--primary-ctr); }
+
+        #view-content, #estados-content { padding: 0 22px 10px; }
+
+        /* Spinner */
+        .spinner {
+            width: 34px; height: 34px;
+            border: 3px solid var(--surface-dim); border-top-color: var(--primary);
+            border-radius: 50%; display: inline-block;
+            animation: spin 0.85s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ══════════════════════════════════════════════════
+           BOTTOM NAV — Glassmorphism, 4 tabs
+           ══════════════════════════════════════════════════ */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 100%; max-width: 480px;
+            display: flex;
+            background: rgba(249,249,251,0.90);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 -8px 24px rgba(26,28,29,0.07), 0 -1px 0 var(--ghost);
+            z-index: 200;
+        }
+        .nav-btn {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 10px 4px 8px; gap: 4px;
+            border: none; background: transparent; font-family: var(--font);
+            font-size: 0.58rem; font-weight: 600; color: var(--secondary);
+            cursor: pointer; letter-spacing: 0.06em; text-transform: uppercase;
+            transition: color 0.15s; position: relative;
+        }
+        .nav-btn i { font-size: 1.25rem; transition: transform 0.2s; }
+        .nav-btn:hover i { transform: translateY(-1px); }
+        .nav-btn.active { color: var(--primary); }
+        .nav-btn.active::after {
+            content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+            width: 28px; height: 3px; background: var(--primary);
+            border-radius: 0 0 4px 4px;
+        }
+
+        /* Sync bar */
+        .sync-bar {
+            position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%);
+            width: calc(100% - 44px); max-width: 436px;
+            background: #fff0f2; outline: 1px solid rgba(185,0,21,0.14);
+            color: var(--primary); padding: 10px 16px; border-radius: var(--r-md);
+            font-size: 0.82rem; font-weight: 500;
+            display: flex; align-items: center; gap: 8px;
+            z-index: 150; box-shadow: var(--sh-card);
+        }
+    </style>
+</head>
+
+<body>
+<div class="app-shell">
+
+    <!-- TOP BAR -->
+    <header class="top-bar">
+        <span class="top-bar-label">DISMATEC</span>
+        <div class="logo-pill" id="dismac-logo-btn">
+            <div class="lp-r">dis</div>
+            <div class="lp-w">mac<sup>®</sup></div>
+        </div>
+    </header>
+
+    <div class="scroll-area">
+
+        <!-- ══ DASHBOARD ═══════════════════════════════════ -->
+        <section class="view" id="view-dashboard">
+
+            <div class="greeting">
+                <p class="greeting-eyebrow">¡Hola! 👋</p>
+                <h1 class="greeting-h1">¿Cómo podemos<br><em>ayudarte?</em></h1>
+            </div>
+
+            <div class="search-wrap">
+                <div class="search-field">
+                    <i class="bi bi-search"></i>
+                    <input id="global-search-input" type="text" placeholder="Buscar servicios o talleres…" autocomplete="off">
+                </div>
+            </div>
+
+            <p class="sec-lbl">Servicios</p>
+            <div class="cards-stack">
+                <button class="main-card" data-action="open-red-talleres">
+                    <div class="cimg">
+                        <img src="mapa-talleres.png" alt=""
+                             onerror="this.outerHTML='<i class=\'bi bi-geo-alt-fill ci\'></i>'">
+                    </div>
+                    <div class="cbody">
+                        <span class="ctitle">Red de Talleres</span>
+                        <span class="csub">Contactos regionales</span>
+                    </div>
+                    <i class="bi bi-chevron-right cchev"></i>
+                </button>
+
+                <button class="main-card" data-action="open-estados-servicio">
+                    <div class="cimg">
+                        <img src="icono-servicio-tecnico.png" alt=""
+                             onerror="this.outerHTML='<i class=\'bi bi-clipboard2-check-fill ci\'></i>'">
+                    </div>
+                    <div class="cbody">
+                        <span class="ctitle">Estados de Servicio</span>
+                        <span class="csub">Seguimiento de órdenes</span>
+                    </div>
+                    <i class="bi bi-chevron-right cchev"></i>
+                </button>
+            </div>
+
+            <!-- Preguntas Frecuentes -->
+            <p class="sec-lbl">Preguntas Frecuentes</p>
+            <div class="faq-wrap">
+                <div class="faq-list">
+                    <div class="faq-row" data-faq="protocolo">
+                        <span class="faq-lbl">¿Cómo funciona la garantía?</span>
+                        <i class="bi bi-chevron-right faq-chev"></i>
+                    </div>
+                    <div class="faq-row" data-faq="protocolo">
+                        <span class="faq-lbl">Tiempos de reparación</span>
+                        <i class="bi bi-chevron-right faq-chev"></i>
+                    </div>
+                    <div class="faq-row" data-faq="protocolo">
+                        <span class="faq-lbl">Protocolo de recepción</span>
+                        <i class="bi bi-chevron-right faq-chev"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contacto Rápido -->
+            <div class="contacto-wrap">
+                <p class="sec-lbl" style="padding:0; margin-bottom:0;">Contacto Rápido</p>
+                <div class="contacto-btns">
+                    <a href="https://wa.me/59180010200" target="_blank" class="btn-cta wa">
+                        <i class="bi bi-whatsapp"></i> WhatsApp
+                    </a>
+                    <a href="tel:80010200" class="btn-cta call">
+                        <i class="bi bi-telephone-fill"></i> Llamar
+                    </a>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ══ RED DE TALLERES ══════════════════════════════ -->
+        <section class="view hidden" id="view-red-talleres">
+            <div class="view-hdr">
+                <button class="btn-back" id="btn-back-red-talleres"><i class="bi bi-arrow-left"></i> Volver</button>
+                <h2>Regiones</h2>
+            </div>
+            <div class="rg-grid">
+                <button class="rg-card" data-action="view-tarija"><span class="rg-icon">🏔️</span><span class="rg-title">Tarija</span></button>
+                <button class="rg-card" data-action="view-sucre"><span class="rg-icon">🏛️</span><span class="rg-title">Sucre</span></button>
+                <button class="rg-card" data-action="view-santacruz"><span class="rg-icon">🌿</span><span class="rg-title">Santa Cruz</span></button>
+                <button class="rg-card" data-action="view-protocolo"><span class="rg-icon">📋</span><span class="rg-title">Protocolo</span></button>
+            </div>
+        </section>
+
+        <!-- ══ ESTADOS MENU ═════════════════════════════════ -->
+        <section class="view hidden" id="view-estados-menu">
+            <div class="view-hdr">
+                <button class="btn-back" id="btn-back-estados-menu"><i class="bi bi-arrow-left"></i> Volver</button>
+                <h2>Órdenes</h2>
+            </div>
+            <div class="rg-grid">
+                <button class="rg-card" data-action="view-estados-tarija"><span class="rg-icon">🏔️</span><span class="rg-title">Tarija</span></button>
+                <button class="rg-card" data-action="view-estados-sucre"><span class="rg-icon">🏛️</span><span class="rg-title">Sucre</span></button>
+                <button class="rg-card" data-action="view-estados-municipios"><span class="rg-icon">🌿</span><span class="rg-title">Municipios</span></button>
+                <button class="rg-card" data-action="view-estados-oruro"><span class="rg-icon">⛰️</span><span class="rg-title">Oruro</span></button>
+                <button class="rg-card" data-action="view-estados-beni"><span class="rg-icon">🌊</span><span class="rg-title">Beni</span></button>
+                <button class="rg-card" data-action="view-estados-potosi"><span class="rg-icon">⛏️</span><span class="rg-title">Potosí</span></button>
+            </div>
+        </section>
+
+        <!-- ══ ESTADOS LISTA ════════════════════════════════ -->
+        <section class="view hidden" id="view-estados-servicio">
+            <div class="view-hdr">
+                <button class="btn-back" id="btn-back-estados-list"><i class="bi bi-arrow-left"></i> Volver</button>
+                <h2 id="view-estados-title">Órdenes</h2>
+            </div>
+            <div class="sub-search">
+                <input type="text" id="estados-search-input" placeholder="Buscar por ODT, cliente o producto…">
+            </div>
+            <div id="estados-loading" class="hidden" style="text-align:center;padding:2rem;">
+                <div class="spinner"></div>
+                <p style="margin-top:14px;color:var(--secondary);font-size:0.88rem;">Cargando datos…</p>
+            </div>
+            <div id="estados-content"></div>
+        </section>
+
+        <!-- ══ TALLERES DETALLE ═════════════════════════════ -->
+        <section class="view hidden" id="view-details">
+            <div class="view-hdr">
+                <button class="btn-back" id="btn-back"><i class="bi bi-arrow-left"></i> Volver</button>
+                <h2 id="view-title">Resultados</h2>
+            </div>
+            <div class="sub-search">
+                <input type="text" id="workshop-search-input" placeholder="Buscar por taller o marca…">
+            </div>
+            <div id="view-content"></div>
+        </section>
+
+    </div><!-- /scroll-area -->
+
+    <div id="sync-status" class="sync-bar hidden">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span>Sin conexión — usando datos en caché</span>
+    </div>
+
+    <!-- BOTTOM NAV — 4 tabs -->
+    <nav class="bottom-nav">
+        <button class="nav-btn active" id="nav-inicio" onclick="navGo('inicio')">
+            <i class="bi bi-house-fill"></i>Inicio
+        </button>
+        <button class="nav-btn" id="nav-ordenes" onclick="navGo('ordenes')">
+            <i class="bi bi-clipboard2-check"></i>Órdenes
+        </button>
+        <button class="nav-btn" id="nav-talleres" onclick="navGo('talleres')">
+            <i class="bi bi-tools"></i>Talleres
+        </button>
+        <button class="nav-btn" id="nav-perfil" onclick="navGo('perfil')">
+            <i class="bi bi-person"></i>Perfil
+        </button>
+    </nav>
+
+</div>
+
+<script>
+    function _showView(el) {
+        document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+        if (el) el.classList.remove('hidden');
+    }
+
+    function navGo(tab) {
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        const btn = document.getElementById('nav-' + tab);
+        if (btn) btn.classList.add('active');
+        if (tab === 'inicio')   _showView(document.getElementById('view-dashboard'));
+        if (tab === 'talleres') _showView(document.getElementById('view-red-talleres'));
+        if (tab === 'ordenes')  _showView(document.getElementById('view-estados-menu'));
+        if (tab === 'perfil')   _showView(document.getElementById('view-dashboard'));
+    }
+
+    document.getElementById('dismac-logo-btn')?.addEventListener('click', () => navGo('inicio'));
+
+    // FAQ rows trigger protocolo view
+    document.querySelectorAll('[data-faq]').forEach(row => {
+        row.addEventListener('click', () => {
+            // Simulate clicking the protocolo button that app.js expects
+            const proto = document.querySelector('[data-action="view-protocolo"]');
+            if (proto) proto.click();
+        });
+    });
+
+    // Global search → pre-fill workshop search
+    document.getElementById('global-search-input')?.addEventListener('keydown', e => {
+        if (e.key !== 'Enter') return;
+        const q = e.target.value.trim();
+        if (!q) return;
+        navGo('talleres');
+        setTimeout(() => {
+            const ws = document.getElementById('workshop-search-input');
+            if (ws) { ws.value = q; ws.dispatchEvent(new Event('input')); }
+        }, 80);
+    });
+</script>
+<script src="app.js?v=15"></script>
+</body>
+</html>
