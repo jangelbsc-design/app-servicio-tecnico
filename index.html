@@ -12,7 +12,7 @@
     <title>Soporte Dismac</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="style.css?v=14">
+    <link rel="stylesheet" href="style.css?v=16">
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
@@ -76,9 +76,9 @@
 
 <body>
     <div class="app-container">
-        <header class="header" style="border-bottom: none; padding-bottom: 0; background: transparent;">
+        <header class="header" style="border-bottom: none; padding-bottom: 0; background: transparent; pointer-events: none;">
             <div class="header-content" style="display: flex; justify-content: flex-end; width: 100%;">
-                <div class="dismac-logo" id="dismac-logo-btn" style="cursor: pointer; display: flex; font-size: 1.6rem; font-weight: 900; letter-spacing: -1px; border-radius: 6px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin: 0;">
+                <div class="dismac-logo" id="dismac-logo-btn" style="cursor: pointer; display: flex; font-size: 1.6rem; font-weight: 900; letter-spacing: -1px; border-radius: 6px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin: 0; pointer-events: auto; background: white;">
                     <div style="background-color: #E31837; color: white; padding: 2px 4px 2px 8px; display: flex; align-items: center;">dis</div>
                     <div style="background-color: white; color: black; padding: 2px 8px 2px 2px; display: flex; align-items: center;">mac<sup style="font-size: 0.45em; margin-top: -12px; margin-left: 1px;">®</sup></div>
                 </div>
@@ -128,7 +128,7 @@
                 <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 1rem; color: #111;">Preguntas Frecuentes</h3>
                 
                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                    <button style="display: flex; justify-content: space-between; align-items: center; background: none; border: none; padding: 0.5rem 0; font-size: 1.05rem; font-family: inherit; cursor: pointer; color: #111; text-decoration: underline; text-underline-offset: 4px;">
+                    <button data-action="view-garantia" style="display: flex; justify-content: space-between; align-items: center; background: none; border: none; padding: 0.5rem 0; font-size: 1.05rem; font-family: inherit; cursor: pointer; color: #111; text-decoration: underline; text-underline-offset: 4px;">
                         <span>¿Cómo funciona la garantía?</span>
                         <i class="bi bi-chevron-right"></i>
                     </button>
@@ -218,7 +218,7 @@
     </div>
 
     <!-- <script src="data.js"></script> -->
-    <script src="app.js?v=16"></script>
+    <script src="app.js?v=17"></script>
 </body>
 
 </html>
