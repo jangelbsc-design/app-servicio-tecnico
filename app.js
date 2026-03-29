@@ -307,9 +307,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             case 'view-protocolo':
                 showProtocol();
                 break;
-            case 'view-garantia':
-                showGarantia();
-                break;
             case 'view-estados-tarija':
                 showRegionOrdenes('Tarija');
                 break;
@@ -655,79 +652,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         showView(viewDetails);
     }
 
-    function showGarantia() {
-        if (viewTitle) viewTitle.textContent = '¿Cómo funciona la garantía?';
-        const contentHtml = `
-            <div style="padding: 10px;">
-                <h3 style="text-align:center; font-size:1.4rem; font-weight:700; color:#111; margin-bottom:20px;">Términos de Garantía</h3>
-                
-                <!-- Cobertura -->
-                <div class="accordion-item" style="margin-bottom:12px; border-radius:12px; border:1px solid #e2e8f0; background:white; overflow:hidden;">
-                    <button class="accordion-header" style="width:100%; border:none; background:none; padding:15px; text-align:left; cursor:pointer;" onclick="this.parentElement.classList.toggle('active')">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div style="display:flex; align-items:center; gap:15px;">
-                                <div style="background:#dbeafe; color:#1e3a8a; width:35px; height:35px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0;"><i class="bi bi-shield-check"></i></div>
-                                <span style="font-weight:700; font-size:1.1rem; color:#111;">Cobertura de la Garantía</span>
-                            </div>
-                            <i class="bi bi-chevron-down acc-arrow" style="transition: transform 0.3s ease; color:#cbd5e1; font-size:1.2rem;"></i>
-                        </div>
-                    </button>
-                    <div class="accordion-content" style="padding:0 15px; max-height:0; overflow:hidden; transition: max-height 0.3s ease-out;">
-                        <div style="padding:15px 0; border-top:1px solid #f1f5f9; font-size:0.95rem; color:#111; line-height:1.6;">
-                            <p>Durante el periodo de validez de la garantía, si su producto presenta fallas atribuibles a defectos de fabricación, su equipo será revisado y reparado gratuitamente, incluyendo mano de obra y repuestos.</p>
-                            <p style="margin-top:10px;">Para las marcas <strong>Cónsul, Whirlpool, Kernig y Mueller</strong>: por cargo de DISMATEC S.A., a través de sus servicios técnicos autorizados. Para obtener información sobre el servicio técnico de DISMATEC S.A. o para otras marcas puede comunicarse a nuestra línea gratuita.</p>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Exclusiones -->
-                <div class="accordion-item active" style="margin-bottom:12px; border-radius:12px; border:1px solid #e2e8f0; background:white; overflow:hidden;">
-                    <button class="accordion-header" style="width:100%; border:none; background:none; padding:15px; text-align:left; cursor:pointer;" onclick="this.parentElement.classList.toggle('active')">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div style="display:flex; align-items:center; gap:15px;">
-                                <div style="background:#fee2e2; color:#991b1b; width:35px; height:35px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0;"><i class="bi bi-x-octagon"></i></div>
-                                <span style="font-weight:700; font-size:1.1rem; color:#111;">Exclusiones (No cubre)</span>
-                            </div>
-                            <i class="bi bi-chevron-down acc-arrow" style="transition: transform 0.3s ease; color:#cbd5e1; font-size:1.2rem;"></i>
-                        </div>
-                    </button>
-                    <div class="accordion-content" style="padding:0 15px; max-height:0; overflow:hidden; transition: max-height 0.3s ease-out;">
-                        <div style="padding:15px 0; border-top:1px solid #f1f5f9; font-size:0.9rem; color:#333; line-height:1.5;">
-                            <p style="margin-bottom:10px; font-weight:600;">Esta garantía sobre el bien garantizado no comprende:</p>
-                            <ul style="padding-left:20px; display:flex; flex-direction:column; gap:8px;">
-                                <li>Producto sin número de serie de fábrica o con el número de serie alterado.</li>
-                                <li>Daños por instalación o mantenimiento incorrecto, inapropiada y/o ilegal.</li>
-                                <li>Daños por mal uso, uso incorrecto, programación deficiente del producto, abuso del producto y cualquier otro uso fuera de su uso.</li>
-                                <li>Daños por voltaje inadecuado, instalaciones eléctricas defectuosas, fluctuaciones de la corriente eléctrica y/o descargas eléctricas atmosféricas.</li>
-                                <li>Modificaciones a enchufes o uso de adaptadores no garantizados.</li>
-                                <li>Corrosión o daños por exposición a líquidos, humedad, polvo, oxidación, salinidad, exposición solar, arena o cualquier otro similar que afecte el correcto funcionamiento e idoneidad del producto.</li>
-                                <li>Obstrucciones o daños por la introducción de objetos extraños (monedas, botones, balleneros de brasier, entre otros).</li>
-                                <li>Daños por uso de limpiadores químicos o abrasivos no fabricados, destinados y/o recomendados para la limpieza de electrodomésticos.</li>
-                                <li>Daños causados por roedores, insectos o animales.</li>
-                                <li>Daños a las partes estéticas del producto en vidrio, porcelana, partes plásticas, de hule/goma, pintura del gabinete, entre otras.</li>
-                                <li>Piezas/accesorios consumibles (Baterías, control remoto, cintas, partes eléctricas, gabinetes, antenas, mangueras, filtros, pilas, bombillos o lámparas de iluminación interna, etc).</li>
-                                <li>Daños por falta de cuidado o factores externos (golpes, caídas, rayaduras, raspones, descoloramiento, rupturas, entre otros).</li>
-                                <li>Daños por la intervención, desarme, adaptación e instalación de piezas o accesorios no genuinos ni autorizado por DISMACTEC S.A.</li>
-                                <li>Daños por fuerza mayor (accidente, inundación, terremoto, incendio, catástrofes naturales y entre otros).</li>
-                                <li>Daños por manipulación y/o transporte de técnicos y/o personal no autorizado por DISMATEC S.A.</li>
-                                <li>Gastos de flete/transporte sin autorización de DISMATEC S.A.</li>
-                                <li>Gastos a revisiones o reparaciones en las instalaciones eléctricas, de agua, drenaje, gas, tirajes de ventilación, etc.</li>
-                                <li>Desgaste normal del producto y garantía expirada.</li>
-                            </ul>
-                            <div style="margin-top:15px; padding:10px; background:#fef2f2; border-left:4px solid #ef4444; border-radius:4px;">
-                                <strong>NOTA IMPORTANTE:</strong> La garantía queda sin efecto si el producto es manipulado por personal no autorizado por DISMATEC S.A.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        if (viewContent) {
-            viewContent.innerHTML = contentHtml;
-        }
-        showView(viewDetails);
-    }
 
     function showView(view) {
         document.querySelectorAll('.main-content').forEach(v => v.classList.add('hidden'));
