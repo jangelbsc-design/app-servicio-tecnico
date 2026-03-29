@@ -280,6 +280,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log(`🧭 Action: ${action}`);
 
         switch (action) {
+            case 'go-home':
+                showView(viewDashboard);
+                break;
             case 'open-red-talleres':
                 showView(viewRedTalleres);
                 break;

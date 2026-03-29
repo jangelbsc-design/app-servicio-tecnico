@@ -623,3 +623,65 @@ body {
 .accordion-item.active .acc-arrow {
     transform: rotate(180deg);
 }
+
+/* --- Estilos unificados de Google Stitch UI --- */
+.stitch-card {
+    background: #ffffff !important;
+    border: none !important;
+    border-radius: 20px !important;
+    padding: 1.5rem !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06) !important;
+    gap: 1.25rem !important;
+}
+
+.stitch-card .override-icon {
+    width: 65px !important;
+    height: 65px !important;
+    border-radius: 14px !important;
+}
+
+.stitch-card .card-title {
+    font-size: 1.3rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 0.2rem !important;
+}
+
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-width: 480px;
+    margin: 0 auto;
+    background: #ffffff;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: center;
+    padding: 0.75rem 0;
+    z-index: 100;
+}
+
+.nav-btn {
+    background: none;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #9ca3af;
+    cursor: pointer;
+    font-family: inherit;
+    gap: 0.3rem;
+}
+
+.nav-btn.active {
+    color: #111111;
+}
+
+.nav-btn i {
+    font-size: 1.6rem;
+}
+
+.nav-btn span {
+    font-size: 0.75rem;
+    font-weight: 600;
+}

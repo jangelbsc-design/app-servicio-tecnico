@@ -76,65 +76,69 @@
 
 <body>
     <div class="app-container">
-        <header class="header blur-effect">
-            <div class="header-content"
-                style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                <div style="flex: 1; min-width: 0;">
-                    <h1 class="header-title"
-                        style="font-size: 1.15rem; color: #111; font-weight: 800; text-transform: uppercase;">Soporte
-                    </h1>
-                    <p class="header-subtitle" style="font-size: 0.8rem;">DISMATEC</p>
-                </div>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <div class="dismac-logo" id="dismac-logo-btn"
-                        style="cursor: pointer; display: flex; font-size: 1.6rem; font-weight: 900; letter-spacing: -1px; border-radius: 2px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex-shrink: 0; margin: 0 0.5rem; align-items: stretch;">
-                        <div
-                            style="background-color: #E31837; color: white; padding: 2px 4px 2px 8px; display: flex; align-items: center;">
-                            dis</div>
-                        <div
-                            style="background-color: white; color: black; padding: 2px 8px 2px 2px; display: flex; align-items: center;">
-                            mac<sup style="font-size: 0.45em; margin-top: -12px; margin-left: 1px;">®</sup></div>
-                    </div>
+        <header class="header" style="border-bottom: none; padding-bottom: 0; background: transparent;">
+            <div class="header-content" style="display: flex; justify-content: flex-end; width: 100%;">
+                <div class="dismac-logo" id="dismac-logo-btn" style="cursor: pointer; display: flex; font-size: 1.6rem; font-weight: 900; letter-spacing: -1px; border-radius: 6px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin: 0;">
+                    <div style="background-color: #E31837; color: white; padding: 2px 4px 2px 8px; display: flex; align-items: center;">dis</div>
+                    <div style="background-color: white; color: black; padding: 2px 8px 2px 2px; display: flex; align-items: center;">mac<sup style="font-size: 0.45em; margin-top: -12px; margin-left: 1px;">®</sup></div>
                 </div>
             </div>
-
         </header>
 
-        <main class="main-content" id="view-dashboard">
-            <section class="welcome-section">
-                <h2>¿Qué necesitas hoy?</h2>
-                <p>Selecciona una opción para continuar.</p>
+        <main class="main-content" id="view-dashboard" style="padding-top: 0.5rem; padding-bottom: 6rem;">
+            <!-- Bienvenida y Búsqueda -->
+            <section class="welcome-text" style="margin-bottom: 1.5rem;">
+                <h1 style="font-size: 2.2rem; font-weight: 800; line-height: 1.1; margin-bottom: 1.5rem; color: #111;">¡Hola!<br>¿Cómo podemos ayudarte?</h1>
+
+                <div class="global-search-container" style="position: relative;">
+                    <i class="bi bi-search search-icon" style="position: absolute; left: 1.2rem; top: 50%; transform: translateY(-50%); color: #6b7280; font-size: 1.1rem;"></i>
+                    <input type="text" placeholder="Buscar servicios o talleres..." style="width: 100%; padding: 1rem 1rem 1rem 3.5rem; background: #E2E8F0; border: none; border-radius: 12px; font-size: 1rem; outline: none; font-family: inherit;">
+                </div>
             </section>
-            <div class="dashboard-grid" style="grid-template-columns: 1fr;">
-                <button class="dash-card" data-action="open-red-talleres"
-                    style="height: auto; min-height: 120px; display: flex; align-items: center; gap: 1rem; padding: 1.5rem;">
-                    <div class="card-icon-wrapper"
-                        style="width: 65px; height: 65px; flex-shrink: 0; border-radius: 12px; overflow: hidden;">
-                        <img src="mapa-talleres.png" style="width: 100%; height: 100%; object-fit: cover;">
+
+            <!-- Tarjetas Principales -->
+            <div class="dashboard-grid" style="grid-template-columns: 1fr; gap: 1.5rem;">
+                <!-- Red de Talleres -->
+                <button class="dash-card stitch-card" data-action="open-red-talleres">
+                    <div class="card-icon-wrapper override-icon">
+                        <img src="mapa-talleres.png" alt="Mapa" style="width: 100%; height: 100%; object-fit: cover;">
                     </div>
-                    <div style="text-align: left; flex: 1;">
-                        <span class="card-title" style="display: block; font-size: 1.2rem; margin-bottom: 0.3rem;">Red
-                            de Talleres</span>
-                        <span class="card-subtitle" style="font-size: 0.85rem; color: #666;">Contactos regionales</span>
+                    <div class="card-text-container" style="text-align: left; flex: 1;">
+                        <span class="card-title">Red de Talleres</span>
+                        <span class="card-subtitle">Contactos regionales</span>
                     </div>
-                    <i class="bi bi-chevron-right"></i>
+                    <i class="bi bi-chevron-right card-arrow" style="color: #111; font-weight: bold; font-size: 1.4rem;"></i>
                 </button>
 
-                <button class="dash-card" data-action="open-estados-servicio"
-                    style="height: auto; min-height: 120px; display: flex; align-items: center; gap: 1rem; padding: 1.5rem;">
-                    <div class="card-icon-wrapper"
-                        style="width: 65px; height: 65px; flex-shrink: 0; border-radius: 12px; overflow: hidden;">
-                        <img src="icono-servicio-tecnico.png" style="width: 100%; height: 100%; object-fit: cover;">
+                <!-- Estados de Servicio -->
+                <button class="dash-card stitch-card" data-action="open-estados-servicio">
+                    <div class="card-icon-wrapper override-icon">
+                        <img src="icono-servicio-tecnico.png" alt="Herramientas" style="width: 100%; height: 100%; object-fit: cover;">
                     </div>
-                    <div style="text-align: left; flex: 1;">
-                        <span class="card-title"
-                            style="display: block; font-size: 1.2rem; margin-bottom: 0.3rem;">Estados de Servicio</span>
-                        <span class="card-subtitle" style="font-size: 0.85rem; color: #666;">Seguimiento de
-                            órdenes</span>
+                    <div class="card-text-container" style="text-align: left; flex: 1;">
+                        <span class="card-title">Estados de Servicio</span>
+                        <span class="card-subtitle">Seguimiento de órdenes</span>
                     </div>
-                    <i class="bi bi-chevron-right"></i>
+                    <i class="bi bi-chevron-right card-arrow" style="color: #111; font-weight: bold; font-size: 1.4rem;"></i>
                 </button>
             </div>
+
+            <!-- Preguntas Frecuentes -->
+            <section class="faq-section" style="margin-top: 2rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 1rem; color: #111;">Preguntas Frecuentes</h3>
+                
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <button style="display: flex; justify-content: space-between; align-items: center; background: none; border: none; padding: 0.5rem 0; font-size: 1.05rem; font-family: inherit; cursor: pointer; color: #111; text-decoration: underline; text-underline-offset: 4px;">
+                        <span>¿Cómo funciona la garantía?</span>
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                    <!-- Conectado al protocolo existente -->
+                    <button data-action="view-protocolo" style="display: flex; justify-content: space-between; align-items: center; background: none; border: none; padding: 0.5rem 0; font-size: 1.05rem; font-family: inherit; cursor: pointer; color: #111; text-decoration: underline; text-underline-offset: 4px;">
+                        <span>Protocolo de recepción</span>
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            </section>
         </main>
 
         <main class="main-content hidden" id="view-red-talleres">
@@ -204,10 +208,17 @@
             <span id="sync-status-text"><i class="bi bi-exclamation-triangle" style="margin-right:8px;"></i> Fallo de
                 conexión</span>
         </div>
+
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-action="go-home">
+                <i class="bi bi-house-door-fill"></i>
+                <span>Inicio</span>
+            </button>
+        </nav>
     </div>
 
     <!-- <script src="data.js"></script> -->
-    <script src="app.js?v=15"></script>
+    <script src="app.js?v=16"></script>
 </body>
 
 </html>
