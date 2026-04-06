@@ -161,6 +161,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const viewDetails = document.getElementById('view-details');
     const viewTitle = document.getElementById('view-title');
     const viewContent = document.getElementById('view-content');
+    
+    // Elementos de Búsqueda Global
+    const globalSearchInput = document.getElementById('global-search-input');
+    const globalSearchResults = document.getElementById('global-search-results');
+    const dashboardMainGrid = document.getElementById('dashboard-main-grid');
+    const dashboardContact = document.getElementById('dashboard-contact');
+    const dashboardFaq = document.getElementById('dashboard-faq');
 
     // Cargar datos
     console.log("📥 Cargando datos...");
@@ -210,6 +217,141 @@ document.addEventListener('DOMContentLoaded', async () => {
         );
         renderOrdenes(currentRegionOrdenes, filteredOrdenes);
     });
+
+    // Lógica de Búsqueda Global
+    globalSearchInput?.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        
+        if (query.length === 0) {
+            // Restaurar dashboard
+            globalSearchResults.classList.add('hidden');
+            globalSearchResults.innerHTML = '';
+            dashboardMainGrid.classList.remove('hidden');
+            dashboardContact.classList.remove('hidden');
+            dashboardFaq.classList.remove('hidden');
+            return;
+        }
+
+        // Ocultar elementos del dashboard
+        dashboardMainGrid.classList.add('hidden');
+        dashboardContact.classList.add('hidden');
+        dashboardFaq.classList.add('hidden');
+        globalSearchResults.classList.remove('hidden');
+
+        // Filtrar Talleres
+        const matchedTalleres = appWorkshopData.filter(t => 
+            (t.TALLER || "").toLowerCase().includes(query) ||
+            (t.MARCA || "").toLowerCase().includes(query) ||
+            (t.CIUDAD || "").toLowerCase().includes(query)
+        );
+
+        // Filtrar Órdenes (mismo criterio que el buscador regional)
+        const matchedOrdenes = appOrdersData.filter(o => 
+            (o['Número de orden de trabajo'] || "").toLowerCase().includes(query) ||
+            (o['Cuenta: Nombre de la cuenta'] || "").toLowerCase().includes(query) ||
+            (o['Producto ST'] || "").toLowerCase().includes(query) ||
+            (o['Referencia'] || "").toLowerCase().includes(query) ||
+            (o['Nro de orden de trabajo (Marca)'] || "").toLowerCase().includes(query) ||
+            (o['Nombre del Equipo'] || "").toLowerCase().includes(query) ||
+            (o['Tipo de Servicio'] || "").toLowerCase().includes(query) ||
+            (o['Tiempo desde apertura (Días)'] || "").toString().toLowerCase().includes(query) ||
+            (o['Fecha de compra'] || "").toLowerCase().includes(query) ||
+            (o['Fecha de ingreso a la marca'] || "").toLowerCase().includes(query) ||
+            (o['¿Qué servicio técnico ?'] || "").toLowerCase().includes(query) ||
+            (o['Fecha de la última modificación'] || "").toLowerCase().includes(query)
+        );
+
+        renderGlobalSearchResults(matchedTalleres, matchedOrdenes);
+    });
+
+    function renderGlobalSearchResults(talleres, ordenes) {
+        if (!globalSearchResults) return;
+        
+        if (talleres.length === 0 && ordenes.length === 0) {
+            globalSearchResults.innerHTML = '<p style="text-align:center;padding:2rem;color:#64748b;">No se encontraron resultados para tu búsqueda.</p>';
+            return;
+        }
+
+        let html = '';
+
+        // Sección de Talleres
+        if (talleres.length > 0) {
+            html += `<h3 style="font-size:1.1rem; font-weight:800; margin:1.5rem 0 1rem 0; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-buildings"></i> Talleres (${talleres.length})</h3>`;
+            html += talleres.map(t => {
+                const contactosText = t.CONTACTO || "";
+                const numList = contactosText.split(/[-/,]/).map(n => n.trim()).filter(n => n.length >= 7);
+                const firstNum = numList.length > 0 ? numList[0].replace(/\D/g, '') : null;
+                
+                return `
+                    <div class="dash-card stitch-card" style="margin-bottom:0.8rem; padding:1rem; cursor:default;">
+                        <div style="flex:1;">
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:5px;">
+                                <span style="font-weight:700; font-size:1rem; color:#111;">${t.TALLER}</span>
+                                <span style="font-size:0.75rem; background:#f1f5f9; padding:2px 8px; border-radius:10px; color:#64748b;">${t.CIUDAD}</span>
+                            </div>
+                            <div style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">${t.MARCA}</div>
+                            <div style="display:flex; gap:8px;">
+                                ${firstNum ? `
+                                    <a href="tel:${firstNum}" style="text-decoration:none; background:#E31837; color:white; padding:5px 12px; border-radius:8px; font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:5px;">
+                                        <i class="bi bi-telephone-fill"></i> Llamar
+                                    </a>
+                                    <a href="https://wa.me/591${firstNum}" target="_blank" style="text-decoration:none; background:#25D366; color:white; padding:5px 12px; border-radius:8px; font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:5px;">
+                                        <i class="bi bi-whatsapp"></i> WhatsApp
+                                    </a>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Sección de Órdenes
+        if (ordenes.length > 0) {
+            // Filtrar órdenes cerradas/entregadas para la búsqueda global también?
+            // El usuario pidió "el criterio de los buscadores dentro de los botones".
+            // Esos buscadores filtran sobre una lista ya filtrada por región y estado.
+            // Implementaré el filtro de estados aquí también para consistencia.
+            const estados_excluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
+            const ordenesActivas = ordenes.filter(o => {
+                const e = (o.Estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                return !estados_excluidos.some(ex => e.includes(ex));
+            });
+
+            if (ordenesActivas.length > 0) {
+                html += `<h3 style="font-size:1.1rem; font-weight:800; margin:1.5rem 0 1rem 0; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-file-earmark-text"></i> Órdenes Activas (${ordenesActivas.length})</h3>`;
+                html += ordenesActivas.map(o => {
+                    return `
+                        <div class="dash-card stitch-card" style="margin-bottom:0.8rem; padding:1rem; cursor:pointer;" onclick="window.handleGlobalOrderClick('${o['Número de orden de trabajo']}')">
+                            <div style="flex:1;">
+                                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:5px;">
+                                    <span style="font-weight:700; font-size:1rem; color:#111; line-height:1.2;">${o['Cuenta: Nombre de la cuenta']}</span>
+                                    <span style="font-size:0.7rem; background:#e0e7ff; color:#3b82f6; padding:2px 8px; border-radius:10px; font-weight:700;">${o.Estado || 'S/E'}</span>
+                                </div>
+                                <div style="font-size:0.85rem; color:#64748b; margin-bottom:5px;">${o['Producto ST']}</div>
+                                <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#94a3b8;">
+                                    <span>ODT: ${o['Número de orden de trabajo']}</span>
+                                    <span><i class="bi bi-geo-alt-fill"></i> ${o['Territorio de servicio: Nombre']}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        globalSearchResults.innerHTML = html;
+    }
+
+    // Función global para manejar el click en una orden desde la búsqueda global
+    window.handleGlobalOrderClick = (odt) => {
+        const orden = appOrdersData.find(o => o['Número de orden de trabajo'] === odt);
+        if (orden) {
+            const region = orden['Territorio de servicio: Nombre'] || "Resultado";
+            renderOrdenes(region, [orden]);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
 
     // Setup FCM Push Notifications
     if (window.firebase && firebase.messaging && firebase.messaging.isSupported()) {
@@ -273,8 +415,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     document.getElementById('btn-back-estados-list')?.addEventListener('click', () => {
-        console.log("← Volver a menú estados");
-        showView(viewEstadosMenu);
+        if (globalSearchInput && globalSearchInput.value.trim() !== "") {
+            console.log("← Volver al dashboard (resultado de búsqueda)");
+            showView(viewDashboard);
+        } else {
+            console.log("← Volver a menú estados");
+            showView(viewEstadosMenu);
+        }
     });
 
     document.getElementById('dismac-logo-btn')?.addEventListener('click', () => {

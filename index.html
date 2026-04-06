@@ -92,12 +92,15 @@
 
                 <div class="global-search-container" style="position: relative;">
                     <i class="bi bi-search search-icon" style="position: absolute; left: 1.2rem; top: 50%; transform: translateY(-50%); color: #6b7280; font-size: 1.1rem;"></i>
-                    <input type="text" placeholder="Buscar servicios o talleres..." style="width: 100%; padding: 1rem 1rem 1rem 3.5rem; background: #E2E8F0; border: none; border-radius: 12px; font-size: 1rem; outline: none; font-family: inherit;">
+                    <input type="text" id="global-search-input" placeholder="Buscar servicios o talleres..." style="width: 100%; padding: 1rem 1rem 1rem 3.5rem; background: #E2E8F0; border: none; border-radius: 12px; font-size: 1rem; outline: none; font-family: inherit;">
                 </div>
             </section>
 
+            <!-- Resultados de Búsqueda Global -->
+            <div id="global-search-results" class="hidden" style="margin-bottom: 2rem;"></div>
+
             <!-- Tarjetas Principales -->
-            <div class="dashboard-grid" style="grid-template-columns: 1fr; gap: 1.5rem;">
+            <div class="dashboard-grid" id="dashboard-main-grid" style="grid-template-columns: 1fr; gap: 1.5rem;">
                 <!-- Red de Talleres -->
                 <button class="dash-card stitch-card" data-action="open-red-talleres">
                     <div class="card-icon-wrapper override-icon">
@@ -124,7 +127,7 @@
             </div>
 
             <!-- Contacto Rápido -->
-            <section class="contact-section" style="margin-top: 2rem;">
+            <section class="contact-section" id="dashboard-contact" style="margin-top: 2rem;">
                 <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 1rem; color: #111;">Contacto Rápido</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;">
                     <a href="https://wa.me/59175010500" target="_blank" style="background-color: #d1122a; color: white; border-radius: 10px; padding: 0.8rem; text-align: center; text-decoration: none; font-weight: 600; font-size: 1.05rem; display: flex; justify-content: center; align-items: center; gap: 0.5rem; box-shadow: 0 4px 6px rgba(227, 24, 55, 0.2);">
@@ -137,7 +140,7 @@
             </section>
 
             <!-- Preguntas Frecuentes -->
-            <section class="faq-section" style="margin-top: 2rem;">
+            <section class="faq-section" id="dashboard-faq" style="margin-top: 2rem;">
                 <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 1rem; color: #111;">Preguntas Frecuentes</h3>
                 
                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
