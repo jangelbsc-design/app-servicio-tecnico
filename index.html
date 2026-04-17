@@ -76,23 +76,58 @@
 
 <body>
     <div class="app-container">
-        <header class="header" style="border-bottom: none; padding-bottom: 0; background: transparent; pointer-events: none;">
+        <header class="header"
+            style="border-bottom: none; padding-bottom: 0; background: transparent; pointer-events: none;">
             <div class="header-content" style="display: flex; justify-content: flex-end; width: 100%;">
-                <div class="dismac-logo" id="dismac-logo-btn" style="cursor: pointer; display: flex; font-size: 1.6rem; font-weight: 900; letter-spacing: -1px; border-radius: 6px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin: 0; pointer-events: auto; background: white;">
-                    <div style="background-color: #E31837; color: white; padding: 2px 4px 2px 8px; display: flex; align-items: center;">dis</div>
-                    <div style="background-color: white; color: black; padding: 2px 8px 2px 2px; display: flex; align-items: center;">mac<sup style="font-size: 0.45em; margin-top: -12px; margin-left: 1px;">®</sup></div>
+                <div class="dismac-logo" id="dismac-logo-btn"
+                    style="cursor: pointer; display: flex; font-size: 1.6rem; font-weight: 900; letter-spacing: -1px; border-radius: 6px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin: 0; pointer-events: auto; background: white;">
+                    <div
+                        style="background-color: #E31837; color: white; padding: 2px 4px 2px 8px; display: flex; align-items: center;">
+                        dis</div>
+                    <div
+                        style="background-color: white; color: black; padding: 2px 8px 2px 2px; display: flex; align-items: center;">
+                        mac<sup style="font-size: 0.45em; margin-top: -12px; margin-left: 1px;">®</sup></div>
                 </div>
             </div>
         </header>
 
-        <main class="main-content" id="view-dashboard" style="padding-top: 0.5rem; padding-bottom: 6rem;">
+        <main class="main-content" id="view-login" style="padding-top: 2rem; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh;">
+            <div style="width: 100%; max-width: 400px; background: white; padding: 2rem; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: center;">
+                <h2 style="font-size: 1.8rem; font-weight: 800; color: #111; margin-bottom: 0.5rem;">Iniciar Sesión</h2>
+                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 2rem;">Ingresa tus credenciales para continuar</p>
+                
+                <div style="margin-bottom: 1rem; text-align: left;">
+                    <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #333; margin-bottom: 0.5rem;">Usuario</label>
+                    <input type="text" id="login-username" placeholder="Tu usuario" style="width: 100%; padding: 0.8rem 1rem; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 1rem; font-family: inherit; outline: none; transition: border-color 0.3s;">
+                </div>
+
+                <div style="margin-bottom: 1.5rem; text-align: left;">
+                    <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #333; margin-bottom: 0.5rem;">Contraseña</label>
+                    <input type="password" id="login-password" placeholder="Tu contraseña" style="width: 100%; padding: 0.8rem 1rem; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 1rem; font-family: inherit; outline: none; transition: border-color 0.3s;">
+                </div>
+
+                <div id="login-error" class="hidden" style="color: #E31837; font-size: 0.85rem; padding: 0.8rem; background: #fff1f2; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #ffe4e6;">Usuario o contraseña incorrectos.</div>
+
+                <button id="btn-login" style="width: 100%; padding: 1rem; background: #E31837; color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: background 0.3s, transform 0.1s;">Ingresar</button>
+            </div>
+            
+            <div id="login-loading" class="hidden" style="margin-top: 1.5rem; text-align: center;">
+                <div class="spinner" style="width: 30px; height: 30px; border-width: 3px;"></div>
+                <p style="color: #64748b; font-size: 0.9rem; margin-top: 0.5rem;">Validando credenciales...</p>
+            </div>
+        </main>
+
+        <main class="main-content hidden" id="view-dashboard" style="padding-top: 0.5rem; padding-bottom: 6rem;">
             <!-- Bienvenida y Búsqueda -->
             <section class="welcome-text" style="margin-bottom: 1.5rem;">
-                <h1 style="font-size: 2.2rem; font-weight: 800; line-height: 1.1; margin-bottom: 1.5rem; color: #111;">¡Hola!<br>¿Cómo podemos ayudarte?</h1>
+                <h1 style="font-size: 2.2rem; font-weight: 800; line-height: 1.1; margin-bottom: 1.5rem; color: #111;">
+                    ¡Hola!<br>¿Cómo podemos ayudarte?</h1>
 
                 <div class="global-search-container" style="position: relative;">
-                    <i class="bi bi-search search-icon" style="position: absolute; left: 1.2rem; top: 50%; transform: translateY(-50%); color: #6b7280; font-size: 1.1rem;"></i>
-                    <input type="text" id="global-search-input" placeholder="Buscar servicios o talleres..." style="width: 100%; padding: 1rem 1rem 1rem 3.5rem; background: #E2E8F0; border: none; border-radius: 12px; font-size: 1rem; outline: none; font-family: inherit;">
+                    <i class="bi bi-search search-icon"
+                        style="position: absolute; left: 1.2rem; top: 50%; transform: translateY(-50%); color: #6b7280; font-size: 1.1rem;"></i>
+                    <input type="text" id="global-search-input" placeholder="Buscar servicios o talleres..."
+                        style="width: 100%; padding: 1rem 1rem 1rem 3.5rem; background: #E2E8F0; border: none; border-radius: 12px; font-size: 1rem; outline: none; font-family: inherit;">
                 </div>
             </section>
 
@@ -110,19 +145,26 @@
                         <span class="card-title">Red de Talleres</span>
                         <span class="card-subtitle">Contactos regionales</span>
                     </div>
-                    <i class="bi bi-chevron-right card-arrow" style="color: #111; font-weight: bold; font-size: 1.4rem;"></i>
+                    <i class="bi bi-chevron-right card-arrow"
+                        style="color: #111; font-weight: bold; font-size: 1.4rem;"></i>
                 </button>
 
                 <!-- Estados de Servicio -->
                 <button class="dash-card stitch-card" data-action="open-estados-servicio">
                     <div class="card-icon-wrapper override-icon">
-                        <img src="icono-servicio-tecnico.png" alt="Herramientas" style="width: 100%; height: 100%; object-fit: cover;">
+                        <img src="icono-servicio-tecnico.png" alt="Herramientas"
+                            style="width: 100%; height: 100%; object-fit: cover;">
                     </div>
                     <div class="card-text-container" style="text-align: left; flex: 1;">
                         <span class="card-title">Estados de Servicio</span>
                         <span class="card-subtitle">Seguimiento de órdenes</span>
                     </div>
-                    <i class="bi bi-chevron-right card-arrow" style="color: #111; font-weight: bold; font-size: 1.4rem;"></i>
+                    <i class="bi bi-chevron-right card-arrow"
+                        style="color: #111; font-weight: bold; font-size: 1.4rem;"></i>
+                </button>
+
+                <i class="bi bi-chevron-right card-arrow"
+                    style="color: #111; font-weight: bold; font-size: 1.4rem;"></i>
                 </button>
             </div>
 
@@ -130,10 +172,12 @@
             <section class="contact-section" id="dashboard-contact" style="margin-top: 2rem;">
                 <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 1rem; color: #111;">Contacto Rápido</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;">
-                    <a href="https://wa.me/59175010500" target="_blank" style="background-color: #d1122a; color: white; border-radius: 10px; padding: 0.8rem; text-align: center; text-decoration: none; font-weight: 600; font-size: 1.05rem; display: flex; justify-content: center; align-items: center; gap: 0.5rem; box-shadow: 0 4px 6px rgba(227, 24, 55, 0.2);">
+                    <a href="https://wa.me/59175010500" target="_blank"
+                        style="background-color: #d1122a; color: white; border-radius: 10px; padding: 0.8rem; text-align: center; text-decoration: none; font-weight: 600; font-size: 1.05rem; display: flex; justify-content: center; align-items: center; gap: 0.5rem; box-shadow: 0 4px 6px rgba(227, 24, 55, 0.2);">
                         <i class="bi bi-whatsapp" style="font-size: 1.2rem;"></i> WhatsApp
                     </a>
-                    <a href="tel:80010200" style="background-color: #d1122a; color: white; border-radius: 10px; padding: 0.8rem; text-align: center; text-decoration: none; font-weight: 600; font-size: 1.05rem; display: flex; justify-content: center; align-items: center; gap: 0.5rem; box-shadow: 0 4px 6px rgba(227, 24, 55, 0.2);">
+                    <a href="tel:80010200"
+                        style="background-color: #d1122a; color: white; border-radius: 10px; padding: 0.8rem; text-align: center; text-decoration: none; font-weight: 600; font-size: 1.05rem; display: flex; justify-content: center; align-items: center; gap: 0.5rem; box-shadow: 0 4px 6px rgba(227, 24, 55, 0.2);">
                         <i class="bi bi-telephone" style="font-size: 1.2rem;"></i> Llamar
                     </a>
                 </div>
@@ -141,11 +185,13 @@
 
             <!-- Preguntas Frecuentes -->
             <section class="faq-section" id="dashboard-faq" style="margin-top: 2rem;">
-                <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 1rem; color: #111;">Preguntas Frecuentes</h3>
-                
+                <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 1rem; color: #111;">Preguntas Frecuentes
+                </h3>
+
                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                     <!-- Conectado al protocolo existente -->
-                    <button data-action="view-protocolo" style="display: flex; justify-content: space-between; align-items: center; background: none; border: none; padding: 0.5rem 0; font-size: 1.05rem; font-family: inherit; cursor: pointer; color: #111; text-decoration: underline; text-underline-offset: 4px;">
+                    <button data-action="view-protocolo"
+                        style="display: flex; justify-content: space-between; align-items: center; background: none; border: none; padding: 0.5rem 0; font-size: 1.05rem; font-family: inherit; cursor: pointer; color: #111; text-decoration: underline; text-underline-offset: 4px;">
                         <span>Protocolo de recepción</span>
                         <i class="bi bi-chevron-right"></i>
                     </button>
@@ -161,10 +207,10 @@
             <div class="dashboard-grid">
                 <button class="dash-card" data-action="view-tarija"><span class="card-title">Tarija</span></button>
                 <button class="dash-card" data-action="view-sucre"><span class="card-title">Sucre</span></button>
-                <button class="dash-card" data-action="view-santacruz"><span class="card-title">Santa
-                        Cruz</span></button>
-                <button class="dash-card" data-action="view-protocolo"><span class="card-title">Protocolo de
-                        recepción</span></button>
+                <button class="dash-card" data-action="view-santacruz"><span class="card-title">Santa Cruz</span></button>
+                <button class="dash-card" data-action="view-lapaz"><span class="card-title">La Paz</span></button>
+                <button class="dash-card" data-action="view-cochabamba"><span class="card-title">Cochabamba</span></button>
+                <button class="dash-card" data-action="view-protocolo"><span class="card-title">Protocolo de recepción</span></button>
             </div>
         </main>
 
@@ -174,17 +220,14 @@
                 <h2>Órdenes</h2>
             </div>
             <div class="dashboard-grid">
-                <button class="dash-card" data-action="view-estados-tarija"><span
-                        class="card-title">Tarija</span></button>
-                <button class="dash-card" data-action="view-estados-sucre"><span
-                        class="card-title">Sucre</span></button>
-                <button class="dash-card" data-action="view-estados-municipios"><span
-                        class="card-title">Municipios</span></button>
-                <button class="dash-card" data-action="view-estados-oruro"><span
-                        class="card-title">Oruro</span></button>
+                <button class="dash-card" data-action="view-estados-tarija"><span class="card-title">Tarija</span></button>
+                <button class="dash-card" data-action="view-estados-sucre"><span class="card-title">Sucre</span></button>
+                <button class="dash-card" data-action="view-estados-municipios"><span class="card-title">Santa Cruz</span></button>
+                <button class="dash-card" data-action="view-estados-lapaz"><span class="card-title">La Paz</span></button>
+                <button class="dash-card" data-action="view-estados-cochabamba"><span class="card-title">Cochabamba</span></button>
+                <button class="dash-card" data-action="view-estados-oruro"><span class="card-title">Oruro</span></button>
                 <button class="dash-card" data-action="view-estados-beni"><span class="card-title">Beni</span></button>
-                <button class="dash-card" data-action="view-estados-potosi"><span
-                        class="card-title">Potosí</span></button>
+                <button class="dash-card" data-action="view-estados-potosi"><span class="card-title">Potosí</span></button>
             </div>
         </main>
 
@@ -225,6 +268,10 @@
             <button class="nav-btn active" data-action="go-home">
                 <i class="bi bi-house-door-fill"></i>
                 <span>Inicio</span>
+            </button>
+            <button class="nav-btn" data-action="logout" id="btn-logout-nav" style="color: #64748b;">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Salir</span>
             </button>
         </nav>
     </div>
