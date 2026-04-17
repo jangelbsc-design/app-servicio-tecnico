@@ -90,34 +90,7 @@
                 </div>
             </div>
         </header>
-
-        <main class="main-content" id="view-login" style="padding-top: 2rem; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh;">
-            <div style="width: 100%; max-width: 400px; background: white; padding: 2rem; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: center;">
-                <h2 style="font-size: 1.8rem; font-weight: 800; color: #111; margin-bottom: 0.5rem;">Iniciar Sesión</h2>
-                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 2rem;">Ingresa tus credenciales para continuar</p>
-                
-                <div style="margin-bottom: 1rem; text-align: left;">
-                    <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #333; margin-bottom: 0.5rem;">Usuario</label>
-                    <input type="text" id="login-username" placeholder="Tu usuario" style="width: 100%; padding: 0.8rem 1rem; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 1rem; font-family: inherit; outline: none; transition: border-color 0.3s;">
-                </div>
-
-                <div style="margin-bottom: 1.5rem; text-align: left;">
-                    <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #333; margin-bottom: 0.5rem;">Contraseña</label>
-                    <input type="password" id="login-password" placeholder="Tu contraseña" style="width: 100%; padding: 0.8rem 1rem; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 1rem; font-family: inherit; outline: none; transition: border-color 0.3s;">
-                </div>
-
-                <div id="login-error" class="hidden" style="color: #E31837; font-size: 0.85rem; padding: 0.8rem; background: #fff1f2; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #ffe4e6;">Usuario o contraseña incorrectos.</div>
-
-                <button id="btn-login" style="width: 100%; padding: 1rem; background: #E31837; color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: background 0.3s, transform 0.1s;">Ingresar</button>
-            </div>
-            
-            <div id="login-loading" class="hidden" style="margin-top: 1.5rem; text-align: center;">
-                <div class="spinner" style="width: 30px; height: 30px; border-width: 3px;"></div>
-                <p style="color: #64748b; font-size: 0.9rem; margin-top: 0.5rem;">Validando credenciales...</p>
-            </div>
-        </main>
-
-        <main class="main-content hidden" id="view-dashboard" style="padding-top: 0.5rem; padding-bottom: 6rem;">
+        <main class="main-content" id="view-dashboard" style="padding-top: 0.5rem; padding-bottom: 6rem;">
             <!-- Bienvenida y Búsqueda -->
             <section class="welcome-text" style="margin-bottom: 1.5rem;">
                 <h1 style="font-size: 2.2rem; font-weight: 800; line-height: 1.1; margin-bottom: 1.5rem; color: #111;">
@@ -268,10 +241,6 @@
             <button class="nav-btn active" data-action="go-home">
                 <i class="bi bi-house-door-fill"></i>
                 <span>Inicio</span>
-            </button>
-            <button class="nav-btn" data-action="logout" id="btn-logout-nav" style="color: #64748b;">
-                <i class="bi bi-box-arrow-right"></i>
-                <span>Salir</span>
             </button>
         </nav>
     </div>

@@ -1,7 +1,5 @@
 let appWorkshopData = [];
 let appOrdersData = [];
-let appUsersData = [];
-let loggedInUser = null;
 
 const SHEETS_CONFIG = {
     talleres: {
@@ -11,10 +9,6 @@ const SHEETS_CONFIG = {
     seguimiento: {
         id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
         sheetName: 'REPORTE%20GLOBAL'
-    },
-    usuarios: {
-        id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
-        sheetName: 'Usuarios'
     }
 };
 
@@ -161,7 +155,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log("✅ DOMContentLoaded DISPARADO");
 
     const viewDashboard = document.getElementById('view-dashboard');
-    const viewLogin = document.getElementById('view-login');
     const viewRedTalleres = document.getElementById('view-red-talleres');
     const viewEstadosMenu = document.getElementById('view-estados-menu');
     const viewEstadosServicio = document.getElementById('view-estados-servicio');
@@ -180,124 +173,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Cargar datos
     console.log("📥 Cargando datos...");
     await loadAllData();
-    console.log(`✅ ${appWorkshopData.length} talleres, ${appOrdersData.length} órdenes, ${appUsersData.length} usuarios`);
-
-    // Check session
-    const savedUser = localStorage.getItem('dismac_user');
-    if (savedUser) {
-        loggedInUser = JSON.parse(savedUser);
-        console.log(`👤 Sesión activa: ${loggedInUser.username} (${loggedInUser.region})`);
-        applyRoleConstraints();
-        showView(viewDashboard);
-    } else {
-        showView(viewLogin);
-    }
-
-    // Login Logic
-    document.getElementById('btn-login')?.addEventListener('click', () => {
-        const userVal = document.getElementById('login-username').value.trim();
-        const passVal = document.getElementById('login-password').value.trim();
-        const errorEl = document.getElementById('login-error');
-        
-        if (!userVal || !passVal) {
-            errorEl.textContent = 'Por favor ingresa usuario y contraseña.';
-            errorEl.classList.remove('hidden');
-            return;
-        }
-
-        const userRecord = appUsersData.find(u => 
-            (u['Usuario'] || u['usuario'] || '').toString().trim() === userVal && 
-            (u['Contraseña'] || u['contraseña'] || '').toString().trim() === passVal
-        );
-
-        if (userRecord) {
-            // Determine region from user manually as requested, or from a column if it exists.
-            let region = 'ALL';
-            const userLower = userVal.toLowerCase();
-            if (userLower.includes('sucre')) region = 'SUCRE';
-            else if (userLower.includes('tarija')) region = 'TARIJA';
-            else if (userLower.includes('lapaz')) region = 'LA PAZ';
-            else if (userLower.includes('cbba')) region = 'COCHABAMBA';
-            else if (userLower.includes('sc') || userLower.includes('santa')) region = 'SANTA CRUZ';
-            
-            loggedInUser = {
-                username: userVal,
-                region: region // 'ALL' for administrador
-            };
-            
-            localStorage.setItem('dismac_user', JSON.stringify(loggedInUser));
-            errorEl.classList.add('hidden');
-            applyRoleConstraints();
-            showView(viewDashboard);
-        } else {
-            errorEl.textContent = 'Usuario o contraseña incorrectos.';
-            errorEl.classList.remove('hidden');
-        }
-    });
-
-    document.getElementById('btn-logout-nav')?.addEventListener('click', () => {
-        localStorage.removeItem('dismac_user');
-        loggedInUser = null;
-        document.getElementById('login-username').value = '';
-        document.getElementById('login-password').value = '';
-        showView(viewLogin);
-    });
-
-    function applyRoleConstraints() {
-        if (!loggedInUser || loggedInUser.region === 'ALL') {
-            // Reset hide classes if admin
-            document.querySelectorAll('[data-action^="view-tarija"], [data-action^="view-sucre"], [data-action^="view-santacruz"], [data-action^="view-estados-"]').forEach(el => {
-                el.style.display = '';
-            });
-            return;
-        }
-
-        const roleRegion = loggedInUser.region.toUpperCase();
-
-        // 1. Filter Talleres Dashboard Buttons
-        const talleresBtns = {
-            'TARIJA': document.querySelector('[data-action="view-tarija"]'),
-            'SUCRE': document.querySelector('[data-action="view-sucre"]'),
-            'SANTA CRUZ': document.querySelector('[data-action="view-santacruz"]'),
-            'LA PAZ': document.querySelector('[data-action="view-lapaz"]'),
-            'COCHABAMBA': document.querySelector('[data-action="view-cochabamba"]')
-        };
-        
-        Object.keys(talleresBtns).forEach(region => {
-            if (talleresBtns[region]) {
-                if (roleRegion === region) {
-                    talleresBtns[region].style.display = '';
-                } else {
-                    talleresBtns[region].style.display = 'none';
-                }
-            }
-        });
-
-        // 2. Filter Estados Dashboard Buttons
-        // We will hide all state buttons that don't match the region.
-        const estadosBtns = {
-            'TARIJA': document.querySelector('[data-action="view-estados-tarija"]'),
-            'SUCRE': document.querySelector('[data-action="view-estados-sucre"]'),
-            'SANTA CRUZ': document.querySelector('[data-action="view-estados-municipios"]'), // Municipios is Santa Cruz based on previous logic
-            'LA PAZ': document.querySelector('[data-action="view-estados-lapaz"]'),
-            'COCHABAMBA': document.querySelector('[data-action="view-estados-cochabamba"]'),
-            'ORURO': document.querySelector('[data-action="view-estados-oruro"]'),
-            'BENI': document.querySelector('[data-action="view-estados-beni"]'),
-            'POTOSI': document.querySelector('[data-action="view-estados-potosi"]')
-        };
-
-        const matchingBtnKey = Object.keys(estadosBtns).find(r => r === roleRegion || (r==='SANTA CRUZ' && roleRegion==='SANTA CRUZ'));
-        
-        Object.keys(estadosBtns).forEach(r => {
-            if (estadosBtns[r]) {
-                if (r === matchingBtnKey) {
-                    estadosBtns[r].style.display = '';
-                } else {
-                    estadosBtns[r].style.display = 'none';
-                }
-            }
-        });
-    }
+    console.log(`✅ ${appWorkshopData.length} talleres, ${appOrdersData.length} órdenes`);
 
     // Verificar órdenes estancadas y notificar por Telegram
     chequearOrdenesEstancadas();
@@ -363,25 +239,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         dashboardFaq.classList.add('hidden');
         globalSearchResults.classList.remove('hidden');
 
-        // Filtrar Talleres y Órdenes según rol
-        const userRegionMatches = (itemRegion) => {
-            if (!loggedInUser || loggedInUser.region === 'ALL') return true;
-            if (!itemRegion) return false;
-            return itemRegion.toUpperCase().includes(loggedInUser.region);
-        };
-
         // Filtrar Talleres
         const matchedTalleres = appWorkshopData.filter(t =>
-            userRegionMatches(t.CIUDAD) &&
-            ((t.TALLER || "").toLowerCase().includes(query) ||
+            (t.TALLER || "").toLowerCase().includes(query) ||
             (t.MARCA || "").toLowerCase().includes(query) ||
-            (t.CIUDAD || "").toLowerCase().includes(query))
+            (t.CIUDAD || "").toLowerCase().includes(query)
         );
 
         // Filtrar Órdenes (mismo criterio que el buscador regional)
         const matchedOrdenes = appOrdersData.filter(o =>
-            userRegionMatches(o['Territorio de servicio: Nombre']) &&
-            ((o['Número de orden de trabajo'] || "").toLowerCase().includes(query) ||
+            (o['Número de orden de trabajo'] || "").toLowerCase().includes(query) ||
             (o['Cuenta: Nombre de la cuenta'] || "").toLowerCase().includes(query) ||
             (o['Producto ST'] || "").toLowerCase().includes(query) ||
             (o['Referencia'] || "").toLowerCase().includes(query) ||
@@ -392,7 +259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             (o['Fecha de compra'] || "").toLowerCase().includes(query) ||
             (o['Fecha de ingreso a la marca'] || "").toLowerCase().includes(query) ||
             (o['¿Qué servicio técnico ?'] || "").toLowerCase().includes(query) ||
-            (o['Fecha de la última modificación'] || "").toLowerCase().includes(query))
+            (o['Fecha de la última modificación'] || "").toLowerCase().includes(query)
         );
 
         renderGlobalSearchResults(matchedTalleres, matchedOrdenes);
@@ -954,10 +821,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadAllData() {
         try {
-            const [workshopData, globalData, usersData] = await Promise.all([
+            const [workshopData, globalData] = await Promise.all([
                 fetchGoogleSheet(SHEETS_CONFIG.talleres.id, SHEETS_CONFIG.talleres.sheetName),
-                fetchGoogleSheet(SHEETS_CONFIG.seguimiento.id, SHEETS_CONFIG.seguimiento.sheetName),
-                fetchGoogleSheet(SHEETS_CONFIG.usuarios.id, SHEETS_CONFIG.usuarios.sheetName)
+                fetchGoogleSheet(SHEETS_CONFIG.seguimiento.id, SHEETS_CONFIG.seguimiento.sheetName)
             ]);
 
             let currentCity = "";
@@ -1014,8 +880,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }).filter(row => row !== null);
 
             appOrdersData = globalData;
-            appUsersData = usersData;
-            console.log('Datos procesados:', { talleres: appWorkshopData.length, ordenes: appOrdersData.length, usuarios: appUsersData.length });
+            console.log('Datos procesados:', { talleres: appWorkshopData.length, ordenes: appOrdersData.length });
         } catch (error) {
             console.error('Error al cargar datos:', error);
             const statusEl = document.getElementById('sync-status');
