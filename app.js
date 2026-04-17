@@ -467,6 +467,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             case 'view-estados-sucre':
                 showRegionOrdenes('Sucre');
                 break;
+            case 'view-estados-santacruz':
+                showRegionOrdenes('Santa Cruz');
+                break;
             case 'view-estados-municipios':
                 showRegionOrdenes('Municipios');
                 break;
@@ -575,10 +578,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     function isOrderInRegion(o, region) {
         if (!o || !region) return false;
         const terr = (o['Territorio de servicio: Nombre'] || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const municipios = ['montero', 'la guardia', 'el torno', 'cotoca', 'satelite', 'camiri', 'san julian', 'guabira', 'warnes', 'pailon', 'samaipata'];
+
         if (region === 'Municipios') {
-            const municipios = ['montero', 'la guardia', 'el torno', 'cotoca', 'satelite', 'camiri', 'san julian', 'guabira', 'warnes', 'pailon', 'samaipata'];
             return municipios.some(m => terr.includes(m));
         }
+
+        if (region === 'Santa Cruz') {
+            const isMunicipio = municipios.some(m => terr.includes(m));
+            return terr.includes('santa cruz') && !isMunicipio;
+        }
+
         const regionNormalized = region.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         return terr.includes(regionNormalized);
     }
