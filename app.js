@@ -623,8 +623,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const html = ordenesFiltradas.map((o, idx) => {
-            const workshopName = (o['¿Qué servicio técnico ?'] || "").trim();
-            const workshop = appWorkshopData.find(w => w.TALLER && w.TALLER.toUpperCase() === workshopName.toUpperCase());
+            const workshopNameRaw = (o['¿Qué servicio técnico ?'] || "").trim();
+            const workshopName = workshopNameRaw.toUpperCase();
+            
+            let cityForWorkshop = region.toUpperCase();
+            if (cityForWorkshop === 'MUNICIPIOS') cityForWorkshop = 'SANTA CRUZ';
+
+            let workshop = null;
+            if (workshopName) {
+                const localWorkshops = appWorkshopData.filter(w => {
+                    const wCity = (w.CIUDAD || "").toUpperCase();
+                    return wCity.includes(cityForWorkshop) || cityForWorkshop.includes(wCity);
+                });
+
+                const matchFn = (w) => {
+                    if (!w.TALLER) return false;
+                    const t = w.TALLER.toUpperCase();
+                    const tClean = t.replace(/^ST\s+/, '');
+                    return t === workshopName || tClean === workshopName || 
+                           t.includes(workshopName) || workshopName.includes(tClean);
+                };
+
+                workshop = localWorkshops.find(matchFn);
+
+                if (!workshop && workshopName.length > 2) {
+                    workshop = localWorkshops.find(w => {
+                        const marcas = (w.MARCA || "").toUpperCase().split(',').map(s=>s.trim());
+                        return marcas.some(m => m.includes(workshopName) || workshopName.includes(m));
+                    });
+                }
+
+                if (!workshop) {
+                    workshop = appWorkshopData.find(matchFn);
+                }
+            }
 
             let workshopHtml = "";
 

@@ -1,12 +1,29 @@
-const Papa = require('papaparse');
 const https = require('https');
 
-function fetchUrl(url) {
+async function fetchGoogleSheet(id, sheet) {
     return new Promise((resolve, reject) => {
+        const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&sheet=${sheet}`;
         https.get(url, (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
-            res.on('end', () => resolve(data));
+            res.on('end', () => {
+                const text = data;
+                const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
+                const json = JSON.parse(jsonStr);
+                
+                if (!json.table || !json.table.rows) return resolve([]);
+
+                const rows = json.table.rows.map(row => {
+                    const obj = {};
+                    json.table.cols.forEach((col, i) => {
+                        if (!col.label) return;
+                        const cell = row.c[i];
+                        obj[col.label] = cell ? (cell.f !== undefined && cell.f !== null ? cell.f : (cell.v !== undefined && cell.v !== null ? cell.v : '')) : '';
+                    });
+                    return obj;
+                });
+                resolve(rows);
+            });
         }).on('error', reject);
     });
 }
@@ -14,38 +31,57 @@ function fetchUrl(url) {
 (async () => {
     try {
         console.log("Fetching talleres...");
-        const talleresCsv = await fetchUrl("https://docs.google.com/spreadsheets/d/e/2PACX-1vTMzFxgUYdkKmOY4fpZcU61qBWwonnx2czhpWrofqREoEmm-f7aXFWSgGQy_5Lrb5LCGCaZHDCDEL7f/pub?gid=0&single=true&output=csv");
+        const workshopData = await fetchGoogleSheet('1wV3Ch5U-HWfsnvDoc56mL-4JCy22e7STdYzvJgFoI2I', 'RED%20DE%20TALLERES');
         
-        Papa.parse(talleresCsv, {
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-                const firstRow = results.data[0];
-                console.log("Talleres Headers:", Object.keys(firstRow));
-                console.log("Talleres Data parsed length:", results.data.length);
-                let lastRegion = "";
-                const mapped = results.data.map(row => {
-                    let currentRegion = (row['CIUDAD'] || row['Region'] || row['DEPARTAMENTO'] || "").toUpperCase().trim();
-                    if (currentRegion) lastRegion = currentRegion;
-                    return { region: lastRegion, taller: row['TALLER'] };
-                });
-                console.log("Talleres Mapped (first 5):", mapped.slice(0, 5));
-            }
-        });
-
         console.log("Fetching ordenes...");
-        const ordenesCsv = await fetchUrl("https://docs.google.com/spreadsheets/d/e/2PACX-1vRNIPSRWiPlpvDGr8Wu0-I9rDTTJuyYfix8z8aSg_7uP7LlDOyDkZblbNM2a3HCYZ8clagytLA3fVTp/pub?gid=0&single=true&output=csv");
+        const globalData = await fetchGoogleSheet('1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0', 'REPORTE%20GLOBAL');
 
-        Papa.parse(ordenesCsv, {
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-                const firstRow = results.data[0];
-                console.log("Ordenes Headers:", Object.keys(firstRow));
-                console.log("Ordenes Data parsed length:", results.data.length);
+        let appWorkshopData = workshopData.map(row => {
+            const getVal = (row, ...keys) => {
+                const rowKeys = Object.keys(row);
+                for (const key of keys) {
+                    const exactKey = rowKeys.find(k => k.trim().toUpperCase() === key.toUpperCase());
+                    if (exactKey && row[exactKey] !== undefined && row[exactKey] !== null) {
+                        return row[exactKey].toString().trim();
+                    }
+                }
+                return "";
+            };
+
+            const ciudad = getVal(row, 'CIUDAD', 'Ciudad', 'ciudad');
+            const taller = getVal(row, 'TALLER', 'Taller', 'taller');
+            let contacto = getVal(row, 'CONTACTO', 'Contacto', 'contacto', 'CONTACTOS', 'CELULAR', 'TELEFONO');
+            
+            if (taller !== "") {
+                return { CIUDAD: ciudad, TALLER: taller, CONTACTO: contacto };
             }
-        });
+            return null;
+        }).filter(row => row !== null);
 
+        console.log("Found " + appWorkshopData.length + " talleres.");
+        console.log("AppWorkshopData (first 5):", appWorkshopData.slice(0, 5));
+
+        console.log("Found " + globalData.length + " ordenes.");
+        
+        let unmatched = 0;
+        let matched = 0;
+        let exampleUnmatched = null;
+        let exampleCensel = null;
+
+        console.log("Keys of first order:", Object.keys(globalData[0]));
+        for(const o of globalData) {
+            if(o['Número de orden de trabajo'] == '132782') {
+                console.log("Found order 132782:");
+                console.log(o);
+                const workshopName = (o['¿Qué servicio técnico ?'] || "").trim();
+                console.log("WorkshopName: '" + workshopName + "'");
+                const workshopExact = appWorkshopData.find(w => w.TALLER && w.TALLER.toUpperCase() === workshopName.toUpperCase());
+                console.log("Exact Match:", workshopExact);
+                const workshopIncludes = appWorkshopData.find(w => w.TALLER && (w.TALLER.toUpperCase().includes(workshopName.toUpperCase()) || workshopName.toUpperCase().includes(w.TALLER.toUpperCase())));
+                console.log("Includes Match:", workshopIncludes);
+            }
+        }
+        
     } catch (err) {
         console.error("Error:", err);
     }
