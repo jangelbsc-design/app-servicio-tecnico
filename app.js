@@ -1,3 +1,40 @@
+const credenciales = {
+    "tiendasucre": "Sucre2026",
+    "tiendatarija": "Tarija2026",
+    "Lapazst": "Lapaz2026",
+    "Cbbast": "Cbba2026",
+    "Scst": "Santacruz2026",
+    "administrador": "admin"
+};
+
+function verificarAcceso() {
+    // 1. Revisar si ya hay una sesión activa
+    const sesionActiva = localStorage.getItem('dismatec_session');
+
+    if (sesionActiva === 'true') {
+        console.log("Acceso concedido");
+        return; // Ya está logueado, no hace nada más
+    }
+
+    // 2. Si no hay sesión, pedir usuario y contraseña
+    let usuario = prompt("Nombre de usuario:");
+    let pass = prompt("Contraseña:");
+
+    // 3. Validar contra nuestra lista
+    if (credenciales[usuario] && credenciales[usuario] === pass) {
+        alert("¡Bienvenido, " + usuario + "!");
+        localStorage.setItem('dismatec_session', 'true');
+        localStorage.setItem('usuario_actual', usuario); // Guardamos quién entró
+        location.reload(); // Recargamos para mostrar la app
+    } else {
+        alert("Acceso denegado. Datos incorrectos.");
+        document.body.innerHTML = "<h1 style='text-align:center; margin-top:20%; font-family:sans-serif;'>Acceso restringido. Por favor, recarga la página e intenta de nuevo.</h1>";
+    }
+}
+
+// Ejecutar la verificación apenas cargue el script
+verificarAcceso();
+
 let appWorkshopData = [];
 let appOrdersData = [];
 
