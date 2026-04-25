@@ -1,39 +1,18 @@
-const credenciales = {
-    "tiendasucre": "Sucre2026",
-    "tiendatarija": "Tarija2026",
-    "Lapazst": "Lapaz2026",
-    "Cbbast": "Cbba2026",
-    "Scst": "Santacruz2026",
-    "administrador": "admin"
+const USERS_SHEET_CONFIG = {
+    id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
+    sheetName: 'Usuarios_App'
 };
 
-function verificarAcceso() {
-    // 1. Revisar si ya hay una sesión activa
+function checkSessionOnLoad() {
     const sesionActiva = localStorage.getItem('dismatec_session');
-
-    if (sesionActiva === 'true') {
-        console.log("Acceso concedido");
-        return; // Ya está logueado, no hace nada más
-    }
-
-    // 2. Si no hay sesión, pedir usuario y contraseña
-    let usuario = prompt("Nombre de usuario:");
-    let pass = prompt("Contraseña:");
-
-    // 3. Validar contra nuestra lista
-    if (credenciales[usuario] && credenciales[usuario] === pass) {
-        alert("¡Bienvenido, " + usuario + "!");
-        localStorage.setItem('dismatec_session', 'true');
-        localStorage.setItem('usuario_actual', usuario); // Guardamos quién entró
-        location.reload(); // Recargamos para mostrar la app
+    const overlay = document.getElementById('login-overlay');
+    if (sesionActiva !== 'true') {
+        if (overlay) overlay.style.display = 'flex';
     } else {
-        alert("Acceso denegado. Datos incorrectos.");
-        document.body.innerHTML = "<h1 style='text-align:center; margin-top:20%; font-family:sans-serif;'>Acceso restringido. Por favor, recarga la página e intenta de nuevo.</h1>";
+        if (overlay) overlay.style.display = 'none';
     }
 }
-
-// Ejecutar la verificación apenas cargue el script
-verificarAcceso();
+checkSessionOnLoad();
 
 let appWorkshopData = [];
 let appOrdersData = [];
@@ -190,6 +169,52 @@ console.log("🔧 APP.JS CARGADO");
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("✅ DOMContentLoaded DISPARADO");
+
+    const loginBtn = document.getElementById('login-btn');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', async () => {
+            const user = document.getElementById('login-usuario').value;
+            const pass = document.getElementById('login-password').value;
+            const errorEl = document.getElementById('login-error');
+            
+            if (!user || !pass) {
+                errorEl.textContent = "Por favor ingrese usuario y contraseña.";
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            loginBtn.textContent = "Verificando...";
+            loginBtn.disabled = true;
+            errorEl.style.display = 'none';
+            
+            try {
+                const users = await fetchGoogleSheet(USERS_SHEET_CONFIG.id, USERS_SHEET_CONFIG.sheetName);
+                const foundUser = users.find(u => u.Usuario === user && u.Contraseña === pass);
+                
+                if (foundUser) {
+                    localStorage.setItem('dismatec_session', 'true');
+                    localStorage.setItem('usuario_actual', foundUser.Usuario);
+                    localStorage.setItem('usuario_rol', foundUser.Rol);
+                    localStorage.setItem('usuario_regional', foundUser.Regional);
+                    
+                    const overlay = document.getElementById('login-overlay');
+                    if (overlay) overlay.style.display = 'none';
+                    location.reload(); 
+                } else {
+                    errorEl.textContent = "Acceso denegado. Datos incorrectos.";
+                    errorEl.style.display = 'block';
+                    loginBtn.textContent = "Ingresar";
+                    loginBtn.disabled = false;
+                }
+            } catch (err) {
+                console.error("Error logging in:", err);
+                errorEl.textContent = "Error de conexión. Intente de nuevo.";
+                errorEl.style.display = 'block';
+                loginBtn.textContent = "Ingresar";
+                loginBtn.disabled = false;
+            }
+        });
+    }
 
     const viewDashboard = document.getElementById('view-dashboard');
     const viewRedTalleres = document.getElementById('view-red-talleres');
@@ -351,10 +376,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Esos buscadores filtran sobre una lista ya filtrada por región y estado.
             // Implementaré el filtro de estados aquí también para consistencia.
             const estados_excluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
-            const ordenesActivas = ordenes.filter(o => {
+            let ordenesActivas = ordenes.filter(o => {
                 const e = (o.Estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                 return !estados_excluidos.some(ex => e.includes(ex));
             });
+
+            // FILTRO DE USUARIO (NUEVO)
+            const rol = localStorage.getItem('usuario_rol');
+            const regional = localStorage.getItem('usuario_regional');
+            if (rol === 'regional' && regional) {
+                ordenesActivas = ordenesActivas.filter(o => isOrderInRegion(o, regional));
+            }
 
             if (ordenesActivas.length > 0) {
                 html += `<h3 style="font-size:1.1rem; font-weight:800; margin:1.5rem 0 1rem 0; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-file-earmark-text"></i> Órdenes Activas (${ordenesActivas.length})</h3>`;
@@ -648,10 +680,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // FILTRO DE ESTADOS: Excluir error, entregado, cerrado
         const estados_excluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
-        const ordenesFiltradas = ordenes.filter(o => {
+        let ordenesFiltradas = ordenes.filter(o => {
             const e = (o.Estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             return !estados_excluidos.some(ex => e.includes(ex));
         });
+
+        // FILTRO DE USUARIO (NUEVO)
+        const rol = localStorage.getItem('usuario_rol');
+        const regional = localStorage.getItem('usuario_regional');
+        if (rol === 'regional' && regional) {
+            ordenesFiltradas = ordenesFiltradas.filter(o => isOrderInRegion(o, regional));
+        }
 
         if (ordenesFiltradas.length === 0) {
             contentEl.innerHTML = '<p style="text-align:center;padding:2rem;">No se encontraron órdenes activas.</p>';
@@ -980,16 +1019,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (!json.table || !json.table.rows) return [];
 
-            return json.table.rows.map(row => {
+            let hasHeaders = json.table.cols.some(col => col.label);
+            let headers = [];
+            let startIndex = 0;
+
+            if (hasHeaders) {
+                headers = json.table.cols.map(col => col.label);
+            } else if (json.table.rows.length > 0) {
+                headers = json.table.rows[0].c.map(cell => cell ? (cell.v || '') : '');
+                startIndex = 1;
+            }
+
+            const rows = [];
+            for (let i = startIndex; i < json.table.rows.length; i++) {
+                const row = json.table.rows[i];
                 const obj = {};
-                json.table.cols.forEach((col, i) => {
-                    if (!col.label) return;
-                    const cell = row.c[i];
-                    // Usar valor formateado (f) si existe, si no el valor crudo (v)
-                    obj[col.label] = cell ? (cell.f !== undefined && cell.f !== null ? cell.f : (cell.v !== undefined && cell.v !== null ? cell.v : '')) : '';
+                headers.forEach((header, j) => {
+                    if (!header) return;
+                    const cell = row.c[j];
+                    obj[header] = cell ? (cell.f !== undefined && cell.f !== null ? cell.f : (cell.v !== undefined && cell.v !== null ? cell.v : '')) : '';
                 });
-                return obj;
-            });
+                rows.push(obj);
+            }
+            return rows;
         } catch (err) {
             console.error(`Error fetching sheet ${sheet}:`, err);
             throw err;

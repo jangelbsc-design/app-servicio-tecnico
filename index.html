@@ -242,8 +242,23 @@
         </nav>
     </div>
 
+    <!-- Pantalla de Login -->
+    <div id="login-overlay" style="position: fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9999; display:none; flex-direction:column; align-items:center; justify-content:center; font-family:'Outfit',sans-serif;">
+        <div style="background:#f8fafc; padding:2rem; border-radius:15px; box-shadow:0 10px 25px rgba(0,0,0,0.1); width:90%; max-width:400px; text-align:center;">
+            <div style="margin-bottom:1.5rem; display:flex; justify-content:center; align-items:center;">
+                <div style="background-color: #E31837; color: white; padding: 2px 4px 2px 8px; font-weight:900; font-size:1.8rem; border-radius:6px 0 0 6px;">dis</div>
+                <div style="background-color: white; color: black; padding: 2px 8px 2px 2px; font-weight:900; font-size:1.8rem; border-radius:0 6px 6px 0; border:1px solid #eee;">mac<sup style="font-size: 0.45em; margin-top: -12px; margin-left: 1px;">®</sup></div>
+            </div>
+            <h2 style="margin-bottom:1.5rem; color:#111; font-weight:800;">Iniciar Sesión</h2>
+            <input type="text" id="login-usuario" placeholder="Usuario" style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #cbd5e1; border-radius:8px; font-family:inherit; font-size:1rem; box-sizing:border-box; outline:none;">
+            <input type="password" id="login-password" placeholder="Contraseña" style="width:100%; padding:12px; margin-bottom:20px; border:1px solid #cbd5e1; border-radius:8px; font-family:inherit; font-size:1rem; box-sizing:border-box; outline:none;">
+            <button id="login-btn" style="width:100%; padding:12px; background:#E31837; color:white; border:none; border-radius:8px; font-weight:700; font-size:1rem; cursor:pointer;">Ingresar</button>
+            <p id="login-error" style="color:#ef4444; margin-top:15px; font-size:0.9rem; display:none;"></p>
+        </div>
+    </div>
+
     <!-- <script src="data.js"></script> -->
-    <script src="app.js?v=18"></script>
+    <script src="app.js?v=19"></script>
 </body>
 
 </html>
