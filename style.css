@@ -27,7 +27,7 @@
     /* Black */
     --blue-100: #f1f5f9;
 
-    --purple-500: #E31837;
+    --brand: #E31837;
     /* Red */
     --purple-100: #FDE8EA;
 
@@ -205,7 +205,7 @@ body {
 
 .bg-purple {
     background-color: var(--purple-100);
-    color: var(--purple-500);
+    color: var(--brand);
 }
 
 .bg-green {
