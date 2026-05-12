@@ -254,7 +254,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         filteredTalleres = appWorkshopData.filter(t =>
             (t.CIUDAD || "").toUpperCase() === regionUpper &&
             ((t.TALLER || "").toLowerCase().includes(query) ||
-                (t.MARCA || "").toLowerCase().includes(query))
+                (t.MARCA || "").toLowerCase().includes(query) ||
+                (t.CIUDAD || "").toLowerCase().includes(query) ||
+                (t.CONTACTO || "").toLowerCase().includes(query))
         );
         renderTalleres(currentRegionTalleres, filteredTalleres);
     });
@@ -276,7 +278,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 (o['Fecha de compra'] || "").toLowerCase().includes(query) ||
                 (o['Fecha de ingreso a la marca'] || "").toLowerCase().includes(query) ||
                 (o['¿Qué servicio técnico ?'] || "").toLowerCase().includes(query) ||
-                (o['Fecha de la última modificación'] || "").toLowerCase().includes(query))
+                (o['Fecha de la última modificación'] || "").toLowerCase().includes(query) ||
+                (o['Territorio de servicio: Nombre'] || "").toLowerCase().includes(query) ||
+                (o['Estado'] || "").toLowerCase().includes(query))
         );
         renderOrdenes(currentRegionOrdenes, filteredOrdenes);
     });
@@ -305,7 +309,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const matchedTalleres = appWorkshopData.filter(t =>
             (t.TALLER || "").toLowerCase().includes(query) ||
             (t.MARCA || "").toLowerCase().includes(query) ||
-            (t.CIUDAD || "").toLowerCase().includes(query)
+            (t.CIUDAD || "").toLowerCase().includes(query) ||
+            (t.CONTACTO || "").toLowerCase().includes(query)
         );
 
         // Filtrar Órdenes (mismo criterio que el buscador regional)
@@ -321,7 +326,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             (o['Fecha de compra'] || "").toLowerCase().includes(query) ||
             (o['Fecha de ingreso a la marca'] || "").toLowerCase().includes(query) ||
             (o['¿Qué servicio técnico ?'] || "").toLowerCase().includes(query) ||
-            (o['Fecha de la última modificación'] || "").toLowerCase().includes(query)
+            (o['Fecha de la última modificación'] || "").toLowerCase().includes(query) ||
+            (o['Territorio de servicio: Nombre'] || "").toLowerCase().includes(query) ||
+            (o['Estado'] || "").toLowerCase().includes(query)
         );
 
         renderGlobalSearchResults(matchedTalleres, matchedOrdenes);
