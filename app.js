@@ -232,6 +232,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     const dashboardContact = document.getElementById('dashboard-contact');
     const dashboardFaq = document.getElementById('dashboard-faq');
 
+    // Configurar botones de limpieza de búsqueda
+    function setupClearSearch(inputId, clearBtnId) {
+        const input = document.getElementById(inputId);
+        const clearBtn = document.getElementById(clearBtnId);
+        
+        if (!input || !clearBtn) return;
+        
+        input.addEventListener('input', () => {
+            clearBtn.style.display = input.value.length > 0 ? 'block' : 'none';
+        });
+        
+        clearBtn.addEventListener('click', () => {
+            input.value = '';
+            clearBtn.style.display = 'none';
+            input.dispatchEvent(new Event('input'));
+            input.focus();
+        });
+    }
+
+    setupClearSearch('global-search-input', 'clear-global-search');
+    setupClearSearch('estados-search-input', 'clear-estados-search');
+    setupClearSearch('workshop-search-input', 'clear-workshop-search');
+
     // Cargar datos
     console.log("📥 Cargando datos...");
     await loadAllData();
