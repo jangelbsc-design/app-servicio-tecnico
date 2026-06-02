@@ -635,19 +635,39 @@ document.addEventListener('DOMContentLoaded', async () => {
             let mapHtml = '';
             if (t.UBICACION) {
                 let mapUrl = t.UBICACION;
+                let coords = '';
                 if (/^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(mapUrl)) {
-                    mapUrl = `https://www.google.com/maps?q=${mapUrl.replace(/\s+/g, '')}`;
+                    coords = mapUrl.replace(/\s+/g, '');
+                    mapUrl = `https://www.google.com/maps?q=${coords}`;
                 } else if (!mapUrl.startsWith('http')) {
                     mapUrl = 'https://' + mapUrl;
                 }
 
+                const embedQuery = coords || encodeURIComponent(t.TALLER || 'ubicación');
+                const embedUrl = `https://www.google.com/maps?q=${embedQuery}&output=embed&z=16`;
+
                 mapHtml = `
-                    <a href="${mapUrl}" target="_blank" class="btn-action" style="background:#ffffff;color:#111;padding:15px;border-radius:12px;text-align:center;text-decoration:none;font-size:1rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;font-weight:700;margin-top:0.5rem;width:100%;box-sizing:border-box;border:1px solid #e2e8f0;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
-                        <div style="background:radial-gradient(circle at 30% 30%, #ff4b68, #E31837); width:32px; height:32px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); display:flex; align-items:center; justify-content:center; box-shadow:2px 2px 5px rgba(0,0,0,0.2);">
-                            <div style="width:10px; height:10px; background:white; border-radius:50%;"></div>
+                    <div class="map-preview-container" style="margin-top:0.75rem; border-radius:14px; overflow:hidden; border:1px solid #e2e8f0; box-shadow:0 4px 12px rgba(0,0,0,0.08); position:relative;">
+                        <div style="width:100%; height:180px; position:relative; overflow:hidden; background:#f1f5f9;">
+                            <iframe
+                                src="${embedUrl}"
+                                width="100%"
+                                height="180"
+                                style="border:0; display:block; pointer-events:none;"
+                                allowfullscreen=""
+                                loading="lazy"
+                                referrerpolicy="no-referrer-when-downgrade">
+                            </iframe>
+                            <div style="position:absolute; top:0; left:0; width:100%; height:100%; cursor:pointer;" onclick="window.open('${mapUrl}', '_blank')"></div>
                         </div>
-                        Abrir en Google Maps
-                    </a>
+                        <a href="${mapUrl}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; padding:12px 15px; background:#ffffff; text-decoration:none; color:#111; font-weight:700; font-size:0.9rem; border-top:1px solid #f1f5f9; transition: background 0.2s ease;">
+                            <div style="background:radial-gradient(circle at 30% 30%, #ff4b68, #E31837); width:24px; height:24px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); display:flex; align-items:center; justify-content:center; box-shadow:1px 1px 3px rgba(0,0,0,0.15); flex-shrink:0;">
+                                <div style="width:7px; height:7px; background:white; border-radius:50%;"></div>
+                            </div>
+                            <span>Abrir en Google Maps</span>
+                            <i class="bi bi-box-arrow-up-right" style="font-size:0.8rem; color:#94a3b8;"></i>
+                        </a>
+                    </div>
                 `;
             }
 
