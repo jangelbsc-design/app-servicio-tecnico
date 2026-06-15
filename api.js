@@ -26,45 +26,27 @@ const TELEGRAM_CONFIG = {
 };
 
 export async function fetchGoogleSheet(id, sheet) {
-    try {
-        const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&sheet=${sheet}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        const text = await res.text();
-
-        // Limpiar la respuesta de Google
-        const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
-        const json = JSON.parse(jsonStr);
-
-        if (!json.table || !json.table.rows) return [];
-
-        let hasHeaders = json.table.cols.some(col => col.label);
-        let headers = [];
-        let startIndex = 0;
-
-        if (hasHeaders) {
-            headers = json.table.cols.map(col => col.label);
-        } else if (json.table.rows.length > 0) {
-            headers = json.table.rows[0].c.map(cell => cell ? (cell.v || '') : '');
-            startIndex = 1;
-        }
-
-        const rows = [];
-        for (let i = startIndex; i < json.table.rows.length; i++) {
-            const row = json.table.rows[i];
-            const obj = {};
-            headers.forEach((header, j) => {
-                if (!header) return;
-                const cell = row.c[j];
-                obj[header] = cell ? (cell.f !== undefined && cell.f !== null ? cell.f : (cell.v !== undefined && cell.v !== null ? cell.v : '')) : '';
+    return new Promise(async (resolve, reject) => {
+        try {
+            const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${sheet}`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+            const csvText = await res.text();
+            
+            window.Papa.parse(csvText, {
+                header: true,
+                skipEmptyLines: true,
+                complete: (results) => {
+                    resolve(results.data);
+                },
+                error: (error) => {
+                    reject(error);
+                }
             });
-            rows.push(obj);
+        } catch (error) {
+            reject(error);
         }
-        return rows;
-    } catch (err) {
-        console.error(`Error fetching sheet ${sheet}:`, err);
-        throw err;
-    }
+    });
 }
 
 export function escapeHTML(str) {
