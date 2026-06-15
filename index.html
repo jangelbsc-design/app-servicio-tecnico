@@ -191,8 +191,13 @@
                         </div>
                     </div>
                     <div style="width: 100%; height: 300px; background: #f8fafc; position: relative;">
-                        <!-- Iframe Vista Previa Mapa -->
-                        <iframe src="https://www.dismac.com.bo/servicios/zona-de-cobertura.html" style="width: 100%; height: 100%; border: none;" title="Mapa de Cobertura"></iframe>
+                        <!-- Imagen Vista Previa Mapa en lugar de iframe bloqueado -->
+                        <a href="https://www.dismac.com.bo/servicios/zona-de-cobertura.html" target="_blank" style="display: block; width: 100%; height: 100%;">
+                            <img src="mapa-talleres.png" alt="Vista Previa del Mapa de Cobertura" style="width: 100%; height: 100%; object-fit: cover; border: none; transition: opacity 0.2s ease;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(227, 24, 55, 0.9); color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold; pointer-events: none; font-size: 0.9rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                <i class="bi bi-hand-index-thumb"></i> Toca para ver mapa oficial
+                            </div>
+                        </a>
                     </div>
                 </div>
             </section>
