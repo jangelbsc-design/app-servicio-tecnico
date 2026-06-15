@@ -25,6 +25,10 @@ const SHEETS_CONFIG = {
     seguimiento: {
         id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
         sheetName: 'REPORTE%20GLOBAL'
+    },
+    zapia: {
+        id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
+        sheetName: 'ZAPIA_ENRICHMENT'
     }
 };
 
@@ -303,7 +307,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 (o['¿Qué servicio técnico ?'] || "").toLowerCase().includes(query) ||
                 (o['Fecha de la última modificación'] || "").toLowerCase().includes(query) ||
                 (o['Territorio de servicio: Nombre'] || "").toLowerCase().includes(query) ||
-                (o['Estado'] || "").toLowerCase().includes(query))
+                (o['Estado'] || "").toLowerCase().includes(query) ||
+                (o.zapiaCI || "").toLowerCase().includes(query) ||
+                (o.zapiaTel || "").toLowerCase().includes(query) ||
+                (o.zapiaDiag || "").toLowerCase().includes(query) ||
+                (o.zapiaSol || "").toLowerCase().includes(query))
         );
         renderOrdenes(currentRegionOrdenes, filteredOrdenes);
     });
@@ -351,7 +359,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             (o['¿Qué servicio técnico ?'] || "").toLowerCase().includes(query) ||
             (o['Fecha de la última modificación'] || "").toLowerCase().includes(query) ||
             (o['Territorio de servicio: Nombre'] || "").toLowerCase().includes(query) ||
-            (o['Estado'] || "").toLowerCase().includes(query)
+            (o['Estado'] || "").toLowerCase().includes(query) ||
+            (o.zapiaCI || "").toLowerCase().includes(query) ||
+            (o.zapiaTel || "").toLowerCase().includes(query) ||
+            (o.zapiaDiag || "").toLowerCase().includes(query) ||
+            (o.zapiaSol || "").toLowerCase().includes(query)
         );
 
         renderGlobalSearchResults(matchedTalleres, matchedOrdenes);
@@ -828,12 +840,55 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `;
             }
 
+            // Preparar contacto del cliente si Zapia tiene teléfono
+            let clientContactHtml = "";
+            if (o.zapiaEnriched && o.zapiaTel) {
+                const numList = (o.zapiaTel || "").split(/[-/,]/).map(n => n.trim()).filter(n => n.length >= 7);
+                const buttonsHtml = numList.map(num => {
+                    const cleanNum = num.replace(/\D/g, '');
+                    const clientMsg = `Hola ${nombreCliente}, le saludamos de Dismac para brindarle información sobre su orden de trabajo ${ordenDismac} (${activo}).`;
+                    const encodedClientMsg = encodeURIComponent(clientMsg);
+                    return `
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:5px;">
+                            <a href="tel:${cleanNum}" style="background:#f1f5f9; color:#1e293b; text-decoration:none; padding:8px; border-radius:5px; font-size:0.75rem; text-align:center; font-weight:600;"><i class="bi bi-telephone-fill" style="color:#16a34a;"></i> Llamar Cliente</a>
+                            <a href="https://wa.me/591${cleanNum}?text=${encodedClientMsg}" target="_blank" style="background:#dcfce7; color:#166534; text-decoration:none; padding:8px; border-radius:5px; font-size:0.75rem; text-align:center; font-weight:600;"><i class="bi bi-whatsapp" style="color:#15803d;"></i> Mensaje WA</a>
+                        </div>
+                    `;
+                }).join('');
+
+                clientContactHtml = `
+                    <div style="margin-top:15px; padding:10px; background:#f4fbf7; border-radius:10px; border:1px solid #c8e6c9;">
+                        <p style="font-weight:700; font-size:0.85rem; margin-bottom:5px; color:#2e7d32; display:flex; align-items:center; gap:5px;"><i class="bi bi-person-fill"></i> Contacto Cliente (Zapia)</p>
+                        ${buttonsHtml}
+                    </div>
+                `;
+            }
+
+            // Preparar información de diagnóstico y solución enriquecidos de Zapia
+            let zapiaInfoHtml = "";
+            if (o.zapiaEnriched) {
+                zapiaInfoHtml = `
+                    <div style="margin-top:15px; padding:12px; background:#f0fdf4; border-radius:10px; border:1px solid #bbf7d0;">
+                        <p style="font-weight:700; font-size:0.85rem; margin:0 0 8px 0; color:#16a34a; display:flex; align-items:center; gap:5px;"><i class="bi bi-robot"></i> Datos Complementarios (Zapia)</p>
+                        <div style="display:flex; flex-direction:column; gap:6px; font-size:0.8rem; color:#14532d;">
+                            ${o.zapiaCI ? `<p style="margin:0;"><strong>Carnet de Identidad:</strong> ${o.zapiaCI}</p>` : ''}
+                            ${o.zapiaTel ? `<p style="margin:0;"><strong>Teléfono:</strong> ${o.zapiaTel}</p>` : ''}
+                            ${o.zapiaDiag ? `<p style="margin:0; white-space: pre-line;"><strong>Diagnóstico:</strong> ${o.zapiaDiag}</p>` : ''}
+                            ${o.zapiaSol ? `<p style="margin:0; white-space: pre-line;"><strong>Solución:</strong> ${o.zapiaSol}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
             return `
                 <div class="accordion-item" style="margin-bottom:12px; border-radius:15px; border:1px solid #e2e8f0; border-left:4px solid #3b82f6; background:white; overflow:hidden;">
                     <button class="accordion-header" style="width:100%; border:none; background:none; padding:15px; text-align:left; cursor:pointer;" onclick="this.parentElement.classList.toggle('active')">
                         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                             <div style="flex:1; padding-right:10px;">
-                                <p style="margin:0 0 8px 0; font-weight:800; color:#111; font-size:1.05rem; line-height:1.2;">${o['Cuenta: Nombre de la cuenta'] || 'CLIENTE S/N'}</p>
+                                <p style="margin:0 0 8px 0; font-weight:800; color:#111; font-size:1.05rem; line-height:1.2; display:flex; align-items:center; gap:6px;">
+                                    ${o['Cuenta: Nombre de la cuenta'] || 'CLIENTE S/N'}
+                                    ${o.zapiaEnriched ? `<span style="background:#dcfce7; color:#15803d; font-size:0.65rem; padding:2px 6px; border-radius:6px; font-weight:700; display:inline-flex; align-items:center; gap:3px;"><i class="bi bi-robot"></i> Zapia</span>` : ''}
+                                </p>
                                 <div style="display:flex; align-items:center; gap:12px; font-size:0.8rem; color:#64748b;">
                                     <span style="display:flex; align-items:center; gap:4px;"><i class="bi bi-geo-alt-fill" style="color:#ef4444;"></i> ${o['Territorio de servicio: Nombre'] || 'Sin región'}</span>
                                     <span style="display:flex; align-items:center; gap:4px;"><i class="bi bi-clock-fill" style="color:#f59e0b;"></i> ${o['Tiempo desde apertura (Días)'] || '0'}d</span>
@@ -857,6 +912,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <p style="margin:0;"><strong>Referencia:</strong> ${o['Referencia'] || '—'}</p>
                             <p style="margin:0;"><strong>Estado:</strong> ${o.Estado || '—'}</p>
                             ${workshopHtml}
+                            ${zapiaInfoHtml}
+                            ${clientContactHtml}
                         </div>
                     </div>
                 </div>
@@ -989,9 +1046,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadAllData() {
         try {
-            const [workshopData, globalData] = await Promise.all([
+            const [workshopData, globalData, zapiaData] = await Promise.all([
                 fetchGoogleSheet(SHEETS_CONFIG.talleres.id, SHEETS_CONFIG.talleres.sheetName),
-                fetchGoogleSheet(SHEETS_CONFIG.seguimiento.id, SHEETS_CONFIG.seguimiento.sheetName)
+                fetchGoogleSheet(SHEETS_CONFIG.seguimiento.id, SHEETS_CONFIG.seguimiento.sheetName),
+                fetchGoogleSheet(SHEETS_CONFIG.zapia.id, SHEETS_CONFIG.zapia.sheetName).catch(err => {
+                    console.warn("Error al cargar ZAPIA_ENRICHMENT, continuando sin ella:", err);
+                    return [];
+                })
             ]);
 
             let currentCity = "";
@@ -1047,8 +1108,57 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return null;
             }).filter(row => row !== null);
 
-            appOrdersData = globalData;
-            console.log('Datos procesados:', { talleres: appWorkshopData.length, ordenes: appOrdersData.length });
+            // Helper para obtener valores de Zapia de forma flexible
+            const getZapiaVal = (row, ...keys) => {
+                const rowKeys = Object.keys(row);
+                for (const key of keys) {
+                    const normKey = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+                    const exactKey = rowKeys.find(k => {
+                        const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+                        return normK === normKey || normK.includes(normKey);
+                    });
+                    if (exactKey && row[exactKey] !== undefined && row[exactKey] !== null) {
+                        return row[exactKey].toString().trim();
+                    }
+                }
+                return "";
+            };
+
+            // Cruzar y enriquecer órdenes con la pestaña ZAPIA_ENRICHMENT
+            appOrdersData = globalData.map(o => {
+                const mainTidy = (o['Referencia'] || '').toString().trim().toUpperCase();
+                
+                let zapiaMatch = null;
+                if (mainTidy && zapiaData && zapiaData.length > 0) {
+                    zapiaMatch = zapiaData.find(z => {
+                        const zTidy = getZapiaVal(z, 'Número de Tidy', 'Numero de Tidy', 'Tidy', 'Referencia').toUpperCase();
+                        return zTidy === mainTidy;
+                    });
+                }
+
+                if (zapiaMatch) {
+                    const zapiaCI = getZapiaVal(zapiaMatch, 'CI', 'Carnet de Identidad', 'CIs', 'Carnet');
+                    const zapiaTel = getZapiaVal(zapiaMatch, 'Teléfono', 'Telefono', 'Teléfonos', 'Telefonos', 'Celular');
+                    const zapiaDiag = getZapiaVal(zapiaMatch, 'Diagnóstico', 'Diagnostico');
+                    const zapiaSol = getZapiaVal(zapiaMatch, 'Solución', 'Solucion');
+
+                    return {
+                        ...o,
+                        zapiaEnriched: true,
+                        zapiaCI: zapiaCI,
+                        zapiaTel: zapiaTel,
+                        zapiaDiag: zapiaDiag,
+                        zapiaSol: zapiaSol
+                    };
+                }
+                return o;
+            });
+
+            console.log('Datos procesados:', { 
+                talleres: appWorkshopData.length, 
+                ordenes: appOrdersData.length,
+                ordenesEnriquecidas: appOrdersData.filter(o => o.zapiaEnriched).length
+            });
         } catch (error) {
             console.error('Error al cargar datos:', error);
             const statusEl = document.getElementById('sync-status');
