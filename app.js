@@ -1,5 +1,320 @@
-import { USERS_SHEET_CONFIG, SHEETS_CONFIG, fetchGoogleSheet, chequearOrdenesEstancadas } from './api.js';
-import { parseAllData } from './dataParser.js';
+const USERS_SHEET_CONFIG = {
+    id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
+    sheetName: 'Usuarios_App'
+};
+
+const SHEETS_CONFIG = {
+    talleres: {
+        id: '1wV3Ch5U-HWfsnvDoc56mL-4JCy22e7STdYzvJgFoI2I',
+        sheetName: 'RED%20DE%20TALLERES'
+    },
+    seguimiento: {
+        id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
+        sheetName: 'REPORTE%20GLOBAL'
+    },
+    zapia: {
+        id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
+        sheetName: 'ZAPIA_ENRICHMENT'
+    }
+};
+
+const TELEGRAM_CONFIG = {
+    token: '8769379678:AAFjYMA5UXyWQ0QTyUSHhBEXhl2FAxmomLA',
+    chatId: '363865053'                  // Juan Angel Bustos
+};
+
+async function fetchGoogleSheet(id, sheet) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${sheet}`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+            const csvText = await res.text();
+            
+            window.Papa.parse(csvText, {
+                header: true,
+                skipEmptyLines: true,
+                complete: (results) => {
+                    resolve(results.data);
+                },
+                error: (error) => {
+                    reject(error);
+                }
+            });
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+function escapeHTML(str) {
+    if (!str) return '';
+    return str.toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function isRegionApp(territorioStr) {
+    if (!territorioStr) return false;
+    const t = territorioStr.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+    const regiones = ['tarija', 'sucre', 'oruro', 'beni', 'potosi', 'la paz', 'cochabamba', 'santa cruz'];
+    if (regiones.some(r => t.includes(r))) return true;
+
+    const municipios = ['montero', 'la guardia', 'el torno', 'cotoca', 'satelite', 'camiri', 'san julian', 'guabira', 'warnes', 'pailon', 'samaipata'];
+    if (municipios.some(m => t.includes(m))) return true;
+
+    return false;
+}
+
+async function sendTelegram(message) {
+    if (!TELEGRAM_CONFIG.token || TELEGRAM_CONFIG.token === 'PONER_TOKEN_DEL_BOT_AQUI') {
+        console.warn('Telegram: token no configurado.');
+        return;
+    }
+    try {
+        const text = encodeURIComponent(message);
+        const url = `https://api.telegram.org/bot${TELEGRAM_CONFIG.token}/sendMessage?chat_id=${TELEGRAM_CONFIG.chatId}&text=${text}&parse_mode=HTML`;
+        const res = await fetch(url);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.ok) {
+                console.log('✅ Notificación Telegram enviada correctamente.');
+            } else {
+                console.error('❌ Telegram respondió con error:', data.description);
+            }
+        } else {
+            console.error('❌ Error HTTP al enviar Telegram:', res.status, res.statusText);
+        }
+    } catch (e) {
+        console.error('❌ Error enviando Telegram (posible bloqueo CORS si abres con file://):', e.message);
+    }
+}
+
+function parseFecha(str) {
+    if (!str) return null;
+    const s = str.toString().trim();
+    let m;
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+    m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+    const d = new Date(s);
+    return isNaN(d) ? null : d;
+}
+
+function diasDesde(fechaStr) {
+    const f = parseFecha(fechaStr);
+    if (!f) return null;
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    return Math.floor((hoy - f) / 86400000);
+}
+
+function chequearOrdenesEstancadas(appOrdersData) {
+    const estados_excluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
+    const isExcluido = (o) => {
+        const e = (o.Estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return estados_excluidos.some(ex => e.includes(ex));
+    };
+
+    const alertas = [];
+
+    for (const o of appOrdersData) {
+        if (isExcluido(o)) continue;
+
+        const territorio = o['Territorio de servicio: Nombre'] || "";
+        if (!isRegionApp(territorio)) continue;
+
+        const diasCreacion = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10);
+        const diasMod = diasDesde(o['Fecha de la última modificación']);
+
+        const cliente = escapeHTML(o['Cuenta: Nombre de la cuenta'] || 'S/N');
+        const producto = escapeHTML(o['Producto ST'] || '');
+        const region = escapeHTML(territorio);
+        const estado = escapeHTML(o.Estado || 'S/E');
+        const tipoServicio = escapeHTML(o['Tipo de Servicio'] || 'S/N');
+        const razones = [];
+
+        if (diasMod !== null && diasMod >= 4) razones.push(`🕒 ${diasMod}d sin cambios`);
+        if (diasCreacion >= 8) razones.push(`📅 ${diasCreacion}d desde creación`);
+
+        if (razones.length > 0) {
+            alertas.push(`⚠️ <b>${cliente}</b>
+  📦 ${producto}
+  🛠️ Tipo: ${tipoServicio}
+  📌 ${region} | Estado: ${estado}
+  ${razones.join(' | ')}`);
+        }
+    }
+
+    if (alertas.length === 0) {
+        console.log('✅ Telegram: sin órdenes estancadas.');
+        return;
+    }
+
+    const fecha = new Date().toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const msg = `🚨 <b>DISMAC — Órdenes estancadas</b> (${fecha})
+
+Se encontraron <b>${alertas.length}</b> orden(es) que requieren atención:
+
+${alertas.join('\n\n')}
+
+🔗 <b>Abrir App:</b> https://jabustos.github.io/app-servicio-tecnico/`;
+
+    sendTelegram(msg);
+}
+
+function parseAllData(workshopData, globalData, zapiaData) {
+    let parsedWorkshopData = [];
+    let parsedOrdersData = [];
+
+    // Parseo de Talleres
+    parsedWorkshopData = workshopData.map(row => {
+        const getVal = (row, ...keys) => {
+            const rowKeys = Object.keys(row);
+            for (const key of keys) {
+                const exactKey = rowKeys.find(k => k.trim().toUpperCase() === key.toUpperCase());
+                if (exactKey && row[exactKey] !== undefined && row[exactKey] !== null) {
+                    return row[exactKey].toString().trim();
+                }
+            }
+            return "";
+        };
+
+        const ciudad = getVal(row, 'CIUDAD', 'Ciudad', 'ciudad');
+        const taller = getVal(row, 'TALLER', 'Taller', 'taller');
+        const marca = getVal(row, 'MARCA', 'Marca', 'marca');
+
+        let contacto = getVal(row, 'CONTACTO', 'Contacto', 'contacto', 'CONTACTOS', 'CELULAR', 'TELEFONO');
+        if (!contacto) {
+            const rowKeys = Object.keys(row);
+            const contactKey = rowKeys.find(k => k.toUpperCase().includes('CONTACTO') || k.toUpperCase().includes('TEL') || k.toUpperCase().includes('CEL'));
+            if (contactKey && row[contactKey]) {
+                contacto = row[contactKey].toString().trim();
+            }
+        }
+
+        if (taller && taller.toUpperCase().includes("ELECTRONICA DIGITAL JKA") && !contacto) {
+            contacto = "60263531 - 60264988";
+        }
+
+        const ubicacion = getVal(row, 'UBICACIÓN POR GPS', 'Ubicación', 'UBICACION', 'UBICACIÓN GPS');
+
+        return {
+            ...row,
+            CIUDAD: ciudad,
+            TALLER: taller,
+            MARCA: marca,
+            CONTACTO: contacto,
+            UBICACION: ubicacion
+        };
+    });
+
+    // Parseo de Zapia
+    let parsedZapiaData = [];
+    if (zapiaData && zapiaData.length > 0) {
+        let headerRowIndex = -1;
+        let zapiaHeaderMap = {};
+
+        for (let i = 0; i < Math.min(zapiaData.length, 5); i++) {
+            const row = zapiaData[i];
+            const vals = Object.values(row).map(v => (v || '').toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim());
+            
+            const hasTidy = vals.some(v => v.includes('tidy') || v.includes('referencia'));
+            const hasDoc = vals.some(v => v.includes('documento') || v.includes('ci') || v.includes('carnet'));
+            const hasDiag = vals.some(v => v.includes('diagnostico') || v.includes('falla'));
+            const hasSol = vals.some(v => v.includes('solucion'));
+            const hasMarca = vals.some(v => v.includes('marca'));
+
+            if ((hasTidy ? 1 : 0) + (hasDoc ? 1 : 0) + (hasDiag ? 1 : 0) + (hasSol ? 1 : 0) + (hasMarca ? 1 : 0) >= 2) {
+                headerRowIndex = i;
+                break;
+            }
+        }
+
+        if (headerRowIndex !== -1) {
+            const headerRow = zapiaData[headerRowIndex];
+            for (const [key, val] of Object.entries(headerRow)) {
+                if (val) {
+                    zapiaHeaderMap[key] = val.toString().trim();
+                }
+            }
+
+            for (let i = headerRowIndex + 1; i < zapiaData.length; i++) {
+                const row = zapiaData[i];
+                const newRow = {};
+                let hasAnyData = false;
+                for (const [key, val] of Object.entries(row)) {
+                    const headerName = zapiaHeaderMap[key];
+                    if (headerName) {
+                        newRow[headerName] = val;
+                        if (val && val.toString().trim() !== '') hasAnyData = true;
+                    }
+                }
+                if (hasAnyData) {
+                    parsedZapiaData.push(newRow);
+                }
+            }
+        } else {
+            parsedZapiaData = zapiaData;
+        }
+    }
+
+    const getZapiaVal = (row, ...keys) => {
+        const rowKeys = Object.keys(row);
+        for (const key of keys) {
+            const normKey = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+            const exactKey = rowKeys.find(k => {
+                const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+                return normK === normKey || normK.includes(normKey);
+            });
+            if (exactKey && row[exactKey] !== undefined && row[exactKey] !== null) {
+                return row[exactKey].toString().trim();
+            }
+        }
+        return "";
+    };
+
+    // Cruzar y enriquecer órdenes
+    parsedOrdersData = globalData.map(o => {
+        const mainTidy = (o['Referencia'] || '').toString().trim().toUpperCase();
+        
+        let zapiaMatch = null;
+        if (mainTidy && parsedZapiaData.length > 0) {
+            zapiaMatch = parsedZapiaData.find(z => {
+                const zTidy = getZapiaVal(z, 'Número de Tidy', 'Numero de Tidy', 'Tidy', 'Referencia').toUpperCase();
+                return zTidy === mainTidy;
+            });
+        }
+
+        if (zapiaMatch) {
+            const zapiaCI = getZapiaVal(zapiaMatch, 'N° Documento', 'No Documento', 'Nro Documento', 'CI', 'Carnet de Identidad', 'CIs', 'Carnet');
+            const zapiaTel = getZapiaVal(zapiaMatch, 'Teléfono', 'Telefono', 'Teléfonos', 'Telefonos', 'Celular');
+            const zapiaDiag = getZapiaVal(zapiaMatch, 'Diagnóstico', 'Diagnostico', 'Falla');
+            const zapiaSol = getZapiaVal(zapiaMatch, 'Solución', 'Solucion');
+            const zapiaMarca = getZapiaVal(zapiaMatch, 'Marca');
+
+            const hasAnyEnrichment = zapiaCI || zapiaTel || zapiaDiag || zapiaSol || zapiaMarca;
+
+            if (hasAnyEnrichment) {
+                return {
+                    ...o,
+                    zapiaEnriched: true,
+                    zapiaCI: zapiaCI,
+                    zapiaTel: zapiaTel,
+                    zapiaDiag: zapiaDiag,
+                    zapiaSol: zapiaSol,
+                    zapiaMarca: zapiaMarca
+                };
+            }
+        }
+        return o;
+    });
+
+    return { parsedWorkshopData, parsedOrdersData };
+}
 
 function checkSessionOnLoad() {
     const sesionActiva = localStorage.getItem('dismatec_session');
