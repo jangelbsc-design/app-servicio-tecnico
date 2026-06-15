@@ -1,7 +1,5 @@
-const USERS_SHEET_CONFIG = {
-    id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
-    sheetName: 'Usuarios_App'
-};
+import { USERS_SHEET_CONFIG, SHEETS_CONFIG, fetchGoogleSheet, chequearOrdenesEstancadas } from './api.js';
+import { parseAllData } from './dataParser.js';
 
 function checkSessionOnLoad() {
     const sesionActiva = localStorage.getItem('dismatec_session');
@@ -16,157 +14,6 @@ checkSessionOnLoad();
 
 let appWorkshopData = [];
 let appOrdersData = [];
-
-const SHEETS_CONFIG = {
-    talleres: {
-        id: '1wV3Ch5U-HWfsnvDoc56mL-4JCy22e7STdYzvJgFoI2I',
-        sheetName: 'RED%20DE%20TALLERES'
-    },
-    seguimiento: {
-        id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
-        sheetName: 'REPORTE%20GLOBAL'
-    },
-    zapia: {
-        id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
-        sheetName: 'ZAPIA_ENRICHMENT'
-    }
-};
-
-// ── CONFIGURACIÓN TELEGRAM ─────────────────────────────────────────────────
-// 1. Pon aquí el token que te dio @BotFather
-// 2. El Chat ID ya está configurado con el tuyo
-const TELEGRAM_CONFIG = {
-    token: '8769379678:AAFjYMA5UXyWQ0QTyUSHhBEXhl2FAxmomLA',
-    chatId: '363865053'                  // Juan Angel Bustos
-};
-
-function escapeHTML(str) {
-    if (!str) return '';
-    return str.toString()
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
-
-function isRegionApp(territorioStr) {
-    if (!territorioStr) return false;
-    const t = territorioStr.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-    // Regiones principales
-    const regiones = ['tarija', 'sucre', 'oruro', 'beni', 'potosi', 'la paz', 'cochabamba', 'santa cruz'];
-    if (regiones.some(r => t.includes(r))) return true;
-
-    // Municipios Santa Cruz
-    const municipios = ['montero', 'la guardia', 'el torno', 'cotoca', 'satelite', 'camiri', 'san julian', 'guabira', 'warnes', 'pailon', 'samaipata'];
-    if (municipios.some(m => t.includes(m))) return true;
-
-    return false;
-}
-
-async function sendTelegram(message) {
-    if (!TELEGRAM_CONFIG.token || TELEGRAM_CONFIG.token === 'PONER_TOKEN_DEL_BOT_AQUI') {
-        console.warn('Telegram: token no configurado.');
-        return;
-    }
-    try {
-        const text = encodeURIComponent(message);
-        const url = `https://api.telegram.org/bot${TELEGRAM_CONFIG.token}/sendMessage?chat_id=${TELEGRAM_CONFIG.chatId}&text=${text}&parse_mode=HTML`;
-        const res = await fetch(url);
-        if (res.ok) {
-            const data = await res.json();
-            if (data.ok) {
-                console.log('✅ Notificación Telegram enviada correctamente.');
-            } else {
-                console.error('❌ Telegram respondió con error:', data.description);
-            }
-        } else {
-            console.error('❌ Error HTTP al enviar Telegram:', res.status, res.statusText);
-        }
-    } catch (e) {
-        console.error('❌ Error enviando Telegram (posible bloqueo CORS si abres con file://):', e.message);
-        console.warn('💡 Solución: abre la app desde un servidor HTTP (ej.: Live Server en VSCode).');
-    }
-}
-
-function parseFecha(str) {
-    if (!str) return null;
-    // Soporta: "dd/mm/yyyy", "yyyy-mm-dd", "mm/dd/yyyy hh:mm:ss" y variantes
-    const s = str.toString().trim();
-    let m;
-    // dd/mm/yyyy o d/m/yyyy
-    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-    if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
-    // yyyy-mm-dd
-    m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
-    // fallback
-    const d = new Date(s);
-    return isNaN(d) ? null : d;
-}
-
-function diasDesde(fechaStr) {
-    const f = parseFecha(fechaStr);
-    if (!f) return null;
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    return Math.floor((hoy - f) / 86400000);
-}
-
-function chequearOrdenesEstancadas() {
-    const estados_excluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
-    const isExcluido = (o) => {
-        const e = (o.Estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        return estados_excluidos.some(ex => e.includes(ex));
-    };
-
-    const alertas = [];
-
-    for (const o of appOrdersData) {
-        if (isExcluido(o)) continue;
-
-        // FILTRAR POR REGIÓN: Solo alertas de las regiones que figuran en la app
-        const territorio = o['Territorio de servicio: Nombre'] || "";
-        if (!isRegionApp(territorio)) continue;
-
-        const diasCreacion = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10);
-        const diasMod = diasDesde(o['Fecha de la última modificación']);
-
-        // ESCAPAR DATOS PARA EVITAR ERROR 400 EN TELEGRAM
-        const cliente = escapeHTML(o['Cuenta: Nombre de la cuenta'] || 'S/N');
-        const producto = escapeHTML(o['Producto ST'] || '');
-        const region = escapeHTML(territorio);
-        const estado = escapeHTML(o.Estado || 'S/E');
-        const tipoServicio = escapeHTML(o['Tipo de Servicio'] || 'S/N');
-        const razones = [];
-
-        if (diasMod !== null && diasMod >= 4) razones.push(`🕒 ${diasMod}d sin cambios`);
-        if (diasCreacion >= 8) razones.push(`📅 ${diasCreacion}d desde creación`);
-
-        if (razones.length > 0) {
-            alertas.push(`⚠️ <b>${cliente}</b>
-  📦 ${producto}
-  🛠️ Tipo: ${tipoServicio}
-  📌 ${region} | Estado: ${estado}
-  ${razones.join(' | ')}`);
-        }
-    }
-
-    if (alertas.length === 0) {
-        console.log('✅ Telegram: sin órdenes estancadas.');
-        return;
-    }
-
-    const fecha = new Date().toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const msg = `🚨 <b>DISMAC — Órdenes estancadas</b> (${fecha})
-
-Se encontraron <b>${alertas.length}</b> orden(es) que requieren atención:
-
-${alertas.join('\n\n')}
-
-🔗 <b>Abrir App:</b> https://jabustos.github.io/app-servicio-tecnico/`;
-
-    sendTelegram(msg);
-}
 // ────────────────────────────────────────────────────────────────────────────
 
 console.log("🔧 APP.JS CARGADO");
@@ -265,7 +112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log(`✅ ${appWorkshopData.length} talleres, ${appOrdersData.length} órdenes`);
 
     // Verificar órdenes estancadas y notificar por Telegram
-    chequearOrdenesEstancadas();
+    chequearOrdenesEstancadas(appOrdersData);
 
     // Variables de estado para búsqueda regional
     let currentRegionTalleres = "";
@@ -871,6 +718,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div style="margin-top:15px; padding:12px; background:#f0fdf4; border-radius:10px; border:1px solid #bbf7d0;">
                         <p style="font-weight:700; font-size:0.85rem; margin:0 0 8px 0; color:#16a34a; display:flex; align-items:center; gap:5px;"><i class="bi bi-robot"></i> Datos Complementarios (Zapia)</p>
                         <div style="display:flex; flex-direction:column; gap:6px; font-size:0.8rem; color:#14532d;">
+                            ${o.zapiaMarca ? `<p style="margin:0;"><strong>Marca:</strong> ${o.zapiaMarca}</p>` : ''}
                             ${o.zapiaCI ? `<p style="margin:0;"><strong>Carnet de Identidad:</strong> ${o.zapiaCI}</p>` : ''}
                             ${o.zapiaTel ? `<p style="margin:0;"><strong>Teléfono:</strong> ${o.zapiaTel}</p>` : ''}
                             ${o.zapiaDiag ? `<p style="margin:0; white-space: pre-line;"><strong>Diagnóstico:</strong> ${o.zapiaDiag}</p>` : ''}
@@ -1055,104 +903,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 })
             ]);
 
-            let currentCity = "";
-            appWorkshopData = workshopData.map(row => {
-                // Normalizar claves (ignorar mayúsculas y espacios molestos en las columnas de Google Sheets)
-                const getVal = (row, ...keys) => {
-                    const rowKeys = Object.keys(row);
-                    for (const key of keys) {
-                        const exactKey = rowKeys.find(k => k.trim().toUpperCase() === key.toUpperCase());
-                        if (exactKey && row[exactKey] !== undefined && row[exactKey] !== null) {
-                            return row[exactKey].toString().trim();
-                        }
-                    }
-                    return "";
-                };
-
-                const ciudad = getVal(row, 'CIUDAD', 'Ciudad', 'ciudad');
-                const taller = getVal(row, 'TALLER', 'Taller', 'taller');
-                const marca = getVal(row, 'MARCA', 'Marca', 'marca');
-
-                // Búsqueda más robusta para contactos (cualquier columna que contenga contacto, tel o cel)
-                let contacto = getVal(row, 'CONTACTO', 'Contacto', 'contacto', 'CONTACTOS', 'CELULAR', 'TELEFONO');
-                if (!contacto) {
-                    const rowKeys = Object.keys(row);
-                    const contactKey = rowKeys.find(k => k.toUpperCase().includes('CONTACTO') || k.toUpperCase().includes('TEL') || k.toUpperCase().includes('CEL'));
-                    if (contactKey && row[contactKey]) {
-                        contacto = row[contactKey].toString().trim();
-                    }
-                }
-
-                // Hardcode rescate para Electronica JKA Tarija
-                if (taller && taller.toUpperCase().includes("ELECTRONICA DIGITAL JKA") && !contacto) {
-                    contacto = "60263531 - 60264988";
-                }
-
-                const ubicacion = getVal(row, 'UBICACIÓN POR GPS', 'Ubicación', 'UBICACION', 'UBICACIÓN GPS');
-
-                if (ciudad !== "") {
-                    currentCity = ciudad;
-                }
-
-                // Solo incluimos si hay un nombre de taller
-                if (taller !== "") {
-                    return {
-                        ...row,
-                        CIUDAD: currentCity,
-                        TALLER: taller,
-                        MARCA: marca,
-                        CONTACTO: contacto,
-                        UBICACION: ubicacion
-                    };
-                }
-                return null;
-            }).filter(row => row !== null);
-
-            // Helper para obtener valores de Zapia de forma flexible
-            const getZapiaVal = (row, ...keys) => {
-                const rowKeys = Object.keys(row);
-                for (const key of keys) {
-                    const normKey = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-                    const exactKey = rowKeys.find(k => {
-                        const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-                        return normK === normKey || normK.includes(normKey);
-                    });
-                    if (exactKey && row[exactKey] !== undefined && row[exactKey] !== null) {
-                        return row[exactKey].toString().trim();
-                    }
-                }
-                return "";
-            };
-
-            // Cruzar y enriquecer órdenes con la pestaña ZAPIA_ENRICHMENT
-            appOrdersData = globalData.map(o => {
-                const mainTidy = (o['Referencia'] || '').toString().trim().toUpperCase();
-                
-                let zapiaMatch = null;
-                if (mainTidy && zapiaData && zapiaData.length > 0) {
-                    zapiaMatch = zapiaData.find(z => {
-                        const zTidy = getZapiaVal(z, 'Número de Tidy', 'Numero de Tidy', 'Tidy', 'Referencia').toUpperCase();
-                        return zTidy === mainTidy;
-                    });
-                }
-
-                if (zapiaMatch) {
-                    const zapiaCI = getZapiaVal(zapiaMatch, 'CI', 'Carnet de Identidad', 'CIs', 'Carnet');
-                    const zapiaTel = getZapiaVal(zapiaMatch, 'Teléfono', 'Telefono', 'Teléfonos', 'Telefonos', 'Celular');
-                    const zapiaDiag = getZapiaVal(zapiaMatch, 'Diagnóstico', 'Diagnostico');
-                    const zapiaSol = getZapiaVal(zapiaMatch, 'Solución', 'Solucion');
-
-                    return {
-                        ...o,
-                        zapiaEnriched: true,
-                        zapiaCI: zapiaCI,
-                        zapiaTel: zapiaTel,
-                        zapiaDiag: zapiaDiag,
-                        zapiaSol: zapiaSol
-                    };
-                }
-                return o;
-            });
+            const parsed = parseAllData(workshopData, globalData, zapiaData);
+            appWorkshopData = parsed.parsedWorkshopData;
+            appOrdersData = parsed.parsedOrdersData;
 
             console.log('Datos procesados:', { 
                 talleres: appWorkshopData.length, 
@@ -1163,48 +916,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('Error al cargar datos:', error);
             const statusEl = document.getElementById('sync-status');
             if (statusEl) statusEl.classList.remove('hidden');
-        }
-    }
-
-    async function fetchGoogleSheet(id, sheet) {
-        try {
-            const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&sheet=${sheet}`;
-            const res = await fetch(url);
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-            const text = await res.text();
-
-            // Limpiar la respuesta de Google
-            const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
-            const json = JSON.parse(jsonStr);
-
-            if (!json.table || !json.table.rows) return [];
-
-            let hasHeaders = json.table.cols.some(col => col.label);
-            let headers = [];
-            let startIndex = 0;
-
-            if (hasHeaders) {
-                headers = json.table.cols.map(col => col.label);
-            } else if (json.table.rows.length > 0) {
-                headers = json.table.rows[0].c.map(cell => cell ? (cell.v || '') : '');
-                startIndex = 1;
-            }
-
-            const rows = [];
-            for (let i = startIndex; i < json.table.rows.length; i++) {
-                const row = json.table.rows[i];
-                const obj = {};
-                headers.forEach((header, j) => {
-                    if (!header) return;
-                    const cell = row.c[j];
-                    obj[header] = cell ? (cell.f !== undefined && cell.f !== null ? cell.f : (cell.v !== undefined && cell.v !== null ? cell.v : '')) : '';
-                });
-                rows.push(obj);
-            }
-            return rows;
-        } catch (err) {
-            console.error(`Error fetching sheet ${sheet}:`, err);
-            throw err;
         }
     }
 
