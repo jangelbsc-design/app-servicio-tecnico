@@ -171,6 +171,7 @@ function parseAllData(workshopData, globalData, zapiaData) {
     let parsedOrdersData = [];
 
     // Parseo de Talleres
+    let currentCity = "";
     parsedWorkshopData = workshopData.map(row => {
         const getVal = (row, ...keys) => {
             const rowKeys = Object.keys(row);
@@ -202,15 +203,19 @@ function parseAllData(workshopData, globalData, zapiaData) {
 
         const ubicacion = getVal(row, 'UBICACIÓN POR GPS', 'Ubicación', 'UBICACION', 'UBICACIÓN GPS');
 
+        if (ciudad !== "") {
+            currentCity = ciudad;
+        }
+
         return {
             ...row,
-            CIUDAD: ciudad,
+            CIUDAD: currentCity,
             TALLER: taller,
             MARCA: marca,
             CONTACTO: contacto,
             UBICACION: ubicacion
         };
-    });
+    }).filter(t => t.TALLER && t.TALLER.trim() !== "");
 
     // Parseo de Zapia
     let parsedZapiaData = [];
