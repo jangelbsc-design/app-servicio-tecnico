@@ -1065,10 +1065,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     `;
                 }).join('');
 
-                const sourceLabel = o.adicTelefono ? 'Adicionales' : 'Zapia';
                 clientContactHtml = `
                     <div style="margin-top:15px; padding:10px; background:#f4fbf7; border-radius:10px; border:1px solid #c8e6c9;">
-                        <p style="font-weight:700; font-size:0.85rem; margin-bottom:5px; color:#2e7d32; display:flex; align-items:center; gap:5px;"><i class="bi bi-person-fill"></i> Contacto Cliente (${sourceLabel})</p>
+                        <p style="font-weight:700; font-size:0.85rem; margin-bottom:5px; color:#2e7d32; display:flex; align-items:center; gap:5px;"><i class="bi bi-person-fill"></i> Contacto Cliente</p>
                         ${buttonsHtml}
                     </div>
                 `;
@@ -1078,11 +1077,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             let zapiaInfoHtml = "";
             if (o.zapiaEnriched) {
                 zapiaInfoHtml = `
-                    ${o.zapiaMarca ? `<p style="margin:0;"><strong>Marca (Zapia):</strong> ${o.zapiaMarca}</p>` : ''}
-                    ${o.zapiaCI ? `<p style="margin:0;"><strong>CI (Zapia):</strong> ${o.zapiaCI}</p>` : ''}
-                    ${o.zapiaTel ? `<p style="margin:0;"><strong>Teléfono (Zapia):</strong> ${o.zapiaTel}</p>` : ''}
-                    ${o.zapiaDiag ? `<p style="margin:0; white-space: pre-line;"><strong>Diagnóstico (Zapia):</strong> ${o.zapiaDiag}</p>` : ''}
-                    ${o.zapiaSol ? `<p style="margin:0; white-space: pre-line;"><strong>Solución (Zapia):</strong> ${o.zapiaSol}</p>` : ''}
+                    ${o.zapiaMarca ? `<p style="margin:0;"><strong>Marca:</strong> ${o.zapiaMarca}</p>` : ''}
+                    ${o.zapiaCI ? `<p style="margin:0;"><strong>Carnet de Identidad:</strong> ${o.zapiaCI}</p>` : ''}
+                    ${o.zapiaTel ? `<p style="margin:0;"><strong>Teléfono:</strong> ${o.zapiaTel}</p>` : ''}
+                    ${o.zapiaDiag ? `<p style="margin:0; white-space: pre-line;"><strong>Diagnóstico:</strong> ${o.zapiaDiag}</p>` : ''}
+                    ${o.zapiaSol ? `<p style="margin:0; white-space: pre-line;"><strong>Solución:</strong> ${o.zapiaSol}</p>` : ''}
                 `;
             }
 
@@ -1109,7 +1108,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <div style="flex:1; padding-right:10px;">
                                 <p style="margin:0 0 8px 0; font-weight:800; color:#111; font-size:1.05rem; line-height:1.2; display:flex; align-items:center; gap:6px;">
                                     ${o['Cuenta: Nombre de la cuenta'] || 'CLIENTE S/N'}
-                                    ${o.zapiaEnriched ? `<span style="background:#dcfce7; color:#15803d; font-size:0.65rem; padding:2px 6px; border-radius:6px; font-weight:700; display:inline-flex; align-items:center; gap:3px;"><i class="bi bi-robot"></i> Zapia</span>` : ''}
                                 </p>
                                 <div style="display:flex; align-items:center; gap:12px; font-size:0.8rem; color:#64748b;">
                                     <span style="display:flex; align-items:center; gap:4px;"><i class="bi bi-geo-alt-fill" style="color:#ef4444;"></i> ${o['Territorio de servicio: Nombre'] || 'Sin región'}</span>
