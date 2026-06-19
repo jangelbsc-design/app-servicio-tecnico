@@ -1078,16 +1078,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             let zapiaInfoHtml = "";
             if (o.zapiaEnriched) {
                 zapiaInfoHtml = `
-                    <div style="margin-top:15px; padding:12px; background:#f0fdf4; border-radius:10px; border:1px solid #bbf7d0;">
-                        <p style="font-weight:700; font-size:0.85rem; margin:0 0 8px 0; color:#16a34a; display:flex; align-items:center; gap:5px;"><i class="bi bi-robot"></i> Datos Complementarios (Zapia)</p>
-                        <div style="display:flex; flex-direction:column; gap:6px; font-size:0.8rem; color:#14532d;">
-                            ${o.zapiaMarca ? `<p style="margin:0;"><strong>Marca:</strong> ${o.zapiaMarca}</p>` : ''}
-                            ${o.zapiaCI ? `<p style="margin:0;"><strong>Carnet de Identidad:</strong> ${o.zapiaCI}</p>` : ''}
-                            ${o.zapiaTel ? `<p style="margin:0;"><strong>Teléfono:</strong> ${o.zapiaTel}</p>` : ''}
-                            ${o.zapiaDiag ? `<p style="margin:0; white-space: pre-line;"><strong>Diagnóstico:</strong> ${o.zapiaDiag}</p>` : ''}
-                            ${o.zapiaSol ? `<p style="margin:0; white-space: pre-line;"><strong>Solución:</strong> ${o.zapiaSol}</p>` : ''}
-                        </div>
-                    </div>
+                    ${o.zapiaMarca ? `<p style="margin:0;"><strong>Marca (Zapia):</strong> ${o.zapiaMarca}</p>` : ''}
+                    ${o.zapiaCI ? `<p style="margin:0;"><strong>CI (Zapia):</strong> ${o.zapiaCI}</p>` : ''}
+                    ${o.zapiaTel ? `<p style="margin:0;"><strong>Teléfono (Zapia):</strong> ${o.zapiaTel}</p>` : ''}
+                    ${o.zapiaDiag ? `<p style="margin:0; white-space: pre-line;"><strong>Diagnóstico (Zapia):</strong> ${o.zapiaDiag}</p>` : ''}
+                    ${o.zapiaSol ? `<p style="margin:0; white-space: pre-line;"><strong>Solución (Zapia):</strong> ${o.zapiaSol}</p>` : ''}
                 `;
             }
 
@@ -1095,20 +1090,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             let adicionalesInfoHtml = "";
             if (o.adicionalesEnriched) {
                 adicionalesInfoHtml = `
-                    <div style="margin-top:15px; padding:12px; background:#eff6ff; border-radius:10px; border:1px solid #bfdbfe;">
-                        <p style="font-weight:700; font-size:0.85rem; margin:0 0 8px 0; color:#2563eb; display:flex; align-items:center; gap:5px;"><i class="bi bi-file-earmark-plus"></i> Detalles Adicionales</p>
-                        <div style="display:flex; flex-direction:column; gap:6px; font-size:0.8rem; color:#1e3a8a;">
-                            ${o.adicCuenta ? `<p style="margin:0;"><strong>Cuenta:</strong> ${o.adicCuenta}</p>` : ''}
-                            ${o.adicTelefono ? `<p style="margin:0;"><strong>Teléfono:</strong> ${o.adicTelefono}</p>` : ''}
-                            ${o.adicTecnico ? `<p style="margin:0;"><strong>Técnico:</strong> ${o.adicTecnico}</p>` : ''}
-                            ${o.adicFechaCita ? `<p style="margin:0;"><strong>Fecha Cita:</strong> ${o.adicFechaCita}</p>` : ''}
-                            ${o.adicEstadoCita ? `<p style="margin:0;"><strong>Estado Cita:</strong> ${o.adicEstadoCita} ${o.adicSubEstadoCita ? `(${o.adicSubEstadoCita})` : ''}</p>` : ''}
-                            ${o.adicDetalleFalla ? `<p style="margin:0; white-space: pre-line;"><strong>Detalle Falla:</strong> ${o.adicDetalleFalla}</p>` : ''}
-                            ${o.adicDetalleSolucion ? `<p style="margin:0; white-space: pre-line;"><strong>Detalle Solución:</strong> ${o.adicDetalleSolucion}</p>` : ''}
-                            ${o.adicObservaciones ? `<p style="margin:0; white-space: pre-line;"><strong>Observaciones Técnico:</strong> ${o.adicObservaciones}</p>` : ''}
-                            ${o.adicComentarios ? `<p style="margin:0; white-space: pre-line;"><strong>Comentarios:</strong> ${o.adicComentarios}</p>` : ''}
-                        </div>
-                    </div>
+                    ${o.adicCuenta ? `<p style="margin:0;"><strong>Cuenta:</strong> ${o.adicCuenta}</p>` : ''}
+                    ${o.adicTelefono ? `<p style="margin:0;"><strong>Teléfono:</strong> ${o.adicTelefono}</p>` : ''}
+                    ${o.adicTecnico ? `<p style="margin:0;"><strong>Técnico:</strong> ${o.adicTecnico}</p>` : ''}
+                    ${o.adicFechaCita ? `<p style="margin:0;"><strong>Fecha Cita:</strong> ${o.adicFechaCita}</p>` : ''}
+                    ${o.adicEstadoCita ? `<p style="margin:0;"><strong>Estado Cita:</strong> ${o.adicEstadoCita} ${o.adicSubEstadoCita ? `(${o.adicSubEstadoCita})` : ''}</p>` : ''}
+                    ${o.adicDetalleFalla ? `<p style="margin:0; white-space: pre-line;"><strong>Detalle Falla:</strong> ${o.adicDetalleFalla}</p>` : ''}
+                    ${o.adicDetalleSolucion ? `<p style="margin:0; white-space: pre-line;"><strong>Detalle Solución:</strong> ${o.adicDetalleSolucion}</p>` : ''}
+                    ${o.adicObservaciones ? `<p style="margin:0; white-space: pre-line;"><strong>Observaciones Técnico:</strong> ${o.adicObservaciones}</p>` : ''}
+                    ${o.adicComentarios ? `<p style="margin:0; white-space: pre-line;"><strong>Comentarios:</strong> ${o.adicComentarios}</p>` : ''}
                 `;
             }
 

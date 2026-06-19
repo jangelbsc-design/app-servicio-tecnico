@@ -641,7 +641,7 @@ body {
 
 /* Accordion Expansion */
 .accordion-item.active .accordion-content {
-    max-height: 500px !important;
+    max-height: 2000px !important;
     padding: 10px 15px 15px 15px !important;
 }
 
