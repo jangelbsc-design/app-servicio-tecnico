@@ -15,6 +15,10 @@ const SHEETS_CONFIG = {
     zapia: {
         id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
         sheetName: 'ZAPIA_ENRICHMENT'
+    },
+    adicionales: {
+        id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
+        sheetName: 'REPORTE%20GLOBAL%20ADICIONALES'
     }
 };
 
@@ -166,7 +170,7 @@ ${alertas.join('\n\n')}
     sendTelegram(msg);
 }
 
-function parseAllData(workshopData, globalData, zapiaData) {
+function parseAllData(workshopData, globalData, zapiaData, adicionalesData) {
     let parsedWorkshopData = [];
     let parsedOrdersData = [];
 
@@ -282,6 +286,17 @@ function parseAllData(workshopData, globalData, zapiaData) {
         return "";
     };
 
+    // Mapeo de Adicionales
+    let adicionalesMap = new Map();
+    if (adicionalesData && adicionalesData.length > 0) {
+        adicionalesData.forEach(item => {
+            const ref = (item.Referencia || '').toString().trim().toUpperCase();
+            if (ref) {
+                adicionalesMap.set(ref, item);
+            }
+        });
+    }
+
     // Cruzar y enriquecer órdenes
     parsedOrdersData = globalData.map(o => {
         const mainTidy = (o['Referencia'] || '').toString().trim().toUpperCase();
@@ -294,6 +309,26 @@ function parseAllData(workshopData, globalData, zapiaData) {
             });
         }
 
+        let resultOrder = { ...o };
+
+        if (mainTidy && adicionalesMap.has(mainTidy)) {
+            const adic = adicionalesMap.get(mainTidy);
+            resultOrder = {
+                ...resultOrder,
+                adicTelefono: adic['Teléfono'] || adic['Telefono'] || "",
+                adicCuenta: adic['Cuenta: Nombre de la cuenta'] || adic['Cuenta'] || "",
+                adicTecnico: adic['Técnico'] || adic['Tecnico'] || adic['tecnico'] || "",
+                adicDetalleFalla: adic['Detalle de falla'] || "",
+                adicDetalleSolucion: adic['Detalle de solución'] || adic['Detalle de solucion'] || "",
+                adicObservaciones: adic['Observaciones técnico'] || adic['Observaciones tecnico'] || "",
+                adicComentarios: adic['Comentarios'] || "",
+                adicFechaCita: adic['Fecha Cita'] || "",
+                adicEstadoCita: adic['Estado Cita'] || "",
+                adicSubEstadoCita: adic['Sub Estado Cita'] || "",
+                adicionalesEnriched: true
+            };
+        }
+
         if (zapiaMatch) {
             const zapiaCI = getZapiaVal(zapiaMatch, 'N° Documento', 'No Documento', 'Nro Documento', 'CI', 'Carnet de Identidad', 'CIs', 'Carnet');
             const zapiaTel = getZapiaVal(zapiaMatch, 'Teléfono', 'Telefono', 'Teléfonos', 'Telefonos', 'Celular');
@@ -304,8 +339,8 @@ function parseAllData(workshopData, globalData, zapiaData) {
             const hasAnyEnrichment = zapiaCI || zapiaTel || zapiaDiag || zapiaSol || zapiaMarca;
 
             if (hasAnyEnrichment) {
-                return {
-                    ...o,
+                resultOrder = {
+                    ...resultOrder,
                     zapiaEnriched: true,
                     zapiaCI: zapiaCI,
                     zapiaTel: zapiaTel,
@@ -315,7 +350,7 @@ function parseAllData(workshopData, globalData, zapiaData) {
                 };
             }
         }
-        return o;
+        return resultOrder;
     });
 
     return { parsedWorkshopData, parsedOrdersData };
@@ -478,7 +513,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 (o.zapiaCI || "").toLowerCase().includes(query) ||
                 (o.zapiaTel || "").toLowerCase().includes(query) ||
                 (o.zapiaDiag || "").toLowerCase().includes(query) ||
-                (o.zapiaSol || "").toLowerCase().includes(query))
+                (o.zapiaSol || "").toLowerCase().includes(query) ||
+                (o.adicTecnico || "").toLowerCase().includes(query) ||
+                (o.adicDetalleFalla || "").toLowerCase().includes(query) ||
+                (o.adicObservaciones || "").toLowerCase().includes(query))
         );
         renderOrdenes(currentRegionOrdenes, filteredOrdenes);
     });
@@ -530,7 +568,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             (o.zapiaCI || "").toLowerCase().includes(query) ||
             (o.zapiaTel || "").toLowerCase().includes(query) ||
             (o.zapiaDiag || "").toLowerCase().includes(query) ||
-            (o.zapiaSol || "").toLowerCase().includes(query)
+            (o.zapiaSol || "").toLowerCase().includes(query) ||
+            (o.adicTecnico || "").toLowerCase().includes(query) ||
+            (o.adicDetalleFalla || "").toLowerCase().includes(query) ||
+            (o.adicObservaciones || "").toLowerCase().includes(query)
         );
 
         renderGlobalSearchResults(matchedTalleres, matchedOrdenes);
@@ -1007,10 +1048,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `;
             }
 
-            // Preparar contacto del cliente si Zapia tiene teléfono
+            // Preparar contacto del cliente
             let clientContactHtml = "";
-            if (o.zapiaEnriched && o.zapiaTel) {
-                const numList = (o.zapiaTel || "").split(/[-/,]/).map(n => n.trim()).filter(n => n.length >= 7);
+            const contactPhone = o.adicTelefono || o.zapiaTel;
+            if (contactPhone) {
+                const numList = (contactPhone || "").split(/[-/,]/).map(n => n.trim()).filter(n => n.length >= 7);
                 const buttonsHtml = numList.map(num => {
                     const cleanNum = num.replace(/\D/g, '');
                     const clientMsg = `Hola ${nombreCliente}, le saludamos de Dismac para brindarle información sobre su orden de trabajo ${ordenDismac} (${activo}).`;
@@ -1023,9 +1065,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     `;
                 }).join('');
 
+                const sourceLabel = o.adicTelefono ? 'Adicionales' : 'Zapia';
                 clientContactHtml = `
                     <div style="margin-top:15px; padding:10px; background:#f4fbf7; border-radius:10px; border:1px solid #c8e6c9;">
-                        <p style="font-weight:700; font-size:0.85rem; margin-bottom:5px; color:#2e7d32; display:flex; align-items:center; gap:5px;"><i class="bi bi-person-fill"></i> Contacto Cliente (Zapia)</p>
+                        <p style="font-weight:700; font-size:0.85rem; margin-bottom:5px; color:#2e7d32; display:flex; align-items:center; gap:5px;"><i class="bi bi-person-fill"></i> Contacto Cliente (${sourceLabel})</p>
                         ${buttonsHtml}
                     </div>
                 `;
@@ -1043,6 +1086,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                             ${o.zapiaTel ? `<p style="margin:0;"><strong>Teléfono:</strong> ${o.zapiaTel}</p>` : ''}
                             ${o.zapiaDiag ? `<p style="margin:0; white-space: pre-line;"><strong>Diagnóstico:</strong> ${o.zapiaDiag}</p>` : ''}
                             ${o.zapiaSol ? `<p style="margin:0; white-space: pre-line;"><strong>Solución:</strong> ${o.zapiaSol}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Preparar información del reporte adicional
+            let adicionalesInfoHtml = "";
+            if (o.adicionalesEnriched) {
+                adicionalesInfoHtml = `
+                    <div style="margin-top:15px; padding:12px; background:#eff6ff; border-radius:10px; border:1px solid #bfdbfe;">
+                        <p style="font-weight:700; font-size:0.85rem; margin:0 0 8px 0; color:#2563eb; display:flex; align-items:center; gap:5px;"><i class="bi bi-file-earmark-plus"></i> Detalles Adicionales</p>
+                        <div style="display:flex; flex-direction:column; gap:6px; font-size:0.8rem; color:#1e3a8a;">
+                            ${o.adicCuenta ? `<p style="margin:0;"><strong>Cuenta:</strong> ${o.adicCuenta}</p>` : ''}
+                            ${o.adicTelefono ? `<p style="margin:0;"><strong>Teléfono:</strong> ${o.adicTelefono}</p>` : ''}
+                            ${o.adicTecnico ? `<p style="margin:0;"><strong>Técnico:</strong> ${o.adicTecnico}</p>` : ''}
+                            ${o.adicFechaCita ? `<p style="margin:0;"><strong>Fecha Cita:</strong> ${o.adicFechaCita}</p>` : ''}
+                            ${o.adicEstadoCita ? `<p style="margin:0;"><strong>Estado Cita:</strong> ${o.adicEstadoCita} ${o.adicSubEstadoCita ? `(${o.adicSubEstadoCita})` : ''}</p>` : ''}
+                            ${o.adicDetalleFalla ? `<p style="margin:0; white-space: pre-line;"><strong>Detalle Falla:</strong> ${o.adicDetalleFalla}</p>` : ''}
+                            ${o.adicDetalleSolucion ? `<p style="margin:0; white-space: pre-line;"><strong>Detalle Solución:</strong> ${o.adicDetalleSolucion}</p>` : ''}
+                            ${o.adicObservaciones ? `<p style="margin:0; white-space: pre-line;"><strong>Observaciones Técnico:</strong> ${o.adicObservaciones}</p>` : ''}
+                            ${o.adicComentarios ? `<p style="margin:0; white-space: pre-line;"><strong>Comentarios:</strong> ${o.adicComentarios}</p>` : ''}
                         </div>
                     </div>
                 `;
@@ -1080,6 +1144,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <p style="margin:0;"><strong>Referencia:</strong> ${o['Referencia'] || '—'}</p>
                             <p style="margin:0;"><strong>Estado:</strong> ${o.Estado || '—'}</p>
                             ${workshopHtml}
+                            ${adicionalesInfoHtml}
                             ${zapiaInfoHtml}
                             ${clientContactHtml}
                         </div>
@@ -1214,23 +1279,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadAllData() {
         try {
-            const [workshopData, globalData, zapiaData] = await Promise.all([
+            const [workshopData, globalData, zapiaData, adicionalesData] = await Promise.all([
                 fetchGoogleSheet(SHEETS_CONFIG.talleres.id, SHEETS_CONFIG.talleres.sheetName),
                 fetchGoogleSheet(SHEETS_CONFIG.seguimiento.id, SHEETS_CONFIG.seguimiento.sheetName),
                 fetchGoogleSheet(SHEETS_CONFIG.zapia.id, SHEETS_CONFIG.zapia.sheetName).catch(err => {
                     console.warn("Error al cargar ZAPIA_ENRICHMENT, continuando sin ella:", err);
                     return [];
+                }),
+                fetchGoogleSheet(SHEETS_CONFIG.adicionales.id, SHEETS_CONFIG.adicionales.sheetName).catch(err => {
+                    console.warn("Error al cargar REPORTE GLOBAL ADICIONALES, continuando sin ella:", err);
+                    return [];
                 })
             ]);
 
-            const parsed = parseAllData(workshopData, globalData, zapiaData);
+            const parsed = parseAllData(workshopData, globalData, zapiaData, adicionalesData);
             appWorkshopData = parsed.parsedWorkshopData;
             appOrdersData = parsed.parsedOrdersData;
 
             console.log('Datos procesados:', { 
                 talleres: appWorkshopData.length, 
                 ordenes: appOrdersData.length,
-                ordenesEnriquecidas: appOrdersData.filter(o => o.zapiaEnriched).length
+                ordenesEnriquecidasZapia: appOrdersData.filter(o => o.zapiaEnriched).length,
+                ordenesEnriquecidasAdicionales: appOrdersData.filter(o => o.adicionalesEnriched).length
             });
         } catch (error) {
             console.error('Error al cargar datos:', error);
