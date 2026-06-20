@@ -232,12 +232,12 @@ function parseAllData(workshopData, globalData, zapiaData, adicionalesData) {
             const vals = Object.values(row).map(v => (v || '').toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim());
             
             const hasTidy = vals.some(v => v.includes('tidy') || v.includes('referencia'));
-            const hasDoc = vals.some(v => v.includes('documento') || v.includes('ci') || v.includes('carnet'));
+            const hasTipoServicio = vals.some(v => v.includes('tipo de servicio') || v.includes('tipo servicio') || v.includes('servicio'));
             const hasDiag = vals.some(v => v.includes('diagnostico') || v.includes('falla'));
             const hasSol = vals.some(v => v.includes('solucion'));
             const hasMarca = vals.some(v => v.includes('marca'));
 
-            if ((hasTidy ? 1 : 0) + (hasDoc ? 1 : 0) + (hasDiag ? 1 : 0) + (hasSol ? 1 : 0) + (hasMarca ? 1 : 0) >= 2) {
+            if ((hasTidy ? 1 : 0) + (hasTipoServicio ? 1 : 0) + (hasDiag ? 1 : 0) + (hasSol ? 1 : 0) + (hasMarca ? 1 : 0) >= 2) {
                 headerRowIndex = i;
                 break;
             }
@@ -330,19 +330,19 @@ function parseAllData(workshopData, globalData, zapiaData, adicionalesData) {
         }
 
         if (zapiaMatch) {
-            const zapiaCI = getZapiaVal(zapiaMatch, 'N° Documento', 'No Documento', 'Nro Documento', 'CI', 'Carnet de Identidad', 'CIs', 'Carnet');
+            const zapiaTipoServicio = getZapiaVal(zapiaMatch, 'Tipo de servicio', 'Tipo servicio', 'Tipo de Servicio', 'Servicio');
             const zapiaTel = getZapiaVal(zapiaMatch, 'Teléfono', 'Telefono', 'Teléfonos', 'Telefonos', 'Celular');
             const zapiaDiag = getZapiaVal(zapiaMatch, 'Diagnóstico', 'Diagnostico', 'Falla');
             const zapiaSol = getZapiaVal(zapiaMatch, 'Solución', 'Solucion');
             const zapiaMarca = getZapiaVal(zapiaMatch, 'Marca');
 
-            const hasAnyEnrichment = zapiaCI || zapiaTel || zapiaDiag || zapiaSol || zapiaMarca;
+            const hasAnyEnrichment = zapiaTipoServicio || zapiaTel || zapiaDiag || zapiaSol || zapiaMarca;
 
             if (hasAnyEnrichment) {
                 resultOrder = {
                     ...resultOrder,
                     zapiaEnriched: true,
-                    zapiaCI: zapiaCI,
+                    zapiaTipoServicio: zapiaTipoServicio,
                     zapiaTel: zapiaTel,
                     zapiaDiag: zapiaDiag,
                     zapiaSol: zapiaSol,
@@ -510,7 +510,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 (o['Fecha de la última modificación'] || "").toLowerCase().includes(query) ||
                 (o['Territorio de servicio: Nombre'] || "").toLowerCase().includes(query) ||
                 (o['Estado'] || "").toLowerCase().includes(query) ||
-                (o.zapiaCI || "").toLowerCase().includes(query) ||
+                (o.zapiaTipoServicio || "").toLowerCase().includes(query) ||
                 (o.zapiaTel || "").toLowerCase().includes(query) ||
                 (o.zapiaDiag || "").toLowerCase().includes(query) ||
                 (o.zapiaSol || "").toLowerCase().includes(query) ||
@@ -565,7 +565,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             (o['Fecha de la última modificación'] || "").toLowerCase().includes(query) ||
             (o['Territorio de servicio: Nombre'] || "").toLowerCase().includes(query) ||
             (o['Estado'] || "").toLowerCase().includes(query) ||
-            (o.zapiaCI || "").toLowerCase().includes(query) ||
+            (o.zapiaTipoServicio || "").toLowerCase().includes(query) ||
             (o.zapiaTel || "").toLowerCase().includes(query) ||
             (o.zapiaDiag || "").toLowerCase().includes(query) ||
             (o.zapiaSol || "").toLowerCase().includes(query) ||
@@ -1078,7 +1078,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (o.zapiaEnriched) {
                 zapiaInfoHtml = `
                     ${o.zapiaMarca ? `<p style="margin:0;"><strong>Marca:</strong> ${o.zapiaMarca}</p>` : ''}
-                    ${o.zapiaCI ? `<p style="margin:0;"><strong>Carnet de Identidad:</strong> ${o.zapiaCI}</p>` : ''}
+                    ${o.zapiaTipoServicio ? `<p style="margin:0;"><strong>Tipo de Servicio:</strong> ${o.zapiaTipoServicio}</p>` : ''}
                     ${o.zapiaTel ? `<p style="margin:0;"><strong>Teléfono:</strong> ${o.zapiaTel}</p>` : ''}
                     ${o.zapiaDiag ? `<p style="margin:0; white-space: pre-line;"><strong>Diagnóstico:</strong> ${o.zapiaDiag}</p>` : ''}
                     ${o.zapiaSol ? `<p style="margin:0; white-space: pre-line;"><strong>Solución:</strong> ${o.zapiaSol}</p>` : ''}
