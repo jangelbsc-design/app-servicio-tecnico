@@ -159,6 +159,12 @@ body {
     gap: 1rem;
 }
 
+.contact-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.8rem;
+}
+
 .dash-card {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
@@ -717,4 +723,68 @@ body {
     padding-right: 50px; /* Evita que choque con el logo de Dismac */
     line-height: 1.2;
     margin: 0;
+}
+
+/* ==========================================================================
+   Responsive Design (Tablet & Desktop)
+   ========================================================================== */
+
+@media (min-width: 768px) {
+    /* Main Container */
+    .app-container {
+        max-width: 768px; /* Expand for tablet */
+        margin: 2rem auto;
+        border-radius: 20px;
+        min-height: calc(100vh - 4rem);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        overflow: hidden; /* For border-radius with bottom nav */
+    }
+
+    /* Padding adjustments for breathing room */
+    .header {
+        padding: 2rem 2.5rem;
+    }
+
+    .main-content {
+        padding: 2rem 2.5rem;
+        gap: 2.5rem;
+    }
+
+    /* Grids */
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+    }
+
+    /* Bottom Navigation adaptation */
+    .bottom-nav {
+        max-width: 768px;
+        border-radius: 0 0 20px 20px;
+        position: absolute; /* Stick to bottom of container instead of viewport if it fits on screen */
+    }
+
+    /* Contact group adjustment to not stretch too much */
+    .contact-grid {
+        grid-template-columns: repeat(2, minmax(0, 300px));
+        justify-content: start;
+    }
+    
+    .welcome-text h1 {
+        font-size: 2.8rem !important;
+    }
+}
+
+@media (min-width: 1024px) {
+    .app-container {
+        max-width: 1200px; /* Expand for desktop */
+    }
+
+    .dashboard-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .bottom-nav {
+        max-width: 1200px;
+    }
 }
