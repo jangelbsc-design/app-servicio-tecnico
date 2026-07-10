@@ -12,15 +12,25 @@ const SHEETS_CONFIG = {
         id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
         sheetName: 'REPORTE%20GLOBAL'
     },
-    zapia: {
-        id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
-        sheetName: 'ZAPIA_ENRICHMENT'
-    },
+    // zapia removed
     adicionales: {
         id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
         sheetName: 'REPORTE%20GLOBAL%20ADICIONALES'
     }
 };
+
+// Utilidad debounce para buscadores
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
 
 const TELEGRAM_CONFIG = {
     token: '8769379678:AAFjYMA5UXyWQ0QTyUSHhBEXhl2FAxmomLA',
@@ -170,7 +180,7 @@ ${alertas.join('\n\n')}
     sendTelegram(msg);
 }
 
-function parseAllData(workshopData, globalData, zapiaData, adicionalesData) {
+function parseAllData(workshopData, globalData, adicionalesData) {
     let parsedWorkshopData = [];
     let parsedOrdersData = [];
 
@@ -221,71 +231,6 @@ function parseAllData(workshopData, globalData, zapiaData, adicionalesData) {
         };
     }).filter(t => t.TALLER && t.TALLER.trim() !== "");
 
-    // Parseo de Zapia
-    let parsedZapiaData = [];
-    if (zapiaData && zapiaData.length > 0) {
-        let headerRowIndex = -1;
-        let zapiaHeaderMap = {};
-
-        for (let i = 0; i < Math.min(zapiaData.length, 5); i++) {
-            const row = zapiaData[i];
-            const vals = Object.values(row).map(v => (v || '').toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim());
-            
-            const hasTidy = vals.some(v => v.includes('tidy') || v.includes('referencia'));
-            const hasTipoServicio = vals.some(v => v.includes('tipo de servicio') || v.includes('tipo servicio') || v.includes('servicio'));
-            const hasDiag = vals.some(v => v.includes('diagnostico') || v.includes('falla'));
-            const hasSol = vals.some(v => v.includes('solucion'));
-            const hasMarca = vals.some(v => v.includes('marca'));
-
-            if ((hasTidy ? 1 : 0) + (hasTipoServicio ? 1 : 0) + (hasDiag ? 1 : 0) + (hasSol ? 1 : 0) + (hasMarca ? 1 : 0) >= 2) {
-                headerRowIndex = i;
-                break;
-            }
-        }
-
-        if (headerRowIndex !== -1) {
-            const headerRow = zapiaData[headerRowIndex];
-            for (const [key, val] of Object.entries(headerRow)) {
-                if (val) {
-                    zapiaHeaderMap[key] = val.toString().trim();
-                }
-            }
-
-            for (let i = headerRowIndex + 1; i < zapiaData.length; i++) {
-                const row = zapiaData[i];
-                const newRow = {};
-                let hasAnyData = false;
-                for (const [key, val] of Object.entries(row)) {
-                    const headerName = zapiaHeaderMap[key];
-                    if (headerName) {
-                        newRow[headerName] = val;
-                        if (val && val.toString().trim() !== '') hasAnyData = true;
-                    }
-                }
-                if (hasAnyData) {
-                    parsedZapiaData.push(newRow);
-                }
-            }
-        } else {
-            parsedZapiaData = zapiaData;
-        }
-    }
-
-    const getZapiaVal = (row, ...keys) => {
-        const rowKeys = Object.keys(row);
-        for (const key of keys) {
-            const normKey = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-            const exactKey = rowKeys.find(k => {
-                const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-                return normK === normKey || normK.includes(normKey);
-            });
-            if (exactKey && row[exactKey] !== undefined && row[exactKey] !== null) {
-                return row[exactKey].toString().trim();
-            }
-        }
-        return "";
-    };
-
     // Mapeo de Adicionales
     let adicionalesMap = new Map();
     if (adicionalesData && adicionalesData.length > 0) {
@@ -301,14 +246,6 @@ function parseAllData(workshopData, globalData, zapiaData, adicionalesData) {
     parsedOrdersData = globalData.map(o => {
         const mainTidy = (o['Referencia'] || '').toString().trim().toUpperCase();
         
-        let zapiaMatch = null;
-        if (mainTidy && parsedZapiaData.length > 0) {
-            zapiaMatch = parsedZapiaData.find(z => {
-                const zTidy = getZapiaVal(z, 'Número de Tidy', 'Numero de Tidy', 'Tidy', 'Referencia').toUpperCase();
-                return zTidy === mainTidy;
-            });
-        }
-
         let resultOrder = { ...o };
 
         if (mainTidy && adicionalesMap.has(mainTidy)) {
@@ -327,28 +264,6 @@ function parseAllData(workshopData, globalData, zapiaData, adicionalesData) {
                 adicSubEstadoCita: adic['Sub Estado Cita'] || "",
                 adicionalesEnriched: true
             };
-        }
-
-        if (zapiaMatch) {
-            const zapiaTipoServicio = getZapiaVal(zapiaMatch, 'Tipo de servicio', 'Tipo servicio', 'Tipo de Servicio', 'Servicio');
-            const zapiaTel = getZapiaVal(zapiaMatch, 'Teléfono', 'Telefono', 'Teléfonos', 'Telefonos', 'Celular');
-            const zapiaDiag = getZapiaVal(zapiaMatch, 'Diagnóstico', 'Diagnostico', 'Falla');
-            const zapiaSol = getZapiaVal(zapiaMatch, 'Solución', 'Solucion');
-            const zapiaMarca = getZapiaVal(zapiaMatch, 'Marca');
-
-            const hasAnyEnrichment = zapiaTipoServicio || zapiaTel || zapiaDiag || zapiaSol || zapiaMarca;
-
-            if (hasAnyEnrichment) {
-                resultOrder = {
-                    ...resultOrder,
-                    zapiaEnriched: true,
-                    zapiaTipoServicio: zapiaTipoServicio,
-                    zapiaTel: zapiaTel,
-                    zapiaDiag: zapiaDiag,
-                    zapiaSol: zapiaSol,
-                    zapiaMarca: zapiaMarca
-                };
-            }
         }
         return resultOrder;
     });
@@ -477,7 +392,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Buscador Regional de Talleres
     const workshopSearchInput = document.getElementById('workshop-search-input');
-    workshopSearchInput?.addEventListener('input', (e) => {
+    workshopSearchInput?.addEventListener('input', debounce((e) => {
         const query = e.target.value.toLowerCase();
         const regionUpper = currentRegionTalleres.toUpperCase();
         filteredTalleres = appWorkshopData.filter(t =>
@@ -488,11 +403,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 (t.CONTACTO || "").toLowerCase().includes(query))
         );
         renderTalleres(currentRegionTalleres, filteredTalleres);
-    });
+    }, 300));
 
     // Buscador Regional de Órdenes
     const estadosSearchInput = document.getElementById('estados-search-input');
-    estadosSearchInput?.addEventListener('input', (e) => {
+    estadosSearchInput?.addEventListener('input', debounce((e) => {
         const query = e.target.value.toLowerCase();
         filteredOrdenes = appOrdersData.filter(o =>
             isOrderInRegion(o, currentRegionOrdenes) &&
@@ -510,19 +425,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 (o['Fecha de la última modificación'] || "").toLowerCase().includes(query) ||
                 (o['Territorio de servicio: Nombre'] || "").toLowerCase().includes(query) ||
                 (o['Estado'] || "").toLowerCase().includes(query) ||
-                (o.zapiaTipoServicio || "").toLowerCase().includes(query) ||
-                (o.zapiaTel || "").toLowerCase().includes(query) ||
-                (o.zapiaDiag || "").toLowerCase().includes(query) ||
-                (o.zapiaSol || "").toLowerCase().includes(query) ||
                 (o.adicTecnico || "").toLowerCase().includes(query) ||
                 (o.adicDetalleFalla || "").toLowerCase().includes(query) ||
                 (o.adicObservaciones || "").toLowerCase().includes(query))
         );
         renderOrdenes(currentRegionOrdenes, filteredOrdenes);
-    });
+    }, 300));
 
     // Lógica de Búsqueda Global
-    globalSearchInput?.addEventListener('input', (e) => {
+    globalSearchInput?.addEventListener('input', debounce((e) => {
         const query = e.target.value.toLowerCase().trim();
 
         if (query.length === 0) {
@@ -565,17 +476,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             (o['Fecha de la última modificación'] || "").toLowerCase().includes(query) ||
             (o['Territorio de servicio: Nombre'] || "").toLowerCase().includes(query) ||
             (o['Estado'] || "").toLowerCase().includes(query) ||
-            (o.zapiaTipoServicio || "").toLowerCase().includes(query) ||
-            (o.zapiaTel || "").toLowerCase().includes(query) ||
-            (o.zapiaDiag || "").toLowerCase().includes(query) ||
-            (o.zapiaSol || "").toLowerCase().includes(query) ||
             (o.adicTecnico || "").toLowerCase().includes(query) ||
             (o.adicDetalleFalla || "").toLowerCase().includes(query) ||
             (o.adicObservaciones || "").toLowerCase().includes(query)
         );
 
         renderGlobalSearchResults(matchedTalleres, matchedOrdenes);
-    });
+    }, 300));
 
     function renderGlobalSearchResults(talleres, ordenes) {
         if (!globalSearchResults) return;
@@ -1050,7 +957,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Preparar contacto del cliente
             let clientContactHtml = "";
-            const contactPhone = o.adicTelefono || o.zapiaTel;
+            const contactPhone = o.adicTelefono || "";
             if (contactPhone) {
                 const numList = (contactPhone || "").split(/[-/,]/).map(n => n.trim()).filter(n => n.length >= 7);
                 const buttonsHtml = numList.map(num => {
@@ -1072,19 +979,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 `;
             }
-
-            // Preparar información de diagnóstico y solución enriquecidos de Zapia
             let zapiaInfoHtml = "";
-            if (o.zapiaEnriched) {
-                zapiaInfoHtml = `
-                    ${o.zapiaMarca ? `<p style="margin:0;"><strong>Marca:</strong> ${o.zapiaMarca}</p>` : ''}
-                    ${o.zapiaTipoServicio ? `<p style="margin:0;"><strong>Tipo de Servicio:</strong> ${o.zapiaTipoServicio}</p>` : ''}
-                    ${o.zapiaTel ? `<p style="margin:0;"><strong>Teléfono:</strong> ${o.zapiaTel}</p>` : ''}
-                    ${o.zapiaDiag ? `<p style="margin:0; white-space: pre-line;"><strong>Diagnóstico:</strong> ${o.zapiaDiag}</p>` : ''}
-                    ${o.zapiaSol ? `<p style="margin:0; white-space: pre-line;"><strong>Solución:</strong> ${o.zapiaSol}</p>` : ''}
-                `;
-            }
-
             // Preparar información del reporte adicional
             let adicionalesInfoHtml = "";
             if (o.adicionalesEnriched) {
@@ -1133,7 +1028,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <p style="margin:0;"><strong>Estado:</strong> ${o.Estado || '—'}</p>
                             ${workshopHtml}
                             ${adicionalesInfoHtml}
-                            ${zapiaInfoHtml}
+                            
                             ${clientContactHtml}
                         </div>
                     </div>
@@ -1267,27 +1162,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadAllData() {
         try {
-            const [workshopData, globalData, zapiaData, adicionalesData] = await Promise.all([
+            const [workshopData, globalData, adicionalesData] = await Promise.all([
                 fetchGoogleSheet(SHEETS_CONFIG.talleres.id, SHEETS_CONFIG.talleres.sheetName),
                 fetchGoogleSheet(SHEETS_CONFIG.seguimiento.id, SHEETS_CONFIG.seguimiento.sheetName),
-                fetchGoogleSheet(SHEETS_CONFIG.zapia.id, SHEETS_CONFIG.zapia.sheetName).catch(err => {
-                    console.warn("Error al cargar ZAPIA_ENRICHMENT, continuando sin ella:", err);
-                    return [];
-                }),
                 fetchGoogleSheet(SHEETS_CONFIG.adicionales.id, SHEETS_CONFIG.adicionales.sheetName).catch(err => {
                     console.warn("Error al cargar REPORTE GLOBAL ADICIONALES, continuando sin ella:", err);
                     return [];
                 })
             ]);
 
-            const parsed = parseAllData(workshopData, globalData, zapiaData, adicionalesData);
+            const parsed = parseAllData(workshopData, globalData, adicionalesData);
             appWorkshopData = parsed.parsedWorkshopData;
             appOrdersData = parsed.parsedOrdersData;
 
             console.log('Datos procesados:', { 
                 talleres: appWorkshopData.length, 
                 ordenes: appOrdersData.length,
-                ordenesEnriquecidasZapia: appOrdersData.filter(o => o.zapiaEnriched).length,
                 ordenesEnriquecidasAdicionales: appOrdersData.filter(o => o.adicionalesEnriched).length
             });
         } catch (error) {
