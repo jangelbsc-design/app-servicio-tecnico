@@ -380,6 +380,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log("📥 Cargando datos...");
     await loadAllData();
     console.log(`✅ ${appWorkshopData.length} talleres, ${appOrdersData.length} órdenes`);
+    renderKPIs();
 
     // Verificar órdenes estancadas y notificar por Telegram
     chequearOrdenesEstancadas(appOrdersData);
@@ -483,6 +484,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         renderGlobalSearchResults(matchedTalleres, matchedOrdenes);
     }, 300));
+
+    function renderKPIs() {
+        const estados_excluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
+        const isExcluido = (o) => {
+            const e = (o.Estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            return estados_excluidos.some(ex => e.includes(ex));
+        };
+
+        let activas = appOrdersData.filter(o => !isExcluido(o));
+
+        const rol = localStorage.getItem('usuario_rol');
+        const regional = localStorage.getItem('usuario_regional');
+        if (rol === 'regional' && regional) {
+            activas = activas.filter(o => isOrderInRegion(o, regional));
+        }
+
+        const estancadas = activas.filter(o => {
+            const diasCreacion = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10);
+            const diasMod = diasDesde(o['Fecha de la última modificación']);
+            return (diasMod !== null && diasMod >= 4) || diasCreacion >= 8;
+        });
+
+        const regionesSet = new Set(activas.map(o => (o['Territorio de servicio: Nombre'] || 'Sin región').trim()));
+
+        const set = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        };
+
+        set('kpi-ordenes', activas.length);
+        set('kpi-estancadas', estancadas.length);
+        set('kpi-talleres', appWorkshopData.length);
+        set('kpi-regiones', regionesSet.size);
+    }
 
     function renderGlobalSearchResults(talleres, ordenes) {
         if (!globalSearchResults) return;
@@ -868,6 +903,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (rol === 'regional' && regional) {
             ordenesFiltradas = ordenesFiltradas.filter(o => isOrderInRegion(o, regional));
         }
+
+        // ORDENAMIENTO: más antiguas primero (urgencia)
+        ordenesFiltradas.sort((a, b) => {
+            const da = parseInt(a['Tiempo desde apertura (Días)'] || '0', 10);
+            const db = parseInt(b['Tiempo desde apertura (Días)'] || '0', 10);
+            return db - da;
+        });
 
         if (ordenesFiltradas.length === 0) {
             contentEl.innerHTML = '<p style="text-align:center;padding:2rem;">No se encontraron órdenes activas.</p>';
