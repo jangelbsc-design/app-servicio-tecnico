@@ -112,6 +112,8 @@ function parseFecha(str) {
     let m;
     m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
     if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+    m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);
+    if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
     m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
     const d = new Date(s);
@@ -124,6 +126,64 @@ function diasDesde(fechaStr) {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     return Math.floor((hoy - f) / 86400000);
+}
+
+// Configuración de garantía (días). Ampliar por marca según políticas de DISMATEC/BLEND.
+const GARANTIA_DIAS_DEFAULT = 365;
+const GARANTIA_DIAS_POR_MARCA = {
+    // Ej.: 'CONSUL': 730, 'WHIRLPOOL': 730, 'KERNIG': 730, 'MUELLER': 365
+};
+
+function diasGarantia(producto) {
+    if (!producto) return GARANTIA_DIAS_DEFAULT;
+    const p = producto.toUpperCase();
+    for (const key of Object.keys(GARANTIA_DIAS_POR_MARCA)) {
+        if (p.includes(key)) return GARANTIA_DIAS_POR_MARCA[key];
+    }
+    return GARANTIA_DIAS_DEFAULT;
+}
+
+function getWarrantyInfo(o) {
+    const fechaCompra = o['Fecha de compra'] || "";
+    const f = parseFecha(fechaCompra);
+    if (!f) return { status: 'sin_datos', daysRemaining: null, fechaCompra };
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const vence = new Date(f);
+    vence.setDate(vence.getDate() + diasGarantia(o['Producto ST']));
+    const daysRemaining = Math.floor((vence - hoy) / 86400000);
+    if (daysRemaining < 0) return { status: 'vencida', daysRemaining, fechaCompra };
+    if (daysRemaining <= 30) return { status: 'por_vencer', daysRemaining, fechaCompra };
+    return { status: 'en_garantia', daysRemaining, fechaCompra };
+}
+
+function warrantyBadgeHtml(o) {
+    const info = getWarrantyInfo(o);
+    if (info.status === 'sin_datos') return '';
+    const style = {
+        en_garantia: { bg: '#dcfce7', color: '#166534', icon: 'bi-patch-check-fill', text: 'Garantía', title: `En garantía · vence en ${info.daysRemaining} días` },
+        por_vencer:  { bg: '#fef3c7', color: '#b45309', icon: 'bi-exclamation-triangle-fill', text: `Vence ${info.daysRemaining}d`, title: `La garantía vence en ${info.daysRemaining} días` },
+        vencida:     { bg: '#fee2e2', color: '#b91c1c', icon: 'bi-x-circle-fill', text: 'Vencida', title: 'Garantía vencida' }
+    }[info.status];
+    return `<span title="${style.title}" style="display:inline-flex; align-items:center; gap:4px; background:${style.bg}; color:${style.color}; padding:4px 10px; border-radius:12px; font-size:0.68rem; font-weight:700; white-space:nowrap;"><i class="bi ${style.icon}"></i> ${style.text}</span>`;
+}
+
+function warrantyDetailHtml(o) {
+    const info = getWarrantyInfo(o);
+    if (info.status === 'sin_datos') {
+        return '<p style="margin:0;"><strong>Garantía:</strong> <span style="color:#94a3b8;">Sin fecha de compra para evaluar</span></p>';
+    }
+    const total = diasGarantia(o['Producto ST']);
+    const vence = new Date(parseFecha(info.fechaCompra));
+    vence.setDate(vence.getDate() + total);
+    const venceStr = vence.toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    if (info.status === 'en_garantia') {
+        return `<p style="margin:0;"><strong>Garantía:</strong> <span style="color:#166534;">✓ En garantía hasta ${venceStr} (${info.daysRemaining} días restantes)</span></p>`;
+    }
+    if (info.status === 'por_vencer') {
+        return `<p style="margin:0;"><strong>Garantía:</strong> <span style="color:#b45309;">⚠ Vence en ${info.daysRemaining} días (hasta ${venceStr})</span></p>`;
+    }
+    return `<p style="margin:0;"><strong>Garantía:</strong> <span style="color:#b91c1c;">✗ Vencida desde ${venceStr}</span></p>`;
 }
 
 function chequearOrdenesEstancadas(appOrdersData) {
@@ -628,7 +688,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <div style="flex:1;">
                                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:5px;">
                                     <span style="font-weight:700; font-size:1rem; color:#111; line-height:1.2;">${o['Cuenta: Nombre de la cuenta']}</span>
-                                    <span style="font-size:0.7rem; background:#e0e7ff; color:#3b82f6; padding:2px 8px; border-radius:10px; font-weight:700;">${o.Estado || 'S/E'}</span>
+                                    <span style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+                                        <span style="font-size:0.7rem; background:#e0e7ff; color:#3b82f6; padding:2px 8px; border-radius:10px; font-weight:700;">${o.Estado || 'S/E'}</span>
+                                        ${warrantyBadgeHtml(o)}
+                                    </span>
                                 </div>
                                 <div style="font-size:0.85rem; color:#64748b; margin-bottom:5px;">${o['Producto ST']}</div>
                                 <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#94a3b8;">
@@ -1092,8 +1155,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 </div>
                             </div>
                             <div style="display:flex; flex-direction:column; align-items:flex-end; justify-content:space-between; height:100%; min-height:60px;">
-                                <span style="background:#e0e7ff; color:#3b82f6; padding:4px 10px; border-radius:12px; font-size:0.7rem; font-weight:700; white-space:nowrap;">${o.Estado || 'S/E'}</span>
-                                <i class="bi bi-chevron-down acc-arrow" style="transition: transform 0.3s ease; color:#cbd5e1; font-size:1.2rem; margin-top:auto;"></i>
+                                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px;">
+                                    <span style="background:#e0e7ff; color:#3b82f6; padding:4px 10px; border-radius:12px; font-size:0.7rem; font-weight:700; white-space:nowrap;">${o.Estado || 'S/E'}</span>
+                                    ${warrantyBadgeHtml(o)}
+                                </div>
+                                <i class="bi bi-chevron-down acc-arrow" style="transition: transform 0.3s ease; color:#cbd5e1; font-size:1.2rem;"></i>
                             </div>
                         </div>
                     </button>
@@ -1105,6 +1171,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <p style="margin:0;"><strong>Nro de orden de trabajo (Marca):</strong> ${o['Nro de orden de trabajo (Marca)'] || '—'}</p>
                             <p style="margin:0;"><strong>Producto ST:</strong> ${o['Producto ST'] || '—'}</p>
                             <p style="margin:0;"><strong>Fecha de compra:</strong> ${o['Fecha de compra'] || '—'}</p>
+                            ${warrantyDetailHtml(o)}
                             <p style="margin:0;"><strong>Fecha de ingreso a la marca:</strong> ${o['Fecha de ingreso a la marca'] || '—'}</p>
                             <p style="margin:0;"><strong>Referencia:</strong> ${o['Referencia'] || '—'}</p>
                             <p style="margin:0;"><strong>Estado:</strong> ${o.Estado || '—'}</p>
