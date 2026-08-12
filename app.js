@@ -144,7 +144,7 @@ const GARANTIA_DIAS_POR_TIPO = [
             'cocina', 'encimera', 'horno', 'microondas', 'campana', 'extractora',
             'aire acondicionado', 'split', 'btu', 'termotanque', 'calefon'
         ],
-        exclude: ['cabello', 'pelo']
+        exclude: ['cabello', 'pelo', 'oster']
     }
 ];
 
