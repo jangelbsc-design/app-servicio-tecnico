@@ -537,6 +537,45 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const numList = contactosText.split(/[-/,]/).map(n => n.trim()).filter(n => n.length >= 7);
                 const firstNum = numList.length > 0 ? numList[0].replace(/\D/g, '') : null;
 
+                let mapHtml = '';
+                if (t.UBICACION) {
+                    let mapUrl = t.UBICACION;
+                    let coords = '';
+                    if (/^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(mapUrl)) {
+                        coords = mapUrl.replace(/\s+/g, '');
+                        mapUrl = `https://www.google.com/maps?q=${coords}`;
+                    } else if (!mapUrl.startsWith('http')) {
+                        mapUrl = 'https://' + mapUrl;
+                    }
+
+                    const embedQuery = coords || encodeURIComponent(t.TALLER || 'ubicación');
+                    const embedUrl = `https://www.google.com/maps?q=${embedQuery}&output=embed&z=16`;
+
+                    mapHtml = `
+                        <div class="map-preview-container" style="margin-top:0.75rem; border-radius:14px; overflow:hidden; border:1px solid #e2e8f0; box-shadow:0 4px 12px rgba(0,0,0,0.08); position:relative;">
+                            <div style="width:100%; height:150px; position:relative; overflow:hidden; background:#f1f5f9;">
+                                <iframe
+                                    src="${embedUrl}"
+                                    width="100%"
+                                    height="150"
+                                    style="border:0; display:block; pointer-events:none;"
+                                    allowfullscreen=""
+                                    loading="lazy"
+                                    referrerpolicy="no-referrer-when-downgrade">
+                                </iframe>
+                                <div style="position:absolute; top:0; left:0; width:100%; height:100%; cursor:pointer;" onclick="window.open('${mapUrl}', '_blank')"></div>
+                            </div>
+                            <a href="${mapUrl}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; padding:10px 15px; background:#ffffff; text-decoration:none; color:#111; font-weight:700; font-size:0.85rem; border-top:1px solid #f1f5f9; transition: background 0.2s ease;">
+                                <div style="background:radial-gradient(circle at 30% 30%, #ff4b68, #E31837); width:20px; height:20px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); display:flex; align-items:center; justify-content:center; box-shadow:1px 1px 3px rgba(0,0,0,0.15); flex-shrink:0;">
+                                    <div style="width:6px; height:6px; background:white; border-radius:50%;"></div>
+                                </div>
+                                <span>Abrir en Google Maps</span>
+                                <i class="bi bi-box-arrow-up-right" style="font-size:0.8rem; color:#94a3b8;"></i>
+                            </a>
+                        </div>
+                    `;
+                }
+
                 return `
                     <div class="dash-card stitch-card" style="margin-bottom:0.8rem; padding:1rem; cursor:default;">
                         <div style="flex:1;">
@@ -555,6 +594,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     </a>
                                 ` : ''}
                             </div>
+                            ${mapHtml}
                         </div>
                     </div>
                 `;
