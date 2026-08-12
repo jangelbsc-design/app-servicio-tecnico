@@ -128,17 +128,37 @@ function diasDesde(fechaStr) {
     return Math.floor((hoy - f) / 86400000);
 }
 
-// Configuración de garantía (días). Ampliar por marca según políticas de DISMATEC/BLEND.
+// Configuración de garantía (días).
 const GARANTIA_DIAS_DEFAULT = 365;
-const GARANTIA_DIAS_POR_MARCA = {
-    // Ej.: 'CONSUL': 730, 'WHIRLPOOL': 730, 'KERNIG': 730, 'MUELLER': 365
-};
+
+// Garantía por marca (prioridad máxima). Ej.: 'CAMPANA X': 365
+const GARANTIA_DIAS_POR_MARCA = {};
+
+// Línea blanca: 2 años (730 días). Clasificación por tipo de producto.
+const GARANTIA_DIAS_POR_TIPO = [
+    {
+        dias: 730,
+        keywords: [
+            'lavadora', 'secadora', 'torre de lavado', 'lavavajilla',
+            'refrigerador', 'refrigeradora', 'freezer', 'frio seco', 'frio convencional',
+            'cocina', 'encimera', 'horno', 'microondas', 'campana', 'extractora',
+            'aire acondicionado', 'split', 'btu', 'termotanque', 'calefon'
+        ],
+        exclude: ['cabello', 'pelo']
+    }
+];
 
 function diasGarantia(producto) {
     if (!producto) return GARANTIA_DIAS_DEFAULT;
-    const p = producto.toUpperCase();
+    const p = producto.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     for (const key of Object.keys(GARANTIA_DIAS_POR_MARCA)) {
-        if (p.includes(key)) return GARANTIA_DIAS_POR_MARCA[key];
+        if (p.includes(key.toUpperCase())) return GARANTIA_DIAS_POR_MARCA[key];
+    }
+    for (const rango of GARANTIA_DIAS_POR_TIPO) {
+        const excluido = rango.exclude && rango.exclude.some(x => new RegExp(`\\b${x}\\b`, 'i').test(p));
+        if (excluido) continue;
+        const match = rango.keywords.some(k => new RegExp(`\\b${k}\\b`, 'i').test(p));
+        if (match) return rango.dias;
     }
     return GARANTIA_DIAS_DEFAULT;
 }
