@@ -1349,8 +1349,51 @@ document.addEventListener('DOMContentLoaded', async () => {
     let reporteSelectsInit = false;
     const CHART_PALETTE = ['#E31837', '#3b82f6', '#f59e0b', '#16a34a', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1', '#14b8a6'];
 
+    const MARCAS_CONOCIDAS = [
+        'BLACK & DECKER', 'BLACK AND DECKER', 'FOREST & GARDEN', 'LA PAVONI',
+        'AIR MONSTER', 'GENERAL LUX', 'RED DISMAC', 'MASTER-G', 'BABYLISSPRO',
+        'GOOD YEAR', 'HI-TECH', 'HI TECH', 'ARNO', 'AIWA', 'BABYLISS', 'BEURER',
+        'BOSCH', 'BRIARA', 'BRITANIA', 'BROTHER', 'CONSUL', 'DAKO', 'DUCATI',
+        'ELECTROLUX', 'ENXUTA', 'EPSON', 'FLUX', 'GA.MA', 'GAMA', 'GLEECON',
+        'HISENSE', 'HITECH', 'HONOR', 'HP', 'HUAVI', 'IKA', 'INDURAMA', 'INFINIX',
+        'JVC', 'KARCHER', 'KENWOOD', 'KERNIG', 'KYOCERA', 'LEMYR', 'LG', 'LOGITECH',
+        'LORENZETTI', 'MAGEFESA', 'MISTRAL', 'MOULINEX', 'MUELLER', 'OSTER',
+        'PANASONIC', 'PHILIPS', 'PIONEER', 'PREMIER', 'REALME', 'RHEEM', 'SAMSUNG',
+        'SINGER', 'SONY', 'SPLENDID', 'TAURUS', 'TCL', 'TECNO', 'TOSHIBA',
+        'TRAMONTINA', 'UFESA', 'WAHL', 'WESTINGHOUSE', 'WHIRLPOOL', 'WILSON',
+        'XIAOMI', 'ZTE', 'ACER', 'ASUS', 'LENOVO', 'DEWALT', 'STANLEY', 'METABO',
+        'HONDA', 'SCHULZ', 'SHINDAIWA', 'OREGON', 'JBL', 'MASTERTRON', 'BASSEL',
+        'KONKA', 'HAIER', 'MIDEA', 'IFFALCON', 'CROWN', 'FUJITEL', 'MAXTRON',
+        'HOLSTEIN', 'EVERSOUND', 'MALLORY', 'DAEWOO', 'CHIQ', 'WESTPOINT',
+        'MELING', 'NAIH', 'WINSTAR', 'AVI STAR', 'MOIU', 'REDBEAT', 'HAVIT',
+        'BOYA', 'GLADIATOR', 'ECOGAS', 'IZZI', 'KRUPS', 'EXCELSA', 'BLANIK',
+        'GELOPAR', 'METALFRIO', 'VENTUS', 'SKEI', 'APPLE', 'GENERAL ELECTRIC',
+        'BEATS', 'FISCHER', 'HYUNDAI', 'INDEPLAS', 'PEABODY', 'CATA', 'ECOSMART',
+        'DECORATO', 'DOSSAR', 'SERVICENTRO ELECTRONICO', 'BLOOM', 'MITTE', 'FERRER'
+    ];
+
     function normalizarTexto(str) {
         return (str || "").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    }
+
+    function marcaDeProducto(producto) {
+        const p = normalizarTexto(producto);
+        let mejor = '';
+        for (const marca of MARCAS_CONOCIDAS) {
+            const nm = normalizarTexto(marca);
+            const multi = nm.includes(' ');
+            const ok = multi
+                ? p.includes(nm)
+                : new RegExp(`\\b${nm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(p);
+            if (ok && nm.length > mejor.length) mejor = marca;
+        }
+        return mejor;
+    }
+
+    function marcaDeOrden(o) {
+        const st = (o['¿Qué servicio técnico ?'] || '').trim();
+        if (st) return st;
+        return marcaDeProducto(o['Producto ST']);
     }
 
     function fechaArchivo() {
@@ -1378,7 +1421,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             data = data.filter(o => normalizarTexto(o.Estado) === normalizarTexto(fEstado));
         }
         if (fMarca !== 'todas') {
-            data = data.filter(o => normalizarTexto(o['¿Qué servicio técnico ?']) === normalizarTexto(fMarca));
+            data = data.filter(o => normalizarTexto(marcaDeOrden(o)) === normalizarTexto(fMarca));
         }
         return data;
     }
@@ -1400,7 +1443,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const uniq = (key) => [...new Set(appOrdersData.map(o => (o[key] || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
         const regiones = uniq('Territorio de servicio: Nombre');
         const estados = uniq('Estado');
-        const marcas = uniq('¿Qué servicio técnico ?');
+        const marcas = [...new Set(appOrdersData.map(o => marcaDeOrden(o)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
 
         const sRegion = document.getElementById('reporte-filtro-region');
         const sEstado = document.getElementById('reporte-filtro-estado');
@@ -1469,6 +1512,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const map = new Map();
         data.forEach(o => {
             const v = (o[key] || 'Sin dato').trim() || 'Sin dato';
+            map.set(v, (map.get(v) || 0) + 1);
+        });
+        return [...map.entries()].sort((a, b) => b[1] - a[1]);
+    }
+
+    function countByMarcas(data) {
+        const map = new Map();
+        data.forEach(o => {
+            const v = marcaDeOrden(o) || 'Sin dato';
             map.set(v, (map.get(v) || 0) + 1);
         });
         return [...map.entries()].sort((a, b) => b[1] - a[1]);
@@ -1565,7 +1617,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const regiones = countBy(data, 'Territorio de servicio: Nombre');
         const estados = countBy(data, 'Estado');
-        const marcas = countBy(data, '¿Qué servicio técnico ?').slice(0, 12);
+        const marcas = countByMarcas(data).slice(0, 12);
         const tiempoPorEstado = avgDiasPorEstado(data);
 
         const ctxR = document.getElementById('reporte-chart-regiones');
@@ -1663,7 +1715,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             'Referencia': o['Referencia'] || '',
             'Cliente': o['Cuenta: Nombre de la cuenta'] || '',
             'Producto': o['Producto ST'] || '',
-            'Marca / ST': o['¿Qué servicio técnico ?'] || '',
+            'Marca / ST': marcaDeOrden(o) || '',
             'Tipo de Servicio': o['Tipo de Servicio'] || '',
             'Región': o['Territorio de servicio: Nombre'] || '',
             'Estado': o.Estado || '',
@@ -1724,7 +1776,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             o['Referencia'] || '',
             o['Cuenta: Nombre de la cuenta'] || '',
             (o['Producto ST'] || '').slice(0, 60),
-            o['¿Qué servicio técnico ?'] || '',
+            marcaDeOrden(o) || '',
             o['Tipo de Servicio'] || '',
             o['Territorio de servicio: Nombre'] || '',
             o.Estado || '',
