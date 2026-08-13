@@ -19,7 +19,7 @@ const SHEETS_CONFIG = {
     },
     encuesta: {
         id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
-        sheetName: 'NPS%20POR%20REGIONAL'
+        sheetName: 'ENCUESTA'
     }
 };
 
@@ -2149,10 +2149,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             const st4 = escapeHTML((r['V2_ST_Q4'] || '').trim()) || '—';
             const st5 = escapeHTML((r['V2_ST_Q5'] || '').trim()) || '—';
             const score = (r['2DO CALCULO'] || '').trim();
-            const servicio = escapeHTML((r['SERVICIOS'] || '').trim()) || '—';
-            const marca = escapeHTML((r['Marca'] || '').trim()) || '—';
-            const modelo = escapeHTML((r['Modelo'] || '').trim()) || '—';
-            const referencia = escapeHTML((r['Referencia'] || '').trim()) || '—';
+            const servicio = (r['SERVICIOS'] || '').trim();
+            const marca = (r['Marca'] || '').trim();
+            const modelo = (r['Modelo'] || '').trim();
+            const referencia = (r['Referencia'] || '').trim();
+            const detRef = referencia ? `<p style="margin:0;"><strong>Referencia:</strong> ${escapeHTML(referencia)}</p>` : '';
+            const detServ = servicio ? `<p style="margin:0;"><strong>Servicio:</strong> ${escapeHTML(servicio)} · <strong>Tipo:</strong> ${tipo}</p>` : `<p style="margin:0;"><strong>Tipo de Servicio:</strong> ${tipo}</p>`;
+            const detMarca = (marca || modelo) ? `<p style="margin:0;"><strong>Marca / Modelo:</strong> ${escapeHTML(marca || '—')} · ${escapeHTML(modelo || '—')}</p>` : '';
 
             return `
                 <div class="accordion-item" style="margin-bottom:10px; border-radius:15px; border:1px solid ${c.border}; border-left:5px solid ${c.color}; background:${c.bg}; overflow:hidden;">
@@ -2171,9 +2174,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="accordion-content" style="padding:0 15px; max-height:0; overflow:hidden; transition: max-height 0.3s ease-out;">
                         <div style="padding:14px 0; border-top:1px solid ${c.border}; font-size:0.85rem; color:#333; display:grid; grid-template-columns:1fr; gap:8px;">
                             <p style="margin:0;"><strong>ODT:</strong> ${odt} · <strong>Número:</strong> ${num}</p>
-                            <p style="margin:0;"><strong>Referencia:</strong> ${referencia}</p>
-                            <p style="margin:0;"><strong>Servicio:</strong> ${servicio} · <strong>Tipo:</strong> ${tipo}</p>
-                            <p style="margin:0;"><strong>Marca / Modelo:</strong> ${marca} · ${modelo}</p>
+                            ${detRef}
+                            ${detServ}
+                            ${detMarca}
                             <p style="margin:0;"><strong>Técnico:</strong> ${escapeHTML(tecnico)}</p>
                             <p style="margin:0;"><strong>Tipificación:</strong> ${tipificacion}</p>
                             <p style="margin:0;"><strong>Nota (NPS Q1):</strong> ${nota || '—'}/10 ${score ? `· <strong>Puntaje:</strong> ${score}` : ''}</p>
