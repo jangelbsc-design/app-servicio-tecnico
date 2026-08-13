@@ -1435,7 +1435,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         ['sla-dias-sin-cambios', 'sla-dias-creacion'].forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.addEventListener('change', renderReportes);
+            if (el) {
+                el.addEventListener('change', renderReportes);
+                el.addEventListener('input', renderReportes);
+            }
         });
     }
 
@@ -1540,9 +1543,102 @@ document.addEventListener('DOMContentLoaded', async () => {
             .sort((a, b) => b[1] - a[1]);
     }
 
+    function slaContactoHtml(o) {
+        const nombreCliente = o['Cuenta: Nombre de la cuenta'] || 'N/A';
+        const ordenDismac = o['Referencia'] || o['Número de orden de trabajo'] || 'N/A';
+        const activo = o['Producto ST'] || 'N/A';
+        const nroOrdenMarca = o['Nro de orden de trabajo (Marca)'] || 'S/O';
+        const diasST = o['Tiempo desde apertura (Días)'] || '0';
+
+        const workshopName = (o['¿Qué servicio técnico ?'] || '').trim().toUpperCase();
+        let workshop = null;
+        if (workshopName) {
+            const matchFn = (w) => {
+                if (!w.TALLER) return false;
+                const t = w.TALLER.toUpperCase();
+                const tClean = t.replace(/^ST\s+/, '');
+                return t === workshopName || tClean === workshopName ||
+                       t.includes(workshopName) || workshopName.includes(tClean);
+            };
+            workshop = appWorkshopData.find(matchFn);
+            if (!workshop && workshopName.length > 2) {
+                workshop = appWorkshopData.find(w => {
+                    const marcas = (w.MARCA || '').toUpperCase().split(',').map(s => s.trim());
+                    return marcas.some(m => m.includes(workshopName) || workshopName.includes(m));
+                });
+            }
+        }
+
+        let tallerHtml = '';
+        if (workshop) {
+            const textMsg = `Hola, servicio técnico ${workshop.TALLER}, por favor ayúdenos con información sobre el estado de las siguientes órdenes de trabajo:\nOrden DISMAC: ${ordenDismac}\nNombre del cliente: ${nombreCliente}\nActivo: ${activo}\nNumero de orden: ${nroOrdenMarca}\nDías en el ST de marca: ${diasST}`;
+            const encodedMsg = encodeURIComponent(textMsg);
+            const numList = (workshop.CONTACTO || '').split(/[-/,]/).map(n => n.trim()).filter(n => n.length >= 7);
+            const buttonsHtml = numList.map(num => {
+                const cleanNum = num.replace(/\D/g, '');
+                return `
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:5px;">
+                        <a href="tel:${cleanNum}" style="background:#f1f5f9; color:#1e293b; text-decoration:none; padding:8px; border-radius:5px; font-size:0.75rem; text-align:center; font-weight:600;"><i class="bi bi-telephone-fill" style="color:#1e40af;"></i> Ll. ${cleanNum}</a>
+                        <a href="https://wa.me/?text=${encodedMsg}" target="_blank" style="background:#dcfce7; color:#166534; text-decoration:none; padding:8px; border-radius:5px; font-size:0.75rem; text-align:center; font-weight:600;"><i class="bi bi-whatsapp" style="color:#15803d;"></i> Mensaje WA</a>
+                    </div>`;
+            }).join('');
+            tallerHtml = `
+                <div style="margin-top:10px; padding:10px; background:#f0f7ff; border-radius:10px; border:1px solid #dbeafe;">
+                    <p style="font-weight:700; font-size:0.85rem; margin:0 0 5px 0; color:#1e40af; display:flex; align-items:center; gap:5px;"><i class="bi bi-tools"></i> Taller: ${escapeHTML(workshop.TALLER)}</p>
+                    ${buttonsHtml}
+                </div>`;
+        }
+
+        let clienteHtml = '';
+        const contactPhone = o.adicTelefono || '';
+        if (contactPhone) {
+            const numList = (contactPhone || '').split(/[-/,]/).map(n => n.trim()).filter(n => n.length >= 7);
+            const buttonsHtml = numList.map(num => {
+                const cleanNum = num.replace(/\D/g, '');
+                const clientMsg = `Hola ${nombreCliente}, le saludamos de Dismac para brindarle información sobre su orden de trabajo ${ordenDismac} (${activo}).`;
+                const encodedClientMsg = encodeURIComponent(clientMsg);
+                return `
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:5px;">
+                        <a href="tel:${cleanNum}" style="background:#f1f5f9; color:#1e293b; text-decoration:none; padding:8px; border-radius:5px; font-size:0.75rem; text-align:center; font-weight:600;"><i class="bi bi-telephone-fill" style="color:#16a34a;"></i> Llamar Cliente</a>
+                        <a href="https://wa.me/591${cleanNum}?text=${encodedClientMsg}" target="_blank" style="background:#dcfce7; color:#166534; text-decoration:none; padding:8px; border-radius:5px; font-size:0.75rem; text-align:center; font-weight:600;"><i class="bi bi-whatsapp" style="color:#15803d;"></i> Mensaje WA</a>
+                    </div>`;
+            }).join('');
+            clienteHtml = `
+                <div style="margin-top:10px; padding:10px; background:#f4fbf7; border-radius:10px; border:1px solid #c8e6c9;">
+                    <p style="font-weight:700; font-size:0.85rem; margin:0 0 5px 0; color:#2e7d32; display:flex; align-items:center; gap:5px;"><i class="bi bi-person-fill"></i> Contacto Cliente</p>
+                    ${buttonsHtml}
+                </div>`;
+        }
+
+        if (!tallerHtml && !clienteHtml) {
+            return '<p style="margin:0; font-size:0.8rem; color:#64748b;"><i class="bi bi-info-circle"></i> No hay contactos registrados para esta orden.</p>';
+        }
+        return tallerHtml + clienteHtml;
+    }
+
+    function slaDetallesHtml(o) {
+        const subEstado = o.Sub_estado ? ` (${escapeHTML(o.Sub_estado)})` : '';
+        return `
+            <div style="padding:15px 0; border-top:1px solid #f1f5f9; font-size:0.85rem; color:#333; display:grid; grid-template-columns:1fr; gap:8px;">
+                <p style="margin:0;"><strong>Número de orden de trabajo:</strong> ${escapeHTML(o['Número de orden de trabajo'] || '—')}</p>
+                <p style="margin:0;"><strong>Tipo de Servicio:</strong> ${escapeHTML(o['Tipo de Servicio'] || '—')}</p>
+                <p style="margin:0;"><strong>Tiempo desde apertura (Días):</strong> ${escapeHTML(o['Tiempo desde apertura (Días)'] || '—')}</p>
+                <p style="margin:0;"><strong>Nro de orden de trabajo (Marca):</strong> ${escapeHTML(o['Nro de orden de trabajo (Marca)'] || '—')}</p>
+                <p style="margin:0;"><strong>Producto ST:</strong> ${escapeHTML(o['Producto ST'] || '—')}</p>
+                <p style="margin:0;"><strong>Fecha de compra:</strong> ${escapeHTML(o['Fecha de compra'] || '—')}</p>
+                ${warrantyDetailHtml(o)}
+                <p style="margin:0;"><strong>Fecha de ingreso a la marca:</strong> ${escapeHTML(o['Fecha de ingreso a la marca'] || '—')}</p>
+                <p style="margin:0;"><strong>Fecha de la última modificación:</strong> ${escapeHTML(o['Fecha de la última modificación'] || '—')}</p>
+                <p style="margin:0;"><strong>Referencia:</strong> ${escapeHTML(o['Referencia'] || '—')}</p>
+                <p style="margin:0;"><strong>Estado:</strong> ${escapeHTML(o.Estado || '—')}${subEstado}</p>
+                <p style="margin:0;"><strong>Marca / ST:</strong> ${escapeHTML(marcaDeOrden(o) || '—')}</p>
+                ${slaContactoHtml(o)}
+            </div>`;
+    }
+
     function renderSlaAlertas(data) {
         const content = document.getElementById('sla-alertas-content');
-        if (!content) return;
+        const countEl = document.getElementById('sla-alertas-count');
 
         const diasSinCambios = parseInt(document.getElementById('sla-dias-sin-cambios')?.value || '4', 10) || 4;
         const diasCreacion = parseInt(document.getElementById('sla-dias-creacion')?.value || '8', 10) || 8;
@@ -1569,6 +1665,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             return db - da;
         });
 
+        if (countEl) countEl.textContent = alertas.length;
+        if (!content) return;
+
         if (alertas.length === 0) {
             content.innerHTML = '<div style="text-align:center; padding:1.5rem; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; color:#166534; font-weight:600;"><i class="bi bi-check-circle-fill" style="margin-right:6px;"></i>Sin órdenes que superen los umbrales SLA.</div>';
             return;
@@ -1587,15 +1686,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             const estado = escapeHTML(a.o.Estado || 'S/E');
             const odt = escapeHTML(a.o['Número de orden de trabajo'] || '');
             return `
-                <div style="background:${bg}; border:1px solid ${border}; border-left:5px solid ${color}; border-radius:12px; padding:0.9rem 1rem;">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-                        <div style="flex:1;">
-                            <p style="margin:0 0 4px 0; font-weight:800; color:#111; font-size:0.95rem;">${cliente}</p>
-                            <p style="margin:0 0 4px 0; font-size:0.82rem; color:#475569;">${producto || '—'}</p>
-                            <p style="margin:0; font-size:0.75rem; color:#64748b;"><i class="bi bi-geo-alt-fill"></i> ${region} · ${estado} · ODT ${odt}</p>
-                            <p style="margin:5px 0 0 0; font-size:0.75rem; color:${color}; font-weight:600;">${a.razones.join(' · ')}</p>
+                <div class="accordion-item" style="background:${bg}; border:1px solid ${border}; border-left:5px solid ${color}; border-radius:12px; margin-bottom:0.7rem; overflow:hidden;">
+                    <button class="accordion-header" style="width:100%; border:none; background:none; padding:0.9rem 1rem; text-align:left; cursor:pointer;" onclick="this.parentElement.classList.toggle('active')">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                            <div style="flex:1;">
+                                <p style="margin:0 0 4px 0; font-weight:800; color:#111; font-size:0.95rem;">${cliente}</p>
+                                <p style="margin:0 0 4px 0; font-size:0.82rem; color:#475569;">${producto || '—'}</p>
+                                <p style="margin:0; font-size:0.75rem; color:#64748b;"><i class="bi bi-geo-alt-fill"></i> ${region} · ${estado} · ODT ${odt}</p>
+                                <p style="margin:5px 0 0 0; font-size:0.75rem; color:${color}; font-weight:600;">${a.razones.join(' · ')}</p>
+                            </div>
+                            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px; flex-shrink:0;">
+                                <span style="background:${color}; color:white; padding:3px 10px; border-radius:10px; font-size:0.65rem; font-weight:800;">${label}</span>
+                                <i class="bi bi-chevron-down acc-arrow" style="color:#cbd5e1; font-size:1rem;"></i>
+                            </div>
                         </div>
-                        <span style="flex-shrink:0; background:${color}; color:white; padding:3px 10px; border-radius:10px; font-size:0.65rem; font-weight:800;">${label}</span>
+                    </button>
+                    <div class="accordion-content" style="padding:0;">
+                        ${slaDetallesHtml(a.o)}
                     </div>
                 </div>
             `;
