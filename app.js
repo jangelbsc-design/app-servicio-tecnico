@@ -1390,6 +1390,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('change', renderReportes);
         });
+        ['sla-dias-sin-cambios', 'sla-dias-creacion'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', renderReportes);
+        });
     }
 
     function fillReporteSelects() {
@@ -1437,12 +1441,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         const enGarantia = data.filter(o => getWarrantyInfo(o).status === 'en_garantia').length;
         const regiones = new Set(data.map(o => (o['Territorio de servicio: Nombre'] || 'Sin región').trim())).size;
+        const promDias = data.length
+            ? Math.round(data.reduce((s, o) => s + (parseInt(o['Tiempo desde apertura (Días)'] || '0', 10) || 0), 0) / data.length)
+            : 0;
 
         const cards = [
             { label: 'Órdenes totales', value: data.length, color: '#3b82f6', icon: 'bi-file-earmark-text' },
             { label: 'Activas', value: activas.length, color: '#16a34a', icon: 'bi-lightning-charge-fill' },
             { label: 'Estancadas', value: estancadas.length, color: '#ef4444', icon: 'bi-exclamation-triangle-fill' },
             { label: 'En garantía', value: enGarantia, color: '#d97706', icon: 'bi-patch-check-fill' },
+            { label: 'Prom. días abiertas', value: promDias, color: '#8b5cf6', icon: 'bi-clock-history' },
             { label: 'Regiones', value: regiones, color: '#111', icon: 'bi-geo-alt-fill' }
         ];
 
@@ -1466,6 +1474,82 @@ document.addEventListener('DOMContentLoaded', async () => {
         return [...map.entries()].sort((a, b) => b[1] - a[1]);
     }
 
+    function avgDiasPorEstado(data) {
+        const map = new Map();
+        data.forEach(o => {
+            const v = (o.Estado || 'Sin dato').trim() || 'Sin dato';
+            const d = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10) || 0;
+            if (!map.has(v)) map.set(v, { sum: 0, n: 0 });
+            map.get(v).sum += d;
+            map.get(v).n += 1;
+        });
+        return [...map.entries()]
+            .map(([k, v]) => [k, v.n ? Math.round((v.sum / v.n) * 10) / 10 : 0])
+            .sort((a, b) => b[1] - a[1]);
+    }
+
+    function renderSlaAlertas(data) {
+        const content = document.getElementById('sla-alertas-content');
+        if (!content) return;
+
+        const diasSinCambios = parseInt(document.getElementById('sla-dias-sin-cambios')?.value || '4', 10) || 4;
+        const diasCreacion = parseInt(document.getElementById('sla-dias-creacion')?.value || '8', 10) || 8;
+
+        const estados_excluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
+        const isExcluido = (o) => {
+            const e = (o.Estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            return estados_excluidos.some(ex => e.includes(ex));
+        };
+
+        const alertas = data.filter(o => !isExcluido(o)).map(o => {
+            const diasCreacionOrden = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10);
+            const diasMod = diasDesde(o['Fecha de la última modificación']);
+            const razones = [];
+            if (diasMod !== null && diasMod >= diasSinCambios) razones.push(`${diasMod}d sin cambios`);
+            if (diasCreacionOrden >= diasCreacion) razones.push(`${diasCreacionOrden}d desde creación`);
+            if (razones.length === 0) return null;
+            return { o, diasMod, diasCreacionOrden, razones };
+        }).filter(Boolean);
+
+        alertas.sort((a, b) => {
+            const da = Math.max(a.diasCreacionOrden, a.diasMod || 0);
+            const db = Math.max(b.diasCreacionOrden, b.diasMod || 0);
+            return db - da;
+        });
+
+        if (alertas.length === 0) {
+            content.innerHTML = '<div style="text-align:center; padding:1.5rem; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; color:#166534; font-weight:600;"><i class="bi bi-check-circle-fill" style="margin-right:6px;"></i>Sin órdenes que superen los umbrales SLA.</div>';
+            return;
+        }
+
+        content.innerHTML = alertas.map(a => {
+            const maxDias = Math.max(a.diasCreacionOrden, a.diasMod || 0);
+            const critica = maxDias >= 15;
+            const bg = critica ? '#fef2f2' : '#fffbeb';
+            const border = critica ? '#fecaca' : '#fde68a';
+            const color = critica ? '#b91c1c' : '#b45309';
+            const label = critica ? 'CRÍTICA' : 'ALTA';
+            const cliente = escapeHTML(a.o['Cuenta: Nombre de la cuenta'] || 'S/N');
+            const producto = escapeHTML(a.o['Producto ST'] || '');
+            const region = escapeHTML(a.o['Territorio de servicio: Nombre'] || '');
+            const estado = escapeHTML(a.o.Estado || 'S/E');
+            const odt = escapeHTML(a.o['Número de orden de trabajo'] || '');
+            return `
+                <div style="background:${bg}; border:1px solid ${border}; border-left:5px solid ${color}; border-radius:12px; padding:0.9rem 1rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                        <div style="flex:1;">
+                            <p style="margin:0 0 4px 0; font-weight:800; color:#111; font-size:0.95rem;">${cliente}</p>
+                            <p style="margin:0 0 4px 0; font-size:0.82rem; color:#475569;">${producto || '—'}</p>
+                            <p style="margin:0; font-size:0.75rem; color:#64748b;"><i class="bi bi-geo-alt-fill"></i> ${region} · ${estado} · ODT ${odt}</p>
+                            <p style="margin:5px 0 0 0; font-size:0.75rem; color:${color}; font-weight:600;">${a.razones.join(' · ')}</p>
+                        </div>
+                        <span style="flex-shrink:0; background:${color}; color:white; padding:3px 10px; border-radius:10px; font-size:0.65rem; font-weight:800;">${label}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
     function destroyReporteCharts() {
         Object.keys(reporteCharts).forEach(k => {
             if (reporteCharts[k]) { reporteCharts[k].destroy(); delete reporteCharts[k]; }
@@ -1482,11 +1566,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const regiones = countBy(data, 'Territorio de servicio: Nombre');
         const estados = countBy(data, 'Estado');
         const marcas = countBy(data, '¿Qué servicio técnico ?').slice(0, 12);
+        const tiempoPorEstado = avgDiasPorEstado(data);
 
         const ctxR = document.getElementById('reporte-chart-regiones');
         const ctxE = document.getElementById('reporte-chart-estados');
         const ctxM = document.getElementById('reporte-chart-marcas');
-        if (!ctxR || !ctxE || !ctxM) return;
+        const ctxT = document.getElementById('reporte-chart-tiempo');
+        if (!ctxR || !ctxE || !ctxM || !ctxT) return;
 
         reporteCharts.regiones = new Chart(ctxR, {
             type: 'bar',
@@ -1525,11 +1611,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                 scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
             }
         });
+
+        reporteCharts.tiempo = new Chart(ctxT, {
+            type: 'bar',
+            data: {
+                labels: tiempoPorEstado.map(t => t[0]),
+                datasets: [{ label: 'Prom. días', data: tiempoPorEstado.map(t => t[1]), backgroundColor: '#8b5cf6', borderRadius: 6 }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
+        });
     }
 
     function renderReportes() {
         const data = getReportesData();
         renderReportesSummary(data);
+        renderSlaAlertas(data);
         renderReportesCharts(data);
     }
 

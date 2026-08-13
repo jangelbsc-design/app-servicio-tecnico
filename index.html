@@ -358,6 +358,24 @@
                 </div>
             </section>
 
+            <!-- Alertas SLA -->
+            <section class="sla-section" id="reporte-sla-section" style="margin-top: 1rem;">
+                <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 0.75rem; color: #111; display:flex; align-items:center; gap:8px;"><i class="bi bi-exclamation-octagon-fill" style="color:#E31837;"></i> Alertas SLA</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; margin-bottom: 0.7rem;">
+                    <div>
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Sin cambios (días)</label>
+                        <input type="number" id="sla-dias-sin-cambios" value="4" min="1"
+                            style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Desde creación (días)</label>
+                        <input type="number" id="sla-dias-creacion" value="8" min="1"
+                            style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;">
+                    </div>
+                </div>
+                <div id="sla-alertas-content" style="display:flex; flex-direction:column; gap:0.7rem;"></div>
+            </section>
+
             <!-- Botones de Exportación -->
             <section style="margin-top: 1rem;">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;">
@@ -386,6 +404,10 @@
                 <div style="background:white; border:1px solid #e2e8f0; border-radius:16px; padding:1rem; margin-bottom:1rem; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
                     <p style="font-size:0.85rem; font-weight:700; color:#475569; margin:0 0 0.75rem 0;">Órdenes por Marca (Top 12)</p>
                     <div style="position:relative; height:300px;"><canvas id="reporte-chart-marcas"></canvas></div>
+                </div>
+                <div style="background:white; border:1px solid #e2e8f0; border-radius:16px; padding:1rem; margin-bottom:1rem; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                    <p style="font-size:0.85rem; font-weight:700; color:#475569; margin:0 0 0.75rem 0;">Promedio de días abiertas por Estado</p>
+                    <div style="position:relative; height:260px;"><canvas id="reporte-chart-tiempo"></canvas></div>
                 </div>
             </section>
         </main>
@@ -419,7 +441,7 @@
     </div>
 
     <!-- <script src="data.js"></script> -->
-    <script src="app.js?v=22"></script>
+    <script src="app.js?v=23"></script>
 </body>
 
 </html>
