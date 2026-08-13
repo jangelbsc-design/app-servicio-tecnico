@@ -379,6 +379,24 @@ function isAdmin() {
     return rol === 'admin' || rol === 'administrador';
 }
 
+async function syncSessionUser() {
+    const sesionActiva = localStorage.getItem('dismatec_session');
+    const usuarioActual = localStorage.getItem('usuario_actual');
+    if (sesionActiva !== 'true' || !usuarioActual) return;
+    try {
+        const users = await fetchGoogleSheet(USERS_SHEET_CONFIG.id, USERS_SHEET_CONFIG.sheetName);
+        const foundUser = users.find(u => u.Usuario === usuarioActual);
+        if (foundUser) {
+            if (foundUser.Rol) localStorage.setItem('usuario_rol', foundUser.Rol);
+            if (foundUser.Regional !== undefined && foundUser.Regional !== null) {
+                localStorage.setItem('usuario_regional', foundUser.Regional);
+            }
+        }
+    } catch (err) {
+        console.warn('No se pudo sincronizar la sesión con la hoja de usuarios:', err);
+    }
+}
+
 let appWorkshopData = [];
 let appOrdersData = [];
 let appEncuestaData = [];
@@ -493,6 +511,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupClearSearch('workshop-search-input', 'clear-workshop-search');
 
     // Cargar datos
+    // Sincronizar el rol del usuario con la hoja (soporta sesiones antiguas sin rol guardado)
+    await syncSessionUser();
     // Mostrar tarjeta de encuestas NPS solo para administradores (antes de cargar datos)
     const adminEncuestaCard = document.getElementById('admin-encuesta-card');
     if (adminEncuestaCard) adminEncuestaCard.classList.toggle('hidden', !isAdmin());
