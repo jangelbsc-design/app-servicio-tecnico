@@ -76,7 +76,7 @@
     <div class="app-container">
         <header class="header"
             style="border-bottom: none; padding-bottom: 0; background: transparent;">
-            <div class="header-content" style="display: flex; justify-content: flex-end; width: 100%;">
+            <div class="header-content" style="display: flex; justify-content: flex-end; align-items: center; gap: 12px; width: 100%;">
                 <div class="dismac-logo" id="dismac-logo-btn"
                     style="cursor: pointer; display: flex; font-size: 1.6rem; font-weight: 900; letter-spacing: -1px; border-radius: 6px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin: 0; pointer-events: auto; background: white;">
                     <div
@@ -86,6 +86,12 @@
                         style="background-color: white; color: black; padding: 2px 8px 2px 2px; display: flex; align-items: center;">
                         mac<sup style="font-size: 0.45em; margin-top: -12px; margin-left: 1px;">®</sup></div>
                 </div>
+                <button id="logout-btn" title="Cambiar usuario / Cerrar sesión"
+                    style="display:flex; align-items:center; gap:7px; background:white; border:1px solid #e2e8f0; border-radius:20px; padding:7px 13px; cursor:pointer; font-family:'Outfit',sans-serif; box-shadow:0 2px 6px rgba(0,0,0,0.06);">
+                    <i class="bi bi-person-fill" style="color:#E31837; font-size:0.95rem;"></i>
+                    <span id="header-usuario" style="font-size:0.78rem; font-weight:700; color:#111; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">—</span>
+                    <i class="bi bi-box-arrow-right" style="color:#64748b; font-size:0.85rem;"></i>
+                </button>
             </div>
         </header>
         <main class="main-content" id="view-dashboard" style="padding-top: 0.5rem; padding-bottom: 6rem;">
@@ -482,7 +488,7 @@
     </div>
 
     <!-- <script src="data.js"></script> -->
-    <script src="app.js?v=30"></script>
+    <script src="app.js?v=31"></script>
 </body>
 
 </html>

@@ -391,8 +391,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const loginBtn = document.getElementById('login-btn');
     if (loginBtn) {
-        loginBtn.addEventListener('click', async () => {
-            const user = document.getElementById('login-usuario').value;
+        loginBtn.addEventListener('click', async () => {            const user = document.getElementById('login-usuario').value;
             const pass = document.getElementById('login-password').value;
             const errorEl = document.getElementById('login-error');
             
@@ -431,6 +430,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 errorEl.style.display = 'block';
                 loginBtn.textContent = "Ingresar";
                 loginBtn.disabled = false;
+            }
+        });
+    }
+
+    // Cerrar sesión / cambiar de usuario
+    const headerUsuario = document.getElementById('header-usuario');
+    if (headerUsuario) headerUsuario.textContent = localStorage.getItem('usuario_actual') || '—';
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            const nombre = localStorage.getItem('usuario_actual') || '';
+            if (confirm(`¿Cerrar sesión${nombre ? ' de ' + nombre : ''}? Podrás iniciar sesión con otro usuario.`)) {
+                localStorage.removeItem('dismatec_session');
+                localStorage.removeItem('usuario_actual');
+                localStorage.removeItem('usuario_rol');
+                localStorage.removeItem('usuario_regional');
+                location.reload();
             }
         });
     }
