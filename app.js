@@ -19,7 +19,7 @@ const SHEETS_CONFIG = {
     },
     encuesta: {
         id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
-        sheetName: 'ENCUESTA'
+        sheetName: 'NPS%20POR%20REGIONAL'
     }
 };
 
@@ -1967,6 +1967,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         return 'passive';
     }
 
+    function encuestaRegion(r) {
+        return ((r['Territorio de servicio: Nombre'] || '').trim() || (r['Ciudad WO'] || '').trim() || 'Sin región');
+    }
+
     function encuestaColor(clasif) {
         return {
             promoter:  { bg: '#f0fdf4', border: '#bbf7d0', color: '#16a34a', label: 'PROMOTOR', icon: 'bi-emoji-smile-fill' },
@@ -1982,7 +1986,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const data = appEncuestaData;
         if (data.length === 0) {
-            contentEl.innerHTML = '<div style="text-align:center;padding:3rem;color:#64748b;"><i class="bi bi-star" style="font-size:2rem; display:block; margin-bottom:10px;"></i>Sin datos de encuestas disponibles.</div>';
+            contentEl.innerHTML = '<div style="text-align:center;padding:3rem;color:#64748b;"><i class="bi bi-emoji-smile" style="font-size:2rem; display:block; margin-bottom:10px;"></i>Sin datos de encuestas disponibles.</div>';
             showView(viewEncuesta);
             return;
         }
@@ -2002,7 +2006,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const kpiHtml = `
             <section style="margin-bottom:1.5rem;">
-                <h3 style="font-size:1.1rem; font-weight:800; margin-bottom:0.75rem; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-star-fill" style="color:#E31837;"></i> Resumen de Encuestas NPS</h3>
+                <h3 style="font-size:1.1rem; font-weight:800; margin-bottom:0.75rem; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-emoji-smile-fill" style="color:#E31837;"></i> Resumen de Encuestas NPS</h3>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;">
                     ${kpiCard('Encuestas', stats.total, '#3b82f6', 'bi-file-earmark-text')}
                     ${kpiCard('NPS Global', stats.nps, stats.nps >= 0 ? '#16a34a' : '#ef4444', 'bi-graph-up-arrow')}
@@ -2014,7 +2018,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const byRegion = new Map();
         data.forEach(r => {
-            const reg = (r['Ciudad WO'] || '').trim() || 'Sin región';
+            const reg = encuestaRegion(r);
             if (!byRegion.has(reg)) byRegion.set(reg, []);
             byRegion.get(reg).push(r);
         });
@@ -2041,7 +2045,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const regionSection = `
             <section style="margin-bottom:1.5rem;">
-                <h3 style="font-size:1.1rem; font-weight:800; margin-bottom:0.75rem; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-geo-alt-fill" style="color:#E31837;"></i> Por Región</h3>
+                <h3 style="font-size:1.1rem; font-weight:800; margin-bottom:0.75rem; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-geo-alt-fill" style="color:#E31837;"></i> Por Regional</h3>
                 <div style="display:grid; grid-template-columns:1fr; gap:0.8rem;">${regionCards}</div>
             </section>
         `;
@@ -2055,7 +2059,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <h3 style="font-size:1.1rem; font-weight:800; margin-bottom:0.75rem; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-funnel-fill" style="color:#E31837;"></i> Detalle de Respuestas</h3>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.7rem;">
                     <div>
-                        <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Región</label>
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Regional</label>
                         <select id="encuesta-filtro-region"
                             style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;">
                             <option value="todas">Todas</option>
@@ -2102,13 +2106,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const q = normalizarTexto(document.getElementById('encuesta-buscador')?.value);
 
         let list = appEncuestaData.filter(r => {
-            if (fRegion !== 'todas' && ((r['Ciudad WO'] || '').trim() !== fRegion)) return false;
+            if (fRegion !== 'todas' && encuestaRegion(r) !== fRegion) return false;
             if (fStatus !== 'todas' && !((r['NPS Status'] || '').includes(fStatus))) return false;
             if (q) {
                 const campos = [
                     r['Tecnico'], r['Activo: Nombre de activo'], r['Tipo de Servicio'],
                     r['Número de orden de trabajo'], r['Numero'], r['NPS Q1'],
-                    r['Tipificación'], r['V2_GE_QF'], r['V2_GE_Q2']
+                    r['Tipificación'], r['V2_GE_QF'], r['V2_GE_Q2'],
+                    r['SERVICIOS'], r['Marca'], r['Modelo'], r['Referencia']
                 ];
                 return campos.some(c => normalizarTexto(c).includes(q));
             }
@@ -2134,7 +2139,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const nota = (r['NPS Q1'] || '').trim();
             const tecnico = (r['Tecnico'] || '').trim() || '—';
             const producto = escapeHTML((r['Activo: Nombre de activo'] || '').trim() || 'Sin producto');
-            const region = escapeHTML((r['Ciudad WO'] || '').trim() || 'Sin región');
+            const region = escapeHTML(encuestaRegion(r));
             const tipo = escapeHTML((r['Tipo de Servicio'] || '').trim() || '—');
             const odt = escapeHTML((r['Número de orden de trabajo'] || '').trim() || '—');
             const num = escapeHTML((r['Numero'] || '').trim() || '—');
@@ -2144,6 +2149,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const st4 = escapeHTML((r['V2_ST_Q4'] || '').trim()) || '—';
             const st5 = escapeHTML((r['V2_ST_Q5'] || '').trim()) || '—';
             const score = (r['2DO CALCULO'] || '').trim();
+            const servicio = escapeHTML((r['SERVICIOS'] || '').trim()) || '—';
+            const marca = escapeHTML((r['Marca'] || '').trim()) || '—';
+            const modelo = escapeHTML((r['Modelo'] || '').trim()) || '—';
+            const referencia = escapeHTML((r['Referencia'] || '').trim()) || '—';
 
             return `
                 <div class="accordion-item" style="margin-bottom:10px; border-radius:15px; border:1px solid ${c.border}; border-left:5px solid ${c.color}; background:${c.bg}; overflow:hidden;">
@@ -2162,7 +2171,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="accordion-content" style="padding:0 15px; max-height:0; overflow:hidden; transition: max-height 0.3s ease-out;">
                         <div style="padding:14px 0; border-top:1px solid ${c.border}; font-size:0.85rem; color:#333; display:grid; grid-template-columns:1fr; gap:8px;">
                             <p style="margin:0;"><strong>ODT:</strong> ${odt} · <strong>Número:</strong> ${num}</p>
-                            <p style="margin:0;"><strong>Tipo de Servicio:</strong> ${tipo}</p>
+                            <p style="margin:0;"><strong>Referencia:</strong> ${referencia}</p>
+                            <p style="margin:0;"><strong>Servicio:</strong> ${servicio} · <strong>Tipo:</strong> ${tipo}</p>
+                            <p style="margin:0;"><strong>Marca / Modelo:</strong> ${marca} · ${modelo}</p>
                             <p style="margin:0;"><strong>Técnico:</strong> ${escapeHTML(tecnico)}</p>
                             <p style="margin:0;"><strong>Tipificación:</strong> ${tipificacion}</p>
                             <p style="margin:0;"><strong>Nota (NPS Q1):</strong> ${nota || '—'}/10 ${score ? `· <strong>Puntaje:</strong> ${score}` : ''}</p>
