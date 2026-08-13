@@ -477,14 +477,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupClearSearch('workshop-search-input', 'clear-workshop-search');
 
     // Cargar datos
+    // Mostrar tarjeta de encuestas NPS solo para administradores (antes de cargar datos)
+    const adminEncuestaCard = document.getElementById('admin-encuesta-card');
+    if (adminEncuestaCard) adminEncuestaCard.classList.toggle('hidden', !isAdmin());
+
     console.log("📥 Cargando datos...");
     await loadAllData();
     console.log(`✅ ${appWorkshopData.length} talleres, ${appOrdersData.length} órdenes`);
     renderKPIs();
-
-    // Mostrar tarjeta de encuestas NPS solo para administradores
-    const adminEncuestaCard = document.getElementById('admin-encuesta-card');
-    if (adminEncuestaCard) adminEncuestaCard.classList.toggle('hidden', !isAdmin());
 
     // Verificar órdenes estancadas y notificar por Telegram
     chequearOrdenesEstancadas(appOrdersData);
