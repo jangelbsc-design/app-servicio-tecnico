@@ -16,6 +16,10 @@ const SHEETS_CONFIG = {
     adicionales: {
         id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
         sheetName: 'REPORTE%20GLOBAL%20ADICIONALES'
+    },
+    encuesta: {
+        id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
+        sheetName: 'ENCUESTA'
     }
 };
 
@@ -370,8 +374,13 @@ function checkSessionOnLoad() {
 }
 checkSessionOnLoad();
 
+function isAdmin() {
+    return (localStorage.getItem('usuario_rol') || '').toLowerCase() === 'admin';
+}
+
 let appWorkshopData = [];
 let appOrdersData = [];
+let appEncuestaData = [];
 // ────────────────────────────────────────────────────────────────────────────
 
 console.log("🔧 APP.JS CARGADO");
@@ -431,6 +440,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const viewEstadosServicio = document.getElementById('view-estados-servicio');
     const viewDetails = document.getElementById('view-details');
     const viewReportes = document.getElementById('view-reportes');
+    const viewEncuesta = document.getElementById('view-encuesta');
     const viewTitle = document.getElementById('view-title');
     const viewContent = document.getElementById('view-content');
 
@@ -470,6 +480,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadAllData();
     console.log(`✅ ${appWorkshopData.length} talleres, ${appOrdersData.length} órdenes`);
     renderKPIs();
+
+    // Mostrar tarjeta de encuestas NPS solo para administradores
+    const adminEncuestaCard = document.getElementById('admin-encuesta-card');
+    if (adminEncuestaCard) adminEncuestaCard.classList.toggle('hidden', !isAdmin());
 
     // Verificar órdenes estancadas y notificar por Telegram
     chequearOrdenesEstancadas(appOrdersData);
@@ -823,6 +837,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         showView(viewEstadosMenu);
     });
 
+    document.getElementById('btn-back-encuesta')?.addEventListener('click', () => {
+        console.log("← Volver al dashboard");
+        showView(viewDashboard);
+    });
+
     document.getElementById('btn-export-csv')?.addEventListener('click', exportReportesCSV);
     document.getElementById('btn-export-pdf')?.addEventListener('click', exportReportesPDF);
 
@@ -846,6 +865,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 break;
             case 'view-reportes':
                 showReportes();
+                break;
+            case 'view-encuesta':
+                if (isAdmin()) showEncuesta();
                 break;
             case 'view-tarija':
                 showRegionTalleres('Tarija');
@@ -1922,6 +1944,238 @@ document.addEventListener('DOMContentLoaded', async () => {
         showView(viewReportes);
     }
 
+    // ── ENCUESTAS NPS (Solo Admin) ─────────────────────────────────────────
+    function getEncuestaStats(list) {
+        let promo = 0, pasivo = 0, detractor = 0;
+        list.forEach(r => {
+            const st = r['NPS Status'] || '';
+            if (st.includes('Promoter')) promo++;
+            else if (st.includes('Passive')) pasivo++;
+            else if (st.includes('Detractor')) detractor++;
+        });
+        const total = list.length;
+        const pProm = total ? Math.round((promo / total) * 100) : 0;
+        const pDet = total ? Math.round((detractor / total) * 100) : 0;
+        return { total, promo, pasivo, detractor, nps: pProm - pDet, pProm, pDet };
+    }
+
+    function encuestaClasif(r) {
+        const st = r['NPS Status'] || '';
+        if (st.includes('Detractor')) return 'detractor';
+        if (st.includes('Promoter')) return 'promoter';
+        return 'passive';
+    }
+
+    function encuestaColor(clasif) {
+        return {
+            promoter:  { bg: '#f0fdf4', border: '#bbf7d0', color: '#16a34a', label: 'PROMOTOR', icon: 'bi-emoji-smile-fill' },
+            passive:   { bg: '#fffbeb', border: '#fde68a', color: '#d97706', label: 'PASIVO', icon: 'bi-emoji-neutral-fill' },
+            detractor: { bg: '#fef2f2', border: '#fecaca', color: '#ef4444', label: 'DETRACTOR', icon: 'bi-emoji-frown-fill' }
+        }[clasif] || { bg: '#f8fafc', border: '#cbd5e1', color: '#64748b', label: '—', icon: 'bi-question-circle' };
+    }
+
+    function showEncuesta() {
+        console.log('⭐ Abriendo Encuestas NPS (Admin)');
+        const contentEl = document.getElementById('encuesta-content');
+        if (!contentEl) return;
+
+        const data = appEncuestaData;
+        if (data.length === 0) {
+            contentEl.innerHTML = '<div style="text-align:center;padding:3rem;color:#64748b;"><i class="bi bi-star" style="font-size:2rem; display:block; margin-bottom:10px;"></i>Sin datos de encuestas disponibles.</div>';
+            showView(viewEncuesta);
+            return;
+        }
+
+        const stats = getEncuestaStats(data);
+
+        const kpiCard = (label, value, color, icon, sub) => `
+            <div style="background:white; border:1px solid ${color}33; border-radius:14px; padding:1rem; display:flex; align-items:center; gap:12px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="background:${color}1a; color:${color}; width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i class="bi ${icon}"></i></div>
+                <div>
+                    <div style="font-size:1.4rem; font-weight:800; color:#111; line-height:1;">${value}</div>
+                    <div style="font-size:0.75rem; color:#64748b;">${label}</div>
+                    ${sub ? `<div style="font-size:0.7rem; color:${color}; font-weight:700; margin-top:2px;">${sub}</div>` : ''}
+                </div>
+            </div>
+        `;
+
+        const kpiHtml = `
+            <section style="margin-bottom:1.5rem;">
+                <h3 style="font-size:1.1rem; font-weight:800; margin-bottom:0.75rem; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-star-fill" style="color:#E31837;"></i> Resumen de Encuestas NPS</h3>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;">
+                    ${kpiCard('Encuestas', stats.total, '#3b82f6', 'bi-file-earmark-text')}
+                    ${kpiCard('NPS Global', stats.nps, stats.nps >= 0 ? '#16a34a' : '#ef4444', 'bi-graph-up-arrow')}
+                    ${kpiCard('Promotores', `${stats.promo}`, '#16a34a', 'bi-emoji-smile-fill', `${stats.pProm}%`)}
+                    ${kpiCard('Detractores', `${stats.detractor}`, '#ef4444', 'bi-emoji-frown-fill', `${stats.pDet}%`)}
+                </div>
+            </section>
+        `;
+
+        const byRegion = new Map();
+        data.forEach(r => {
+            const reg = (r['Ciudad WO'] || '').trim() || 'Sin región';
+            if (!byRegion.has(reg)) byRegion.set(reg, []);
+            byRegion.get(reg).push(r);
+        });
+
+        const regionCards = [...byRegion.entries()]
+            .sort((a, b) => b[1].length - a[1].length)
+            .map(([reg, list]) => {
+                const s = getEncuestaStats(list);
+                const npsColor = s.nps >= 50 ? '#16a34a' : (s.nps >= 0 ? '#d97706' : '#ef4444');
+                return `
+                    <div style="background:white; border:1px solid #e2e8f0; border-radius:14px; padding:1rem; box-shadow:0 2px 8px rgba(0,0,0,0.04); display:flex; flex-direction:column; gap:10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-weight:800; font-size:1rem; color:#111;">${escapeHTML(reg)}</span>
+                            <span style="background:${npsColor}; color:white; font-size:0.75rem; font-weight:800; padding:3px 10px; border-radius:12px;">NPS ${s.nps}</span>
+                        </div>
+                        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px; text-align:center; font-size:0.72rem; color:#64748b;">
+                            <div style="background:#f0fdf4; border-radius:10px; padding:8px 4px;"><div style="font-size:1.1rem; font-weight:800; color:#16a34a;">${s.promo}</div>Promotores</div>
+                            <div style="background:#fffbeb; border-radius:10px; padding:8px 4px;"><div style="font-size:1.1rem; font-weight:800; color:#d97706;">${s.pasivo}</div>Pasivos</div>
+                            <div style="background:#fef2f2; border-radius:10px; padding:8px 4px;"><div style="font-size:1.1rem; font-weight:800; color:#ef4444;">${s.detractor}</div>Detractores</div>
+                        </div>
+                        <div style="font-size:0.72rem; color:#64748b;"><i class="bi bi-check2-circle" style="color:#16a34a;"></i> ${s.total} encuestas</div>
+                    </div>`;
+            }).join('');
+
+        const regionSection = `
+            <section style="margin-bottom:1.5rem;">
+                <h3 style="font-size:1.1rem; font-weight:800; margin-bottom:0.75rem; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-geo-alt-fill" style="color:#E31837;"></i> Por Región</h3>
+                <div style="display:grid; grid-template-columns:1fr; gap:0.8rem;">${regionCards}</div>
+            </section>
+        `;
+
+        const regionSelect = [...byRegion.keys()]
+            .sort((a, b) => a.localeCompare(b, 'es'))
+            .map(r => `<option value="${escapeHTML(r)}">${escapeHTML(r)}</option>`).join('');
+
+        const filtersHtml = `
+            <section style="margin-bottom:1rem;">
+                <h3 style="font-size:1.1rem; font-weight:800; margin-bottom:0.75rem; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-funnel-fill" style="color:#E31837;"></i> Detalle de Respuestas</h3>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.7rem;">
+                    <div>
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Región</label>
+                        <select id="encuesta-filtro-region"
+                            style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;">
+                            <option value="todas">Todas</option>
+                            ${regionSelect}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Clasificación</label>
+                        <select id="encuesta-filtro-status"
+                            style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;">
+                            <option value="todas">Todas</option>
+                            <option value="Promoter">Promotores</option>
+                            <option value="Passive">Pasivos</option>
+                            <option value="Detractor">Detractores</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-top:0.7rem;">
+                    <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Buscar (técnico, producto, tipo, ODT, comentario)</label>
+                    <input type="search" id="encuesta-buscador" placeholder="Ej: Lavadora, 139471, Kernig..."
+                        style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;">
+                </div>
+            </section>
+            <div id="encuesta-lista"></div>
+        `;
+
+        contentEl.innerHTML = kpiHtml + regionSection + filtersHtml;
+
+        ['encuesta-filtro-region', 'encuesta-filtro-status'].forEach(id => {
+            document.getElementById(id)?.addEventListener('change', renderEncuestaList);
+        });
+        document.getElementById('encuesta-buscador')?.addEventListener('input', renderEncuestaList);
+
+        renderEncuestaList();
+        showView(viewEncuesta);
+    }
+
+    function renderEncuestaList() {
+        const container = document.getElementById('encuesta-lista');
+        if (!container) return;
+
+        const fRegion = document.getElementById('encuesta-filtro-region')?.value || 'todas';
+        const fStatus = document.getElementById('encuesta-filtro-status')?.value || 'todas';
+        const q = normalizarTexto(document.getElementById('encuesta-buscador')?.value);
+
+        let list = appEncuestaData.filter(r => {
+            if (fRegion !== 'todas' && ((r['Ciudad WO'] || '').trim() !== fRegion)) return false;
+            if (fStatus !== 'todas' && !((r['NPS Status'] || '').includes(fStatus))) return false;
+            if (q) {
+                const campos = [
+                    r['Tecnico'], r['Activo: Nombre de activo'], r['Tipo de Servicio'],
+                    r['Número de orden de trabajo'], r['Numero'], r['NPS Q1'],
+                    r['Tipificación'], r['V2_GE_QF'], r['V2_GE_Q2']
+                ];
+                return campos.some(c => normalizarTexto(c).includes(q));
+            }
+            return true;
+        });
+
+        const orden = { detractor: 0, passive: 1, promoter: 2 };
+        list.sort((a, b) => {
+            const d = (orden[encuestaClasif(a)] || 1) - (orden[encuestaClasif(b)] || 1);
+            if (d !== 0) return d;
+            const na = (a['NPS Q1'] || '') + '', nb = (b['NPS Q1'] || '') + '';
+            return na.localeCompare(nb, 'es', { numeric: true });
+        });
+
+        if (list.length === 0) {
+            container.innerHTML = '<div style="text-align:center;padding:2rem;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:12px;color:#64748b;font-weight:600;">No se encontraron respuestas con los filtros actuales.</div>';
+            return;
+        }
+
+        const html = list.map(r => {
+            const clasif = encuestaClasif(r);
+            const c = encuestaColor(clasif);
+            const nota = (r['NPS Q1'] || '').trim();
+            const tecnico = (r['Tecnico'] || '').trim() || '—';
+            const producto = escapeHTML((r['Activo: Nombre de activo'] || '').trim() || 'Sin producto');
+            const region = escapeHTML((r['Ciudad WO'] || '').trim() || 'Sin región');
+            const tipo = escapeHTML((r['Tipo de Servicio'] || '').trim() || '—');
+            const odt = escapeHTML((r['Número de orden de trabajo'] || '').trim() || '—');
+            const num = escapeHTML((r['Numero'] || '').trim() || '—');
+            const tipificacion = escapeHTML((r['Tipificación'] || '').trim() || '—');
+            const comentario = escapeHTML([r['V2_GE_QF'], r['V2_GE_Q2']].map(v => (v || '').trim()).filter(Boolean).join(' ')) || 'Sin comentario';
+            const st3 = escapeHTML((r['V2_ST_Q3'] || '').trim()) || '—';
+            const st4 = escapeHTML((r['V2_ST_Q4'] || '').trim()) || '—';
+            const st5 = escapeHTML((r['V2_ST_Q5'] || '').trim()) || '—';
+            const score = (r['2DO CALCULO'] || '').trim();
+
+            return `
+                <div class="accordion-item" style="margin-bottom:10px; border-radius:15px; border:1px solid ${c.border}; border-left:5px solid ${c.color}; background:${c.bg}; overflow:hidden;">
+                    <button class="accordion-header" style="width:100%; border:none; background:none; padding:14px 15px; text-align:left; cursor:pointer;" onclick="this.parentElement.classList.toggle('active')">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                            <div style="flex:1;">
+                                <p style="margin:0 0 4px 0; font-weight:800; color:#111; font-size:0.98rem; line-height:1.2;">${producto}</p>
+                                <p style="margin:0; font-size:0.78rem; color:#475569;"><i class="bi bi-person-badge"></i> ${escapeHTML(tecnico)} · <i class="bi bi-geo-alt-fill"></i> ${region}</p>
+                            </div>
+                            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px; flex-shrink:0;">
+                                <span style="background:${c.color}; color:white; padding:3px 10px; border-radius:12px; font-size:0.65rem; font-weight:800; white-space:nowrap;"><i class="bi ${c.icon}"></i> ${c.label}</span>
+                                <span style="font-size:0.85rem; font-weight:800; color:${c.color};">${nota || '—'}/10</span>
+                            </div>
+                        </div>
+                    </button>
+                    <div class="accordion-content" style="padding:0 15px; max-height:0; overflow:hidden; transition: max-height 0.3s ease-out;">
+                        <div style="padding:14px 0; border-top:1px solid ${c.border}; font-size:0.85rem; color:#333; display:grid; grid-template-columns:1fr; gap:8px;">
+                            <p style="margin:0;"><strong>ODT:</strong> ${odt} · <strong>Número:</strong> ${num}</p>
+                            <p style="margin:0;"><strong>Tipo de Servicio:</strong> ${tipo}</p>
+                            <p style="margin:0;"><strong>Técnico:</strong> ${escapeHTML(tecnico)}</p>
+                            <p style="margin:0;"><strong>Tipificación:</strong> ${tipificacion}</p>
+                            <p style="margin:0;"><strong>Nota (NPS Q1):</strong> ${nota || '—'}/10 ${score ? `· <strong>Puntaje:</strong> ${score}` : ''}</p>
+                            <p style="margin:0;"><strong>Valoraciones:</strong> Q3: ${st3} · Q4: ${st4} · Q5: ${st5}</p>
+                            <p style="margin:0; white-space:pre-line; background:white; border-radius:10px; padding:10px; border:1px solid ${c.border};"><strong>Comentario del cliente:</strong><br>${comentario}</p>
+                        </div>
+                    </div>
+                </div>`;
+        }).join('');
+
+        const count = list.length;
+        container.innerHTML = `<div style="font-size:0.8rem; font-weight:700; color:#64748b; margin-bottom:10px;">${count} respuesta(s)</div>` + html;
+    }
+
     function garantiaTexto(o) {
         const info = getWarrantyInfo(o);
         if (info.status === 'sin_datos') return 'Sin datos';
@@ -2031,11 +2285,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadAllData() {
         try {
-            const [workshopData, globalData, adicionalesData] = await Promise.all([
+            const [workshopData, globalData, adicionalesData, encuestaData] = await Promise.all([
                 fetchGoogleSheet(SHEETS_CONFIG.talleres.id, SHEETS_CONFIG.talleres.sheetName),
                 fetchGoogleSheet(SHEETS_CONFIG.seguimiento.id, SHEETS_CONFIG.seguimiento.sheetName),
                 fetchGoogleSheet(SHEETS_CONFIG.adicionales.id, SHEETS_CONFIG.adicionales.sheetName).catch(err => {
                     console.warn("Error al cargar REPORTE GLOBAL ADICIONALES, continuando sin ella:", err);
+                    return [];
+                }),
+                fetchGoogleSheet(SHEETS_CONFIG.encuesta.id, SHEETS_CONFIG.encuesta.sheetName).catch(err => {
+                    console.warn("Error al cargar ENCUESTA, continuando sin ella:", err);
                     return [];
                 })
             ]);
@@ -2043,10 +2301,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             const parsed = parseAllData(workshopData, globalData, adicionalesData);
             appWorkshopData = parsed.parsedWorkshopData;
             appOrdersData = parsed.parsedOrdersData;
+            appEncuestaData = encuestaData;
 
-            console.log('Datos procesados:', { 
-                talleres: appWorkshopData.length, 
+            console.log('Datos procesados:', {
+                talleres: appWorkshopData.length,
                 ordenes: appOrdersData.length,
+                encuestas: appEncuestaData.length,
                 ordenesEnriquecidasAdicionales: appOrdersData.filter(o => o.adicionalesEnriched).length
             });
         } catch (error) {
