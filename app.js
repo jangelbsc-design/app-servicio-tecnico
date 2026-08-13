@@ -871,9 +871,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             case 'view-estados-regionales':
                 showRegionOrdenes('Regionales');
                 break;
-            case 'view-estados-instalaciones':
-                showRegionOrdenes('Instalaciones');
-                break;
             case 'view-estados-sucre':
                 showRegionOrdenes('Sucre');
                 break;
@@ -1021,11 +1018,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             return true;
         }
 
-        if (region === 'Instalaciones') {
-            const prod = (o['Producto ST'] || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            return prod.includes('instalac');
-        }
-
         if (region === 'Santa Cruz') {
             const isMunicipio = municipios.some(m => terr.includes(m));
             return terr.includes('santa cruz') && !isMunicipio;
@@ -1061,7 +1053,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // FILTRO DE USUARIO (NUEVO)
         const rol = localStorage.getItem('usuario_rol');
         const regional = localStorage.getItem('usuario_regional');
-        if (rol === 'regional' && regional && region !== 'Instalaciones') {
+        if (rol === 'regional' && regional) {
             ordenesFiltradas = ordenesFiltradas.filter(o => isOrderInRegion(o, regional));
         }
 
