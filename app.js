@@ -1413,6 +1413,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const fRegion = document.getElementById('reporte-filtro-region')?.value || 'todas';
         const fEstado = document.getElementById('reporte-filtro-estado')?.value || 'todos';
         const fMarca = document.getElementById('reporte-filtro-marca')?.value || 'todas';
+        const fTaller = document.getElementById('reporte-filtro-taller')?.value || 'todos';
+        const q = normalizarTexto(document.getElementById('reporte-buscador')?.value);
+        const fDesde = document.getElementById('reporte-fecha-desde')?.value || '';
+        const fHasta = document.getElementById('reporte-fecha-hasta')?.value || '';
 
         if (fRegion !== 'todas') {
             data = data.filter(o => normalizarTexto(o['Territorio de servicio: Nombre']) === normalizarTexto(fRegion));
@@ -1423,15 +1427,56 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (fMarca !== 'todas') {
             data = data.filter(o => normalizarTexto(marcaDeOrden(o)) === normalizarTexto(fMarca));
         }
+        if (fTaller !== 'todos') {
+            data = data.filter(o => normalizarTexto(o['¿Qué servicio técnico ?']) === normalizarTexto(fTaller));
+        }
+        if (q) {
+            data = data.filter(o => {
+                const campos = [
+                    o['Número de orden de trabajo'], o['Referencia'],
+                    o['Cuenta: Nombre de la cuenta'], o['Producto ST'],
+                    o.Estado, o.Sub_estado, o['Territorio de servicio: Nombre'],
+                    o['¿Qué servicio técnico ?'], marcaDeOrden(o)
+                ];
+                return campos.some(c => normalizarTexto(c).includes(q));
+            });
+        }
+        if (fDesde || fHasta) {
+            data = data.filter(o => {
+                const f = parseFecha(o['Fecha de la última modificación']);
+                if (!f) return false;
+                if (fDesde) {
+                    const d = parseFecha(fDesde);
+                    if (d && f < d) return false;
+                }
+                if (fHasta) {
+                    const h = parseFecha(fHasta);
+                    if (h) {
+                        h.setDate(h.getDate() + 1);
+                        if (f >= h) return false;
+                    }
+                }
+                return true;
+            });
+        }
         return data;
     }
 
     function initReporteSelects() {
         if (reporteSelectsInit) return;
         reporteSelectsInit = true;
-        ['reporte-filtro-region', 'reporte-filtro-estado', 'reporte-filtro-marca'].forEach(id => {
+        ['reporte-filtro-region', 'reporte-filtro-estado', 'reporte-filtro-marca', 'reporte-filtro-taller'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('change', renderReportes);
+        });
+        const buscador = document.getElementById('reporte-buscador');
+        if (buscador) buscador.addEventListener('input', renderReportes);
+        ['reporte-fecha-desde', 'reporte-fecha-hasta'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', renderReportes);
+                el.addEventListener('input', renderReportes);
+            }
         });
         ['sla-dias-sin-cambios', 'sla-dias-creacion'].forEach(id => {
             const el = document.getElementById(id);
@@ -1440,6 +1485,43 @@ document.addEventListener('DOMContentLoaded', async () => {
                 el.addEventListener('input', renderReportes);
             }
         });
+        const slaMostrar = document.getElementById('sla-mostrar-atendidas');
+        if (slaMostrar) slaMostrar.addEventListener('change', renderReportes);
+
+        const slaContent = document.getElementById('sla-alertas-content');
+        if (slaContent) {
+            slaContent.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-accion]');
+                if (!btn) return;
+                const odt = btn.dataset.odt;
+                if (!odt) return;
+                if (btn.dataset.accion === 'atendida') slaMarcarAtendida(odt);
+                else if (btn.dataset.accion === 'restaurar') slaRestaurar(odt);
+            });
+        }
+    }
+
+    function getSlaAtendidas() {
+        try {
+            return JSON.parse(localStorage.getItem('sla_atendidas') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function slaMarcarAtendida(odt) {
+        const list = getSlaAtendidas();
+        if (!list.includes(odt)) {
+            list.push(odt);
+            localStorage.setItem('sla_atendidas', JSON.stringify(list));
+        }
+        renderReportes();
+    }
+
+    function slaRestaurar(odt) {
+        const list = getSlaAtendidas().filter(x => x !== odt);
+        localStorage.setItem('sla_atendidas', JSON.stringify(list));
+        renderReportes();
     }
 
     function fillReporteSelects() {
@@ -1447,15 +1529,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const regiones = uniq('Territorio de servicio: Nombre');
         const estados = uniq('Estado');
         const marcas = [...new Set(appOrdersData.map(o => marcaDeOrden(o)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+        const talleres = uniq('¿Qué servicio técnico ?');
 
         const sRegion = document.getElementById('reporte-filtro-region');
         const sEstado = document.getElementById('reporte-filtro-estado');
         const sMarca = document.getElementById('reporte-filtro-marca');
-        if (!sRegion || !sEstado || !sMarca) return;
+        const sTaller = document.getElementById('reporte-filtro-taller');
+        if (!sRegion || !sEstado || !sMarca || !sTaller) return;
 
         const selValue = (sel) => sel ? sel.value : null;
 
-        const prevRegion = selValue(sRegion), prevEstado = selValue(sEstado), prevMarca = selValue(sMarca);
+        const prevRegion = selValue(sRegion), prevEstado = selValue(sEstado), prevMarca = selValue(sMarca), prevTaller = selValue(sTaller);
 
         sRegion.innerHTML = '<option value="todas">Todas las regiones</option>' +
             regiones.map(r => `<option value="${escapeHTML(r)}">${escapeHTML(r)}</option>`).join('');
@@ -1463,10 +1547,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             estados.map(e => `<option value="${escapeHTML(e)}">${escapeHTML(e)}</option>`).join('');
         sMarca.innerHTML = '<option value="todas">Todas las marcas</option>' +
             marcas.map(m => `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`).join('');
+        sTaller.innerHTML = '<option value="todos">Todos los talleres</option>' +
+            talleres.map(t => `<option value="${escapeHTML(t)}">${escapeHTML(t)}</option>`).join('');
 
         sRegion.value = regiones.includes(prevRegion) ? prevRegion : 'todas';
         sEstado.value = estados.includes(prevEstado) ? prevEstado : 'todos';
         sMarca.value = marcas.includes(prevMarca) ? prevMarca : 'todas';
+        sTaller.value = talleres.includes(prevTaller) ? prevTaller : 'todos';
     }
 
     function renderReportesSummary(data) {
@@ -1665,28 +1752,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             return db - da;
         });
 
-        if (countEl) countEl.textContent = alertas.length;
+        const atendidas = getSlaAtendidas();
+        const pendientes = alertas.filter(a => !atendidas.includes(a.o['Número de orden de trabajo']));
+        const atendidasList = alertas.filter(a => atendidas.includes(a.o['Número de orden de trabajo']));
+        const mostrarAtendidas = document.getElementById('sla-mostrar-atendidas')?.checked;
+
+        if (countEl) countEl.textContent = pendientes.length;
         if (!content) return;
 
-        if (alertas.length === 0) {
-            content.innerHTML = '<div style="text-align:center; padding:1.5rem; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; color:#166534; font-weight:600;"><i class="bi bi-check-circle-fill" style="margin-right:6px;"></i>Sin órdenes que superen los umbrales SLA.</div>';
-            return;
-        }
-
-        content.innerHTML = alertas.map(a => {
+        const renderCard = (a, esAtendida) => {
             const maxDias = Math.max(a.diasCreacionOrden, a.diasMod || 0);
             const critica = maxDias >= 15;
-            const bg = critica ? '#fef2f2' : '#fffbeb';
-            const border = critica ? '#fecaca' : '#fde68a';
-            const color = critica ? '#b91c1c' : '#b45309';
-            const label = critica ? 'CRÍTICA' : 'ALTA';
+            const bg = esAtendida ? '#f1f5f9' : (critica ? '#fef2f2' : '#fffbeb');
+            const border = esAtendida ? '#cbd5e1' : (critica ? '#fecaca' : '#fde68a');
+            const color = esAtendida ? '#64748b' : (critica ? '#b91c1c' : '#b45309');
+            const label = esAtendida ? 'ATENDIDA' : (critica ? 'CRÍTICA' : 'ALTA');
             const cliente = escapeHTML(a.o['Cuenta: Nombre de la cuenta'] || 'S/N');
             const producto = escapeHTML(a.o['Producto ST'] || '');
             const region = escapeHTML(a.o['Territorio de servicio: Nombre'] || '');
             const estado = escapeHTML(a.o.Estado || 'S/E');
             const odt = escapeHTML(a.o['Número de orden de trabajo'] || '');
+            const odtAttr = escapeHTML(a.o['Número de orden de trabajo'] || '');
+            const accionBtn = odtAttr ? (esAtendida
+                ? `<button data-accion="restaurar" data-odt="${odtAttr}" style="margin-top:10px; width:100%; background:#e2e8f0; color:#334155; border:none; padding:10px; border-radius:10px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer;"><i class="bi bi-arrow-counterclockwise"></i> Restaurar</button>`
+                : `<button data-accion="atendida" data-odt="${odtAttr}" style="margin-top:10px; width:100%; background:#111; color:white; border:none; padding:10px; border-radius:10px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer;"><i class="bi bi-check-lg"></i> Marcar como atendida</button>`) : '';
             return `
-                <div class="accordion-item" style="background:${bg}; border:1px solid ${border}; border-left:5px solid ${color}; border-radius:12px; margin-bottom:0.7rem; overflow:hidden;">
+                <div class="accordion-item" style="background:${bg}; border:1px solid ${border}; border-left:5px solid ${color}; border-radius:12px; margin-bottom:0.7rem; overflow:hidden;${esAtendida ? ' opacity:0.75;' : ''}">
                     <button class="accordion-header" style="width:100%; border:none; background:none; padding:0.9rem 1rem; text-align:left; cursor:pointer;" onclick="this.parentElement.classList.toggle('active')">
                         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                             <div style="flex:1;">
@@ -1703,10 +1794,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </button>
                     <div class="accordion-content" style="padding:0;">
                         ${slaDetallesHtml(a.o)}
+                        ${accionBtn}
                     </div>
                 </div>
             `;
-        }).join('');
+        };
+
+        let html = pendientes.map(a => renderCard(a, false)).join('');
+        if (mostrarAtendidas) {
+            if (atendidasList.length === 0) {
+                html += '<div style="text-align:center; padding:1rem; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:12px; color:#64748b; font-size:0.85rem; font-weight:600;">No hay alertas atendidas aún.</div>';
+            } else {
+                html += atendidasList.map(a => renderCard(a, true)).join('');
+            }
+        }
+
+        if (!html) {
+            html = '<div style="text-align:center; padding:1.5rem; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; color:#166534; font-weight:600;"><i class="bi bi-check-circle-fill" style="margin-right:6px;"></i>Sin órdenes que superen los umbrales SLA.</div>';
+        }
+        content.innerHTML = html;
     }
 
     function destroyReporteCharts() {
