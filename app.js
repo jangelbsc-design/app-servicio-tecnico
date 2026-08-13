@@ -138,6 +138,12 @@ const GARANTIA_DIAS_POR_MARCA = {};
 const GARANTIA_DIAS_POR_TIPO = [
     {
         dias: 730,
+        keywords: ['sony'],
+        require: ['tv', 'televisor', 'bravia'],
+        exclude: []
+    },
+    {
+        dias: 730,
         keywords: [
             'lavadora', 'secadora', 'torre de lavado', 'lavavajilla',
             'refrigerador', 'refrigeradora', 'freezer', 'frio seco', 'frio convencional',
@@ -158,7 +164,9 @@ function diasGarantia(producto) {
         const excluido = rango.exclude && rango.exclude.some(x => new RegExp(`\\b${x}\\b`, 'i').test(p));
         if (excluido) continue;
         const match = rango.keywords.some(k => new RegExp(`\\b${k}\\b`, 'i').test(p));
-        if (match) return rango.dias;
+        if (!match) continue;
+        if (rango.require && !rango.require.some(k => new RegExp(`\\b${k}\\b`, 'i').test(p))) continue;
+        return rango.dias;
     }
     return GARANTIA_DIAS_DEFAULT;
 }
@@ -422,6 +430,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const viewEstadosMenu = document.getElementById('view-estados-menu');
     const viewEstadosServicio = document.getElementById('view-estados-servicio');
     const viewDetails = document.getElementById('view-details');
+    const viewReportes = document.getElementById('view-reportes');
     const viewTitle = document.getElementById('view-title');
     const viewContent = document.getElementById('view-content');
 
@@ -809,6 +818,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    document.getElementById('btn-back-reportes')?.addEventListener('click', () => {
+        console.log("← Volver al menú de estados");
+        showView(viewEstadosMenu);
+    });
+
+    document.getElementById('btn-export-csv')?.addEventListener('click', exportReportesCSV);
+    document.getElementById('btn-export-pdf')?.addEventListener('click', exportReportesPDF);
+
     document.getElementById('dismac-logo-btn')?.addEventListener('click', () => {
         console.log("← Volver al dashboard (Logo)");
         showView(viewDashboard);
@@ -826,6 +843,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 break;
             case 'open-estados-servicio':
                 showView(viewEstadosMenu);
+                break;
+            case 'view-reportes':
+                showReportes();
                 break;
             case 'view-tarija':
                 showRegionTalleres('Tarija');
@@ -1323,6 +1343,305 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
 
+
+    // ── REPORTES Y GRÁFICAS ────────────────────────────────────────────────
+    let reporteCharts = {};
+    let reporteSelectsInit = false;
+    const CHART_PALETTE = ['#E31837', '#3b82f6', '#f59e0b', '#16a34a', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1', '#14b8a6'];
+
+    function normalizarTexto(str) {
+        return (str || "").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    }
+
+    function fechaArchivo() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    function getReportesData() {
+        const rol = localStorage.getItem('usuario_rol');
+        const regional = localStorage.getItem('usuario_regional');
+
+        let data = appOrdersData;
+        if (rol === 'regional' && regional) {
+            data = data.filter(o => isOrderInRegion(o, regional));
+        }
+
+        const fRegion = document.getElementById('reporte-filtro-region')?.value || 'todas';
+        const fEstado = document.getElementById('reporte-filtro-estado')?.value || 'todos';
+        const fMarca = document.getElementById('reporte-filtro-marca')?.value || 'todas';
+
+        if (fRegion !== 'todas') {
+            data = data.filter(o => normalizarTexto(o['Territorio de servicio: Nombre']) === normalizarTexto(fRegion));
+        }
+        if (fEstado !== 'todos') {
+            data = data.filter(o => normalizarTexto(o.Estado) === normalizarTexto(fEstado));
+        }
+        if (fMarca !== 'todas') {
+            data = data.filter(o => normalizarTexto(o['¿Qué servicio técnico ?']) === normalizarTexto(fMarca));
+        }
+        return data;
+    }
+
+    function initReporteSelects() {
+        if (reporteSelectsInit) return;
+        reporteSelectsInit = true;
+        ['reporte-filtro-region', 'reporte-filtro-estado', 'reporte-filtro-marca'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', renderReportes);
+        });
+    }
+
+    function fillReporteSelects() {
+        const uniq = (key) => [...new Set(appOrdersData.map(o => (o[key] || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+        const regiones = uniq('Territorio de servicio: Nombre');
+        const estados = uniq('Estado');
+        const marcas = uniq('¿Qué servicio técnico ?');
+
+        const sRegion = document.getElementById('reporte-filtro-region');
+        const sEstado = document.getElementById('reporte-filtro-estado');
+        const sMarca = document.getElementById('reporte-filtro-marca');
+        if (!sRegion || !sEstado || !sMarca) return;
+
+        const selValue = (sel) => sel ? sel.value : null;
+
+        const prevRegion = selValue(sRegion), prevEstado = selValue(sEstado), prevMarca = selValue(sMarca);
+
+        sRegion.innerHTML = '<option value="todas">Todas las regiones</option>' +
+            regiones.map(r => `<option value="${escapeHTML(r)}">${escapeHTML(r)}</option>`).join('');
+        sEstado.innerHTML = '<option value="todos">Todos los estados</option>' +
+            estados.map(e => `<option value="${escapeHTML(e)}">${escapeHTML(e)}</option>`).join('');
+        sMarca.innerHTML = '<option value="todas">Todas las marcas</option>' +
+            marcas.map(m => `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`).join('');
+
+        sRegion.value = regiones.includes(prevRegion) ? prevRegion : 'todas';
+        sEstado.value = estados.includes(prevEstado) ? prevEstado : 'todos';
+        sMarca.value = marcas.includes(prevMarca) ? prevMarca : 'todas';
+    }
+
+    function renderReportesSummary(data) {
+        const grid = document.getElementById('reporte-kpi-grid');
+        if (!grid) return;
+
+        const estados_excluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
+        const isExcluido = (o) => {
+            const e = (o.Estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            return estados_excluidos.some(ex => e.includes(ex));
+        };
+
+        const activas = data.filter(o => !isExcluido(o));
+        const estancadas = activas.filter(o => {
+            const diasCreacion = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10);
+            const diasMod = diasDesde(o['Fecha de la última modificación']);
+            return (diasMod !== null && diasMod >= 4) || diasCreacion >= 8;
+        });
+        const enGarantia = data.filter(o => getWarrantyInfo(o).status === 'en_garantia').length;
+        const regiones = new Set(data.map(o => (o['Territorio de servicio: Nombre'] || 'Sin región').trim())).size;
+
+        const cards = [
+            { label: 'Órdenes totales', value: data.length, color: '#3b82f6', icon: 'bi-file-earmark-text' },
+            { label: 'Activas', value: activas.length, color: '#16a34a', icon: 'bi-lightning-charge-fill' },
+            { label: 'Estancadas', value: estancadas.length, color: '#ef4444', icon: 'bi-exclamation-triangle-fill' },
+            { label: 'En garantía', value: enGarantia, color: '#d97706', icon: 'bi-patch-check-fill' },
+            { label: 'Regiones', value: regiones, color: '#111', icon: 'bi-geo-alt-fill' }
+        ];
+
+        grid.innerHTML = cards.map(c => `
+            <div style="background:white; border:1px solid #e2e8f0; border-radius:14px; padding:1rem; display:flex; align-items:center; gap:12px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="background:${c.color}1a; color:${c.color}; width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i class="bi ${c.icon}"></i></div>
+                <div>
+                    <div style="font-size:1.4rem; font-weight:800; color:#111; line-height:1;">${c.value}</div>
+                    <div style="font-size:0.75rem; color:#64748b;">${c.label}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function countBy(data, key) {
+        const map = new Map();
+        data.forEach(o => {
+            const v = (o[key] || 'Sin dato').trim() || 'Sin dato';
+            map.set(v, (map.get(v) || 0) + 1);
+        });
+        return [...map.entries()].sort((a, b) => b[1] - a[1]);
+    }
+
+    function destroyReporteCharts() {
+        Object.keys(reporteCharts).forEach(k => {
+            if (reporteCharts[k]) { reporteCharts[k].destroy(); delete reporteCharts[k]; }
+        });
+    }
+
+    function renderReportesCharts(data) {
+        if (!window.Chart) {
+            console.warn('Chart.js no disponible. Verifica la conexión a internet.');
+            return;
+        }
+        destroyReporteCharts();
+
+        const regiones = countBy(data, 'Territorio de servicio: Nombre');
+        const estados = countBy(data, 'Estado');
+        const marcas = countBy(data, '¿Qué servicio técnico ?').slice(0, 12);
+
+        const ctxR = document.getElementById('reporte-chart-regiones');
+        const ctxE = document.getElementById('reporte-chart-estados');
+        const ctxM = document.getElementById('reporte-chart-marcas');
+        if (!ctxR || !ctxE || !ctxM) return;
+
+        reporteCharts.regiones = new Chart(ctxR, {
+            type: 'bar',
+            data: {
+                labels: regiones.map(r => r[0]),
+                datasets: [{ label: 'Órdenes', data: regiones.map(r => r[1]), backgroundColor: '#E31837', borderRadius: 6 }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
+        });
+
+        reporteCharts.estados = new Chart(ctxE, {
+            type: 'doughnut',
+            data: {
+                labels: estados.map(e => e[0]),
+                datasets: [{ data: estados.map(e => e[1]), backgroundColor: estados.map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length]), borderWidth: 2, borderColor: '#fff' }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
+
+        reporteCharts.marcas = new Chart(ctxM, {
+            type: 'bar',
+            data: {
+                labels: marcas.map(m => m[0]),
+                datasets: [{ label: 'Órdenes', data: marcas.map(m => m[1]), backgroundColor: marcas.map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length]), borderRadius: 6 }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
+        });
+    }
+
+    function renderReportes() {
+        const data = getReportesData();
+        renderReportesSummary(data);
+        renderReportesCharts(data);
+    }
+
+    function showReportes() {
+        console.log('📊 Abriendo Reportes y Gráficas');
+        initReporteSelects();
+        fillReporteSelects();
+        renderReportes();
+        showView(viewReportes);
+    }
+
+    function garantiaTexto(o) {
+        const info = getWarrantyInfo(o);
+        if (info.status === 'sin_datos') return 'Sin datos';
+        if (info.status === 'en_garantia') return `En garantía (${info.daysRemaining} días)`;
+        if (info.status === 'por_vencer') return `Por vencer (${info.daysRemaining} días)`;
+        return 'Vencida';
+    }
+
+    function exportReportesCSV() {
+        const data = getReportesData();
+        if (data.length === 0) {
+            alert('No hay órdenes para exportar con los filtros actuales.');
+            return;
+        }
+
+        const filas = data.map(o => ({
+            'Nro Orden': o['Número de orden de trabajo'] || '',
+            'Referencia': o['Referencia'] || '',
+            'Cliente': o['Cuenta: Nombre de la cuenta'] || '',
+            'Producto': o['Producto ST'] || '',
+            'Marca / ST': o['¿Qué servicio técnico ?'] || '',
+            'Tipo de Servicio': o['Tipo de Servicio'] || '',
+            'Región': o['Territorio de servicio: Nombre'] || '',
+            'Estado': o.Estado || '',
+            'Sub Estado': o.Sub_estado || '',
+            'Días abierta': o['Tiempo desde apertura (Días)'] || '',
+            'Fecha de compra': o['Fecha de compra'] || '',
+            'Fecha ingreso marca': o['Fecha de ingreso a la marca'] || '',
+            'Garantía': garantiaTexto(o)
+        }));
+
+        const csv = window.Papa.unparse(filas);
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `reporte_dismac_${fechaArchivo()}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function exportReportesPDF() {
+        const data = getReportesData();
+        if (data.length === 0) {
+            alert('No hay órdenes para exportar con los filtros actuales.');
+            return;
+        }
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+            alert('La librería de PDF no está disponible. Verifica tu conexión a internet.');
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+
+        const fecha = new Date().toLocaleDateString('es-BO', { day: '2-digit', month: 'long', year: 'numeric' });
+        doc.setFontSize(16);
+        doc.setTextColor(227, 24, 55);
+        doc.text('DISMAC — Reporte de Órdenes', 40, 40);
+        doc.setFontSize(10);
+        doc.setTextColor(60, 60, 60);
+        doc.text(`Generado: ${fecha}`, 40, 58);
+        doc.text(`Total de órdenes: ${data.length}`, 40, 72);
+
+        const filtros = [];
+        const fRegion = document.getElementById('reporte-filtro-region')?.value;
+        const fEstado = document.getElementById('reporte-filtro-estado')?.value;
+        const fMarca = document.getElementById('reporte-filtro-marca')?.value;
+        if (fRegion && fRegion !== 'todas') filtros.push(`Región: ${fRegion}`);
+        if (fEstado && fEstado !== 'todos') filtros.push(`Estado: ${fEstado}`);
+        if (fMarca && fMarca !== 'todas') filtros.push(`Marca: ${fMarca}`);
+        if (filtros.length) doc.text(`Filtros: ${filtros.join(' · ')}`, 40, 86);
+
+        const head = [['Nro Orden', 'Referencia', 'Cliente', 'Producto', 'Marca / ST', 'Tipo', 'Región', 'Estado', 'Días', 'Garantía']];
+        const body = data.map(o => [
+            o['Número de orden de trabajo'] || '',
+            o['Referencia'] || '',
+            o['Cuenta: Nombre de la cuenta'] || '',
+            (o['Producto ST'] || '').slice(0, 60),
+            o['¿Qué servicio técnico ?'] || '',
+            o['Tipo de Servicio'] || '',
+            o['Territorio de servicio: Nombre'] || '',
+            o.Estado || '',
+            o['Tiempo desde apertura (Días)'] || '',
+            garantiaTexto(o).replace(/ \(\d+ días\)/, '')
+        ]);
+
+        doc.autoTable({
+            head,
+            body,
+            startY: 100,
+            styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },
+            headStyles: { fillColor: [227, 24, 55], textColor: 255, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+            columnStyles: { 3: { cellWidth: 140 }, 4: { cellWidth: 90 } }
+        });
+
+        doc.save(`reporte_dismac_${fechaArchivo()}.pdf`);
+    }
 
     function showView(view) {
         document.querySelectorAll('.main-content').forEach(v => v.classList.add('hidden'));

@@ -23,6 +23,9 @@
         stitchService.init();
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
     <style>
         .hidden {
             display: none !important;
@@ -271,6 +274,19 @@
                 <button class="dash-card" data-action="view-estados-beni"><span class="card-title">Beni</span></button>
                 <button class="dash-card" data-action="view-estados-potosi"><span class="card-title">Potosí</span></button>
             </div>
+            <div class="dashboard-grid" style="margin-top: 1rem;">
+                <button class="dash-card" data-action="view-reportes"
+                    style="border:2px solid var(--red-100); background:linear-gradient(135deg,#fff5f5,#ffffff);">
+                    <div class="card-icon-wrapper bg-red">
+                        <i class="bi bi-bar-chart-fill"></i>
+                    </div>
+                    <div class="card-text-container">
+                        <span class="card-title">Reportes y Gráficas</span>
+                        <span class="card-subtitle">Exportar CSV / PDF · KPIs por región, estado y marca</span>
+                    </div>
+                    <i class="bi bi-chevron-right card-arrow"></i>
+                </button>
+            </div>
         </main>
 
         <main class="main-content hidden" id="view-estados-servicio">
@@ -309,6 +325,71 @@
             <div id="view-content" style="padding: 10px;"></div>
         </main>
 
+        <main class="main-content hidden" id="view-reportes">
+            <div class="view-header">
+                <button class="btn-back" id="btn-back-reportes"><i class="bi bi-arrow-left"></i> Volver</button>
+                <h2>Reportes y Gráficas</h2>
+            </div>
+
+            <section class="kpi-section">
+                <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 1rem; color: #111;">Resumen de Gestión</h3>
+                <div id="reporte-kpi-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;"></div>
+            </section>
+
+            <!-- Filtros -->
+            <section class="report-filters" style="margin-top: 1rem;">
+                <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 0.75rem; color: #111; display:flex; align-items:center; gap:8px;"><i class="bi bi-funnel-fill" style="color:#E31837;"></i> Filtros</h3>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 0.7rem;">
+                    <div>
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Región</label>
+                        <select id="reporte-filtro-region"
+                            style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;"></select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Estado</label>
+                        <select id="reporte-filtro-estado"
+                            style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;"></select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Marca / ST</label>
+                        <select id="reporte-filtro-marca"
+                            style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;"></select>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Botones de Exportación -->
+            <section style="margin-top: 1rem;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;">
+                    <button id="btn-export-csv"
+                        style="background:#111; color:white; border:none; padding:14px 10px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.95rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+                        <i class="bi bi-filetype-csv" style="font-size:1.1rem;"></i> Exportar CSV
+                    </button>
+                    <button id="btn-export-pdf"
+                        style="background:#E31837; color:white; border:none; padding:14px 10px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.95rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+                        <i class="bi bi-file-earmark-pdf-fill" style="font-size:1.1rem;"></i> Exportar PDF
+                    </button>
+                </div>
+            </section>
+
+            <!-- Gráficas -->
+            <section style="margin-top: 1.5rem;">
+                <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 0.75rem; color: #111; display:flex; align-items:center; gap:8px;"><i class="bi bi-graph-up-arrow" style="color:#E31837;"></i> Gráficas</h3>
+                <div style="background:white; border:1px solid #e2e8f0; border-radius:16px; padding:1rem; margin-bottom:1rem; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                    <p style="font-size:0.85rem; font-weight:700; color:#475569; margin:0 0 0.75rem 0;">Órdenes por Región</p>
+                    <div style="position:relative; height:260px;"><canvas id="reporte-chart-regiones"></canvas></div>
+                </div>
+                <div style="background:white; border:1px solid #e2e8f0; border-radius:16px; padding:1rem; margin-bottom:1rem; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                    <p style="font-size:0.85rem; font-weight:700; color:#475569; margin:0 0 0.75rem 0;">Órdenes por Estado</p>
+                    <div style="position:relative; height:260px;"><canvas id="reporte-chart-estados"></canvas></div>
+                </div>
+                <div style="background:white; border:1px solid #e2e8f0; border-radius:16px; padding:1rem; margin-bottom:1rem; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                    <p style="font-size:0.85rem; font-weight:700; color:#475569; margin:0 0 0.75rem 0;">Órdenes por Marca (Top 12)</p>
+                    <div style="position:relative; height:300px;"><canvas id="reporte-chart-marcas"></canvas></div>
+                </div>
+            </section>
+        </main>
+
         <div id="sync-status" class="sync-bar hidden">
             <span id="sync-status-text"><i class="bi bi-exclamation-triangle" style="margin-right:8px;"></i> Fallo de
                 conexión</span>
@@ -338,7 +419,7 @@
     </div>
 
     <!-- <script src="data.js"></script> -->
-    <script src="app.js?v=21"></script>
+    <script src="app.js?v=22"></script>
 </body>
 
 </html>
