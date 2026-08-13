@@ -130,6 +130,7 @@ body {
 /* Main Content */
 .main-content {
     padding: 1.5rem;
+    padding-bottom: 5.5rem; /* Evita que el contenido inferior quede oculto tras la barra fija */
     flex: 1;
     display: flex;
     flex-direction: column;

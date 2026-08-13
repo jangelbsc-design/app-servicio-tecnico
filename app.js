@@ -868,6 +868,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             case 'view-estados-tarija':
                 showRegionOrdenes('Tarija');
                 break;
+            case 'view-estados-regionales':
+                showRegionOrdenes('Regionales');
+                break;
             case 'view-estados-sucre':
                 showRegionOrdenes('Sucre');
                 break;
@@ -1006,6 +1009,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (region === 'Municipios') {
             return municipios.some(m => terr.includes(m));
+        }
+
+        if (region === 'Regionales') {
+            const excluidas = ['santa cruz', 'el alto', 'cochabamba', 'la paz'];
+            if (excluidas.some(x => terr.includes(x))) return false;
+            if (municipios.some(m => terr.includes(m))) return false;
+            return true;
         }
 
         if (region === 'Santa Cruz') {
@@ -1419,7 +1429,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const fHasta = document.getElementById('reporte-fecha-hasta')?.value || '';
 
         if (fRegion !== 'todas') {
-            data = data.filter(o => normalizarTexto(o['Territorio de servicio: Nombre']) === normalizarTexto(fRegion));
+            if (fRegion === 'Regionales') {
+                data = data.filter(o => isOrderInRegion(o, 'Regionales'));
+            } else {
+                data = data.filter(o => normalizarTexto(o['Territorio de servicio: Nombre']) === normalizarTexto(fRegion));
+            }
         }
         if (fEstado !== 'todos') {
             data = data.filter(o => normalizarTexto(o.Estado) === normalizarTexto(fEstado));
@@ -1541,7 +1555,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const prevRegion = selValue(sRegion), prevEstado = selValue(sEstado), prevMarca = selValue(sMarca), prevTaller = selValue(sTaller);
 
-        sRegion.innerHTML = '<option value="todas">Todas las regiones</option>' +
+        sRegion.innerHTML = '<option value="Regionales">Regionales</option><option value="todas">Todas las regiones</option>' +
             regiones.map(r => `<option value="${escapeHTML(r)}">${escapeHTML(r)}</option>`).join('');
         sEstado.innerHTML = '<option value="todos">Todos los estados</option>' +
             estados.map(e => `<option value="${escapeHTML(e)}">${escapeHTML(e)}</option>`).join('');
@@ -1550,7 +1564,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         sTaller.innerHTML = '<option value="todos">Todos los talleres</option>' +
             talleres.map(t => `<option value="${escapeHTML(t)}">${escapeHTML(t)}</option>`).join('');
 
-        sRegion.value = regiones.includes(prevRegion) ? prevRegion : 'todas';
+        sRegion.value = (prevRegion === 'Regionales' || regiones.includes(prevRegion)) ? prevRegion : 'todas';
         sEstado.value = estados.includes(prevEstado) ? prevEstado : 'todos';
         sMarca.value = marcas.includes(prevMarca) ? prevMarca : 'todas';
         sTaller.value = talleres.includes(prevTaller) ? prevTaller : 'todos';
