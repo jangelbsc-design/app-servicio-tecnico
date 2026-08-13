@@ -267,7 +267,7 @@ Se encontraron <b>${alertas.length}</b> orden(es) que requieren atención:
 
 ${alertas.join('\n\n')}
 
-🔗 <b>Abrir App:</b> https://jabustos.github.io/app-servicio-tecnico/`;
+🔗 <b>Abrir App:</b> https://jangelbsc-design.github.io/app-servicio-tecnico/`;
 
     sendTelegram(msg);
 }
@@ -375,7 +375,8 @@ function checkSessionOnLoad() {
 checkSessionOnLoad();
 
 function isAdmin() {
-    return (localStorage.getItem('usuario_rol') || '').toLowerCase() === 'admin';
+    const rol = (localStorage.getItem('usuario_rol') || '').toLowerCase().trim();
+    return rol === 'admin' || rol === 'administrador';
 }
 
 let appWorkshopData = [];
