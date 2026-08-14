@@ -10,7 +10,6 @@ La app es una **herramienta móvil-first** diseñada para el equipo de soporte d
 - **Fuentes de Datos**: Sincronización dinámica con **Google Sheets** (usando el endpoint JSON de Google) para catálogos de talleres y reportes globales de órdenes.
 - **Integraciones**: 
   - **Firebase**: Firestore y Messaging (FCM) para futuras notificaciones push.
-  - **Telegram Bot API**: Notificaciones automáticas de órdenes estancadas/críticas.
   - **Google Maps**: Geolocalización de talleres.
   - **WhatsApp**: Generación de mensajes estructurados con datos de la ODT para agilizar la comunicación con talleres.
 
@@ -27,11 +26,11 @@ La app es una **herramienta móvil-first** diseñada para el equipo de soporte d
 - **Detalles Extendidos**: Acordeones con toda la info de la ODT (Producto, Fecha ingreso, Estado, Días transcurridos).
 - **Cierre de Brechas**: Si no hay un taller asignado en sistema, la app permite enviar una consulta general por WhatsApp con los datos del equipo.
 
-### 🚨 Sistema de Alertas (Telegram)
-Hemos implementado un bot que monitorea constantemente el Reporte Global:
-- **Reglas de Estancamiento**: Alerta si una orden tiene **>4 días sin cambios** de estado o **>8 días desde su apertura**.
+### 🚨 Alertas SLA (en Reportes y Gráficas)
+La app monitorea el Reporte Global desde la sección de Reportes:
+- **Reglas de Estancamiento**: Alerta si una orden tiene **N días sin cambios** de estado o **N días desde su apertura** (umbrales configurables).
 - **Filtros de Seguridad**: No alerta sobre órdenes en estados finales (`cerrado`, `entregado`, `cancelado`, `error`).
-- **Filtro Geográfico**: Solo envía alertas de las regiones gestionadas activamente en la app.
+- **Gestión de Alertas**: Cada alerta puede marcarse como atendida o restaurarse, y el estado queda guardado localmente.
 
 ### 📝 Protocolo de Recepción
 - Guía interactiva paso a paso para el personal de tiendas:
@@ -44,12 +43,13 @@ Hemos implementado un bot que monitorea constantemente el Reporte Global:
 ## 4. Estructura de Archivos
 - `index.html`: Estructura y carga de librerías (Firebase, PapaParse).
 - `style.css`: Sistema de diseño basado en variables, efectos de desenfoque (blur) y responsive para móviles.
-- `app.js`: Cerebro de la app. Maneja la navegación, el fetch de Google Sheets, la lógica de Telegram y el renderizado dinámico.
-- `data.js`: Respaldo estático de talleres (fallback).
+- `app.js`: Cerebro de la app. Maneja la navegación, el fetch de Google Sheets y el renderizado dinámico.
+- `firebase-config.js` / `firebase-messaging-sw.js`: Configuración de Firebase y service worker para notificaciones push.
+- `stitch-config.js` / `stitch-service.js`: Unificación de tokens de diseño (Google Stitch).
 
 ## 5. Últimos Avances y Mejoras
-- **Seguridad en Mensajería**: Implementamos `escapeHTML` para evitar errores en las notificaciones de Telegram con caracteres especiales.
-- **Optimización de Búsqueda**: Añadimos buscadores regionales independientes para Talleres y Órdenes.
+- **Seguridad en Renderizado**: Implementamos `escapeHTML` para evitar errores de layout o inyección de HTML con caracteres especiales.
+- **Optimización de Búsqueda**: Añadimos buscadores regionales independientes para Talleres y Órdenes, además de una búsqueda global en el dashboard.
 - **Consistencia Visual**: Ajuste de colores corporativos (Dismac Red: `#E31837`) y tipografía `Outfit`.
 - **Lógica de Regiones**: Refinamiento en la detección de territorios para incluir municipios satélites de Santa Cruz de forma automática.
 

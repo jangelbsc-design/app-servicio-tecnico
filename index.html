@@ -142,6 +142,19 @@
                         style="color: #111; font-weight: bold; font-size: 1.4rem;"></i>
                 </button>
 
+                <!-- Dashboard Ejecutivo -->
+                <button class="dash-card stitch-card" data-action="view-ejecutivo">
+                    <div class="card-icon-wrapper override-icon" style="background:#FDE8EA; color:#E31837;">
+                        <i class="bi bi-speedometer2" style="font-size:1.5rem;"></i>
+                    </div>
+                    <div class="card-text-container" style="text-align: left; flex: 1;">
+                        <span class="card-title">Dashboard Ejecutivo</span>
+                        <span class="card-subtitle">Tendencias y gestión</span>
+                    </div>
+                    <i class="bi bi-chevron-right card-arrow"
+                        style="color: #111; font-weight: bold; font-size: 1.4rem;"></i>
+                </button>
+
                 <!-- Satisfacción del Cliente (Solo Admin) -->
                 <button class="dash-card stitch-card hidden" id="admin-encuesta-card" data-action="view-encuesta">
                     <div class="card-text-container" style="text-align: left; flex: 1;">
@@ -304,6 +317,19 @@
                     <i class="bi bi-chevron-right card-arrow"></i>
                 </button>
             </div>
+            <div class="dashboard-grid" style="margin-top: 1rem;">
+                <button class="dash-card" data-action="view-alertas"
+                    style="border:2px solid var(--red-100); background:linear-gradient(135deg,#fff5f5,#ffffff);">
+                    <div class="card-icon-wrapper bg-red">
+                        <i class="bi bi-bell-fill"></i>
+                    </div>
+                    <div class="card-text-container">
+                        <span class="card-title">Alertas Push</span>
+                        <span class="card-subtitle">Notificaciones configurables</span>
+                    </div>
+                    <i class="bi bi-chevron-right card-arrow"></i>
+                </button>
+            </div>
         </main>
 
         <main class="main-content hidden" id="view-estados-servicio">
@@ -445,6 +471,10 @@
                     <div style="position:relative; height:300px;"><canvas id="reporte-chart-marcas"></canvas></div>
                 </div>
                 <div style="background:white; border:1px solid #e2e8f0; border-radius:16px; padding:1rem; margin-bottom:1rem; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                    <p style="font-size:0.85rem; font-weight:700; color:#475569; margin:0 0 0.75rem 0;">Órdenes ingresadas (últimos 30 días)</p>
+                    <div style="position:relative; height:260px;"><canvas id="reporte-chart-tendencia"></canvas></div>
+                </div>
+                <div style="background:white; border:1px solid #e2e8f0; border-radius:16px; padding:1rem; margin-bottom:1rem; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
                     <p style="font-size:0.85rem; font-weight:700; color:#475569; margin:0 0 0.75rem 0;">Promedio de días abiertas por Estado</p>
                     <div style="position:relative; height:260px;"><canvas id="reporte-chart-tiempo"></canvas></div>
                 </div>
@@ -457,6 +487,22 @@
                 <h2>Satisfacción del Cliente</h2>
             </div>
             <div id="encuesta-content" style="padding: 10px;"></div>
+        </main>
+
+        <main class="main-content hidden" id="view-ejecutivo">
+            <div class="view-header">
+                <button class="btn-back" id="btn-back-ejecutivo"><i class="bi bi-arrow-left"></i> Volver</button>
+                <h2>Dashboard Ejecutivo</h2>
+            </div>
+            <div id="ejecutivo-content" style="padding: 10px;"></div>
+        </main>
+
+        <main class="main-content hidden" id="view-alertas">
+            <div class="view-header">
+                <button class="btn-back" id="btn-back-alertas"><i class="bi bi-arrow-left"></i> Volver</button>
+                <h2>Alertas Push</h2>
+            </div>
+            <div id="alertas-content" style="padding: 10px;"></div>
         </main>
 
         <div id="sync-status" class="sync-bar hidden">
@@ -487,8 +533,7 @@
         </div>
     </div>
 
-    <!-- <script src="data.js"></script> -->
-    <script src="app.js?v=32"></script>
+    <script src="app.js?v=35"></script>
 </body>
 
 </html>

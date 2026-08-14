@@ -5,9 +5,7 @@
 Actualizamos el **menú principal (Dashboard)** con:
 
 ✨ **Búsqueda Global** - Buscar servicios o talleres  
-✨ **Preguntas Frecuentes** - 2 acordeones expandibles:
-  - ¿Cómo funciona la garantía?
-  - Protocolo de recepción  
+✨ **Preguntas Frecuentes** - Acceso al Protocolo de recepción  
 ✨ **Contacto Rápido** - 2 botones grandes:
   - WhatsApp (75010500)
   - Llamar (800102000)  
@@ -22,12 +20,11 @@ Actualizamos el **menú principal (Dashboard)** con:
 **En view-dashboard agregué:**
 
 - Búsqueda global con input
-- Preguntas Frecuentes con acordeones:
+- Preguntas Frecuentes con acceso al protocolo:
   ```html
   <section>
     <h3>Preguntas Frecuentes</h3>
-    - ¿Cómo funciona la garantía? [ACORDEÓN]
-    - Protocolo de recepción [ACORDEÓN]
+    - Protocolo de recepción [ACCIÓN → VISTA PROTOCOLO]
   </section>
   ```
 - Contacto Rápido con botones:
@@ -70,12 +67,13 @@ Actualizamos el **menú principal (Dashboard)** con:
 
 ### 3. **JavaScript (app.js)**
 
-**Agregué funciones:**
+**Funciones relacionadas (app.js):**
 
 ```javascript
-fillProtocoloInFAQ()  // Llena el protocolo en la FAQ
-setupFAQAccordions() // Configura acordeones
-setupDashboardSearch() // Maneja búsqueda global
+handleNavigation(action)      // Maneja la navegación entre vistas
+showProtocol()                // Muestra la guía del protocolo de recepción
+renderGlobalSearchResults()   // Renderiza resultados de la búsqueda global
+showView(view)                // Muestra/oculta vistas
 ```
 
 ---
@@ -98,7 +96,6 @@ setupDashboardSearch() // Maneja búsqueda global
 │    Seguimiento de órdenes    │
 ├─────────────────────────────┤
 │ Preguntas Frecuentes         │  ← NUEVA
-│ ▸ ¿Cómo funciona garantía?   │
 │ ▸ Protocolo de recepción     │
 ├─────────────────────────────┤
 │ Contacto Rápido              │  ← NUEVA
@@ -111,30 +108,7 @@ setupDashboardSearch() // Maneja búsqueda global
 
 ---
 
-## 📌 Información en las Preguntas Frecuentes
-
-### ¿Cómo funciona la garantía?
-
-**Durante el período de validez:**
-- Equipo revisado y reparado GRATIS
-- Incluye mano de obra y repuestos
-- Marcas: Cónsul, Whirlpool, Kernig, Mueller por DISMATEC
-- Línea gratuita: 800 10 2000
-
-**NO cubre:**
-- ✗ Producto sin número de serie
-- ✗ Daños por mal uso o instalación incorrecta
-- ✗ Voltaje inadecuado o descargas eléctricas
-- ✗ Corrosión o daños por líquidos
-- ✗ Objetos extraños dentro
-- ✗ Daños estéticos (vidrio, plásticos, pintura)
-- ✗ Piezas consumibles (baterías, control, filtros)
-- ✗ Manipulación por personal no autorizado
-- ✗ Fuerza mayor (incendio, terremoto, etc.)
-- ✗ Desgaste normal
-- ... y más (ver en app)
-
-### Protocolo de Recepción
+## 📌 Información del Protocolo de Recepción
 
 5 pasos que aparecen en acordeones:
 1. **Recepción y Validación** - Revisión inicial
@@ -164,7 +138,7 @@ setupDashboardSearch() // Maneja búsqueda global
 ✅ **Bottom navigation fija** - Solo botón Inicio  
 ✅ **Contactos directos** - Links nativos a WhatsApp y teléfono  
 ✅ **Responsive** - Se ve bien en móvil  
-✅ **Información completa** - Toda la garantía visible  
+✅ **Información completa** - Protocolo visible en pasos expandibles  
 
 ---
 

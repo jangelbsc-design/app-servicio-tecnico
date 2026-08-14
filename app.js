@@ -36,11 +36,6 @@ function debounce(func, wait) {
     };
 }
 
-const TELEGRAM_CONFIG = {
-    token: '8769379678:AAFjYMA5UXyWQ0QTyUSHhBEXhl2FAxmomLA',
-    chatId: '363865053'                  // Juan Angel Bustos
-};
-
 async function fetchGoogleSheet(id, sheet) {
     return new Promise(async (resolve, reject) => {
         try {
@@ -71,43 +66,6 @@ function escapeHTML(str) {
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
-}
-
-function isRegionApp(territorioStr) {
-    if (!territorioStr) return false;
-    const t = territorioStr.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-    const regiones = ['tarija', 'sucre', 'oruro', 'beni', 'potosi', 'la paz', 'cochabamba', 'santa cruz'];
-    if (regiones.some(r => t.includes(r))) return true;
-
-    const municipios = ['montero', 'la guardia', 'el torno', 'cotoca', 'satelite', 'camiri', 'san julian', 'guabira', 'warnes', 'pailon', 'samaipata'];
-    if (municipios.some(m => t.includes(m))) return true;
-
-    return false;
-}
-
-async function sendTelegram(message) {
-    if (!TELEGRAM_CONFIG.token || TELEGRAM_CONFIG.token === 'PONER_TOKEN_DEL_BOT_AQUI') {
-        console.warn('Telegram: token no configurado.');
-        return;
-    }
-    try {
-        const text = encodeURIComponent(message);
-        const url = `https://api.telegram.org/bot${TELEGRAM_CONFIG.token}/sendMessage?chat_id=${TELEGRAM_CONFIG.chatId}&text=${text}&parse_mode=HTML`;
-        const res = await fetch(url);
-        if (res.ok) {
-            const data = await res.json();
-            if (data.ok) {
-                console.log('✅ Notificación Telegram enviada correctamente.');
-            } else {
-                console.error('❌ Telegram respondió con error:', data.description);
-            }
-        } else {
-            console.error('❌ Error HTTP al enviar Telegram:', res.status, res.statusText);
-        }
-    } catch (e) {
-        console.error('❌ Error enviando Telegram (posible bloqueo CORS si abres con file://):', e.message);
-    }
 }
 
 function parseFecha(str) {
@@ -216,60 +174,6 @@ function warrantyDetailHtml(o) {
         return `<p style="margin:0;"><strong>Garantía:</strong> <span style="color:#b45309;">⚠ Vence en ${info.daysRemaining} días (hasta ${venceStr})</span></p>`;
     }
     return `<p style="margin:0;"><strong>Garantía:</strong> <span style="color:#b91c1c;">✗ Vencida desde ${venceStr}</span></p>`;
-}
-
-function chequearOrdenesEstancadas(appOrdersData) {
-    const estados_excluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
-    const isExcluido = (o) => {
-        const e = (o.Estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        return estados_excluidos.some(ex => e.includes(ex));
-    };
-
-    const alertas = [];
-
-    for (const o of appOrdersData) {
-        if (isExcluido(o)) continue;
-
-        const territorio = o['Territorio de servicio: Nombre'] || "";
-        if (!isRegionApp(territorio)) continue;
-
-        const diasCreacion = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10);
-        const diasMod = diasDesde(o['Fecha de la última modificación']);
-
-        const cliente = escapeHTML(o['Cuenta: Nombre de la cuenta'] || 'S/N');
-        const producto = escapeHTML(o['Producto ST'] || '');
-        const region = escapeHTML(territorio);
-        const estado = escapeHTML(o.Estado || 'S/E');
-        const tipoServicio = escapeHTML(o['Tipo de Servicio'] || 'S/N');
-        const razones = [];
-
-        if (diasMod !== null && diasMod >= 4) razones.push(`🕒 ${diasMod}d sin cambios`);
-        if (diasCreacion >= 8) razones.push(`📅 ${diasCreacion}d desde creación`);
-
-        if (razones.length > 0) {
-            alertas.push(`⚠️ <b>${cliente}</b>
-  📦 ${producto}
-  🛠️ Tipo: ${tipoServicio}
-  📌 ${region} | Estado: ${estado}
-  ${razones.join(' | ')}`);
-        }
-    }
-
-    if (alertas.length === 0) {
-        console.log('✅ Telegram: sin órdenes estancadas.');
-        return;
-    }
-
-    const fecha = new Date().toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const msg = `🚨 <b>DISMAC — Órdenes estancadas</b> (${fecha})
-
-Se encontraron <b>${alertas.length}</b> orden(es) que requieren atención:
-
-${alertas.join('\n\n')}
-
-🔗 <b>Abrir App:</b> https://jangelbsc-design.github.io/app-servicio-tecnico/`;
-
-    sendTelegram(msg);
 }
 
 function parseAllData(workshopData, globalData, adicionalesData) {
@@ -476,6 +380,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const viewDetails = document.getElementById('view-details');
     const viewReportes = document.getElementById('view-reportes');
     const viewEncuesta = document.getElementById('view-encuesta');
+    const viewEjecutivo = document.getElementById('view-ejecutivo');
+    const viewAlertas = document.getElementById('view-alertas');
     const viewTitle = document.getElementById('view-title');
     const viewContent = document.getElementById('view-content');
 
@@ -522,8 +428,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log(`✅ ${appWorkshopData.length} talleres, ${appOrdersData.length} órdenes`);
     renderKPIs();
 
-    // Verificar órdenes estancadas y notificar por Telegram
-    chequearOrdenesEstancadas(appOrdersData);
+    // Verificar alertas push locales configuradas (sin forzar el envío)
+    checkAlertasPush(false);
 
     // Variables de estado para búsqueda regional
     let currentRegionTalleres = "";
@@ -850,7 +756,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('btn-back')?.addEventListener('click', () => {
         const title = viewTitle ? viewTitle.textContent : '';
-        if (title === 'Protocolo de recepción' || title === '¿Cómo funciona la garantía?') {
+        if (title === 'Protocolo de recepción') {
             console.log("← Volver al dashboard");
             showView(viewDashboard);
         } else {
@@ -879,6 +785,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         showView(viewDashboard);
     });
 
+    document.getElementById('btn-back-ejecutivo')?.addEventListener('click', () => {
+        console.log("← Volver al dashboard");
+        showView(viewDashboard);
+    });
+
+    document.getElementById('btn-back-alertas')?.addEventListener('click', () => {
+        console.log("← Volver al menú de estados");
+        showView(viewEstadosMenu);
+    });
+
     document.getElementById('btn-export-csv')?.addEventListener('click', exportReportesCSV);
     document.getElementById('btn-export-pdf')?.addEventListener('click', exportReportesPDF);
 
@@ -905,6 +821,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 break;
             case 'view-encuesta':
                 if (isAdmin()) showEncuesta();
+                break;
+            case 'view-ejecutivo':
+                showEjecutivo();
+                break;
+            case 'view-alertas':
+                showAlertas();
                 break;
             case 'view-tarija':
                 showRegionTalleres('Tarija');
@@ -1470,14 +1392,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
 
-    function getReportesData() {
+    function dataFiltradaPorRol() {
+        let data = appOrdersData;
         const rol = localStorage.getItem('usuario_rol');
         const regional = localStorage.getItem('usuario_regional');
-
-        let data = appOrdersData;
         if (rol === 'regional' && regional) {
             data = data.filter(o => isOrderInRegion(o, regional));
         }
+        return data;
+    }
+
+    function getReportesData() {
+        let data = dataFiltradaPorRol();
 
         const fRegion = document.getElementById('reporte-filtro-region')?.value || 'todas';
         const fEstado = document.getElementById('reporte-filtro-estado')?.value || 'todos';
@@ -1703,6 +1629,53 @@ document.addEventListener('DOMContentLoaded', async () => {
             .sort((a, b) => b[1] - a[1]);
     }
 
+    function esOrdenCerrada(o) {
+        const e = normalizarTexto(o.Estado);
+        return e.includes('entregado') || e.includes('cerrado');
+    }
+
+    function ultimosNDias(n) {
+        const dias = [];
+        const hoy = new Date();
+        for (let i = n - 1; i >= 0; i--) {
+            const d = new Date(hoy);
+            d.setDate(hoy.getDate() - i);
+            dias.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+        }
+        return dias;
+    }
+
+    function bucketPorDia(lista, campo) {
+        const map = new Map();
+        lista.forEach(o => {
+            const f = parseFecha(o[campo]);
+            if (!f) return;
+            const key = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
+            map.set(key, (map.get(key) || 0) + 1);
+        });
+        return map;
+    }
+
+    function serieDias(lista, campo, n) {
+        const bucket = bucketPorDia(lista, campo);
+        const dias = ultimosNDias(n);
+        return {
+            labels: dias.map(d => `${d.slice(8)}/${d.slice(5, 7)}`),
+            values: dias.map(d => bucket.get(d) || 0)
+        };
+    }
+
+    function conteoPorMes(lista, campo) {
+        const map = new Map();
+        lista.forEach(o => {
+            const f = parseFecha(o[campo]);
+            if (!f) return;
+            const key = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}`;
+            map.set(key, (map.get(key) || 0) + 1);
+        });
+        return map;
+    }
+
     function slaContactoHtml(o) {
         const nombreCliente = o['Cuenta: Nombre de la cuenta'] || 'N/A';
         const ordenDismac = o['Referencia'] || o['Número de orden de trabajo'] || 'N/A';
@@ -1905,12 +1878,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         const estados = countBy(data, 'Estado');
         const marcas = countByMarcas(data).slice(0, 12);
         const tiempoPorEstado = avgDiasPorEstado(data);
+        const tendIngresadas = serieDias(data, 'Fecha de ingreso a la marca', 30);
 
         const ctxR = document.getElementById('reporte-chart-regiones');
         const ctxE = document.getElementById('reporte-chart-estados');
         const ctxM = document.getElementById('reporte-chart-marcas');
         const ctxT = document.getElementById('reporte-chart-tiempo');
-        if (!ctxR || !ctxE || !ctxM || !ctxT) return;
+        const ctxTend = document.getElementById('reporte-chart-tendencia');
+        if (!ctxR || !ctxE || !ctxM || !ctxT || !ctxTend) return;
+
+        reporteCharts.tendencia = new Chart(ctxTend, {
+            type: 'line',
+            data: {
+                labels: tendIngresadas.labels,
+                datasets: [
+                    { label: 'Ingresadas', data: tendIngresadas.values, borderColor: '#E31837', backgroundColor: 'rgba(227,24,55,0.10)', fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } },
+                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
+        });
 
         reporteCharts.regiones = new Chart(ctxR, {
             type: 'bar',
@@ -1979,6 +1970,368 @@ document.addEventListener('DOMContentLoaded', async () => {
         fillReporteSelects();
         renderReportes();
         showView(viewReportes);
+    }
+
+    // ── DASHBOARD EJECUTIVO ────────────────────────────────────────────────
+    let ejecutivoCharts = {};
+
+    function destroyEjecutivoCharts() {
+        Object.keys(ejecutivoCharts).forEach(k => {
+            if (ejecutivoCharts[k]) { ejecutivoCharts[k].destroy(); delete ejecutivoCharts[k]; }
+        });
+    }
+
+    function topTalleresAtraso(lista, n) {
+        const map = new Map();
+        lista.forEach(o => {
+            const t = (o['¿Qué servicio técnico ?'] || '').trim() || 'Sin taller';
+            const d = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10) || 0;
+            if (!map.has(t)) map.set(t, { count: 0, sum: 0, max: 0 });
+            const e = map.get(t);
+            e.count++; e.sum += d; e.max = Math.max(e.max, d);
+        });
+        return [...map.entries()].sort((a, b) => b[1].max - a[1].max).slice(0, n);
+    }
+
+    function avgDiasPorRegion(lista) {
+        const map = new Map();
+        lista.forEach(o => {
+            const r = (o['Territorio de servicio: Nombre'] || '').trim() || 'Sin región';
+            const d = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10) || 0;
+            if (!map.has(r)) map.set(r, { sum: 0, n: 0 });
+            map.get(r).sum += d;
+            map.get(r).n += 1;
+        });
+        return [...map.entries()]
+            .map(([r, v]) => [r, v.n ? Math.round((v.sum / v.n) * 10) / 10 : 0])
+            .sort((a, b) => b[1] - a[1]);
+    }
+
+    function showEjecutivo() {
+        console.log('📈 Abriendo Dashboard Ejecutivo');
+        showView(viewEjecutivo);
+        renderEjecutivo();
+    }
+
+    function renderEjecutivo() {
+        const content = document.getElementById('ejecutivo-content');
+        if (!content) return;
+
+        const data = dataFiltradaPorRol();
+        const estadosExcluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
+        const isExcluido = (o) => {
+            const e = normalizarTexto(o.Estado);
+            return estadosExcluidos.some(x => e.includes(x));
+        };
+
+        const activas = data.filter(o => !isExcluido(o));
+        const cerradas = data.filter(o => esOrdenCerrada(o));
+        const estancadas = activas.filter(o => {
+            const dc = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10);
+            const dm = diasDesde(o['Fecha de la última modificación']);
+            return (dm !== null && dm >= 4) || dc >= 8;
+        });
+        const enGarantia = data.filter(o => getWarrantyInfo(o).status === 'en_garantia').length;
+
+        // Comparativa de meses (fecha de ingreso a la marca como proxy de creación)
+        const porMes = conteoPorMes(data, 'Fecha de ingreso a la marca');
+        const ahora = new Date();
+        const claveActual = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}`;
+        const anterior = new Date(ahora);
+        anterior.setMonth(anterior.getMonth() - 1);
+        const claveAnterior = `${anterior.getFullYear()}-${String(anterior.getMonth() + 1).padStart(2, '0')}`;
+        const nActual = porMes.get(claveActual) || 0;
+        const nAnterior = porMes.get(claveAnterior) || 0;
+        const dif = nAnterior ? Math.round(((nActual - nAnterior) / nAnterior) * 100) : null;
+
+        const nombreMes = (clave) => {
+            const [y, m] = clave.split('-').map(Number);
+            return new Date(y, m - 1, 1).toLocaleDateString('es-BO', { month: 'long', year: 'numeric' });
+        };
+
+        const kpi = (label, value, color, icon) => `
+            <div style="background:white; border:1px solid ${color}33; border-radius:14px; padding:1rem; display:flex; align-items:center; gap:12px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="background:${color}1a; color:${color}; width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i class="bi ${icon}"></i></div>
+                <div>
+                    <div style="font-size:1.4rem; font-weight:800; color:#111; line-height:1;">${value}</div>
+                    <div style="font-size:0.75rem; color:#64748b;">${label}</div>
+                </div>
+            </div>`;
+
+        const difHtml = dif === null
+            ? '<span style="font-size:0.75rem; color:#94a3b8; font-weight:600;">Sin datos del mes anterior</span>'
+            : `<span style="font-size:0.85rem; font-weight:800; color:${dif >= 0 ? '#16a34a' : '#ef4444'};">${dif >= 0 ? '▲ +' : '▼ '}${Math.abs(dif)}%</span>`;
+
+        const trendData = serieDias(data, 'Fecha de ingreso a la marca', 30);
+
+        const topTalleres = topTalleresAtraso(activas, 5);
+        const maxTallerDias = topTalleres.length ? topTalleres[0][1].max : 1;
+
+        const regionesProm = avgDiasPorRegion(activas);
+        const maxRegionDias = regionesProm.length ? regionesProm[0][1] : 1;
+
+        content.innerHTML = `
+            <section style="margin-bottom:1.2rem;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;">
+                    ${kpi('Órdenes activas', activas.length, '#3b82f6', 'bi-lightning-charge-fill')}
+                    ${kpi('Cerradas', cerradas.length, '#16a34a', 'bi-check2-circle')}
+                    ${kpi('Estancadas', estancadas.length, '#ef4444', 'bi-exclamation-triangle-fill')}
+                    ${kpi('En garantía', enGarantia, '#d97706', 'bi-patch-check-fill')}
+                </div>
+            </section>
+
+            <section style="margin-bottom:1.2rem;">
+                <div style="background:white; border:1px solid #e2e8f0; border-radius:14px; padding:1rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                    <div>
+                        <div style="font-size:0.75rem; color:#64748b; font-weight:700;">COMPARATIVA MENSUAL</div>
+                        <div style="font-size:1.1rem; font-weight:800; color:#111; text-transform:capitalize;">${nombreMes(claveActual)}</div>
+                        <div style="font-size:0.85rem; color:#475569;">${nActual} órdenes vs ${nAnterior} (${nombreMes(claveAnterior)})</div>
+                    </div>
+                    ${difHtml}
+                </div>
+            </section>
+
+            <section style="margin-bottom:1.2rem;">
+                <div style="background:white; border:1px solid #e2e8f0; border-radius:14px; padding:1rem; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                    <p style="font-size:0.85rem; font-weight:700; color:#475569; margin:0 0 0.75rem 0;">Órdenes ingresadas (últimos 30 días)</p>
+                    <div style="position:relative; height:240px;"><canvas id="ejecutivo-chart-tendencia"></canvas></div>
+                </div>
+            </section>
+
+            <section style="margin-bottom:1.2rem;">
+                <h3 style="font-size:1.05rem; font-weight:800; margin:0 0 0.75rem 0; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-exclamation-octagon-fill" style="color:#E31837;"></i> Top talleres con más atraso</h3>
+                ${topTalleres.length ? topTalleres.map(([t, v]) => `
+                    <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:0.85rem 1rem; margin-bottom:0.6rem; box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="font-weight:700; font-size:0.92rem; color:#111;">${escapeHTML(t)}</span>
+                            <span style="background:${v.max >= 15 ? '#fee2e2' : '#fffbeb'}; color:${v.max >= 15 ? '#b91c1c' : '#b45309'}; font-weight:800; font-size:0.75rem; padding:3px 10px; border-radius:12px;">${v.max}d máx · ${v.count} ord.</span>
+                        </div>
+                        <div style="background:#f1f5f9; border-radius:6px; height:8px; overflow:hidden;">
+                            <div style="width:${Math.min(100, Math.round((v.max / maxTallerDias) * 100))}%; height:100%; background:${v.max >= 15 ? '#ef4444' : '#f59e0b'}; border-radius:6px;"></div>
+                        </div>
+                    </div>`).join('') : '<p style="text-align:center;color:#94a3b8;font-size:0.9rem;">Sin órdenes activas.</p>'}
+            </section>
+
+            <section style="margin-bottom:1.2rem;">
+                <h3 style="font-size:1.05rem; font-weight:800; margin:0 0 0.75rem 0; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-clock-history" style="color:#8b5cf6;"></i> Promedio de días abiertas por región</h3>
+                ${regionesProm.length ? regionesProm.map(([r, d]) => `
+                    <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:0.85rem 1rem; margin-bottom:0.6rem; box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="font-weight:700; font-size:0.92rem; color:#111;">${escapeHTML(r)}</span>
+                            <span style="font-size:0.8rem; font-weight:800; color:#8b5cf6;">${d}d</span>
+                        </div>
+                        <div style="background:#f1f5f9; border-radius:6px; height:8px; overflow:hidden;">
+                            <div style="width:${Math.min(100, Math.round((d / maxRegionDias) * 100))}%; height:100%; background:#8b5cf6; border-radius:6px;"></div>
+                        </div>
+                    </div>`).join('') : '<p style="text-align:center;color:#94a3b8;font-size:0.9rem;">Sin datos.</p>'}
+            </section>
+        `;
+
+        destroyEjecutivoCharts();
+        if (window.Chart) {
+            const ctxTend = document.getElementById('ejecutivo-chart-tendencia');
+            if (ctxTend) {
+                ejecutivoCharts.tendencia = new Chart(ctxTend, {
+                    type: 'line',
+                    data: {
+                        labels: trendData.labels,
+                        datasets: [
+                            { label: 'Ingresadas', data: trendData.values, borderColor: '#E31837', backgroundColor: 'rgba(227,24,55,0.10)', fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2 }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } },
+                        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                    }
+                });
+            }
+        }
+    }
+
+    // ── ALERTAS PUSH ───────────────────────────────────────────────────────
+    function getAlertasConfig() {
+        const def = { enabled: false, diasSinCambios: 4, diasCreacion: 8, region: 'todas' };
+        try {
+            return Object.assign({}, def, JSON.parse(localStorage.getItem('alertas_config') || '{}'));
+        } catch (e) {
+            return def;
+        }
+    }
+
+    function saveAlertasConfig(cfg) {
+        localStorage.setItem('alertas_config', JSON.stringify(cfg));
+    }
+
+    function showAlertas() {
+        console.log('🔔 Abriendo Alertas Push');
+        showView(viewAlertas);
+        renderAlertasConfig();
+    }
+
+    function renderAlertasConfig() {
+        const content = document.getElementById('alertas-content');
+        if (!content) return;
+        const cfg = getAlertasConfig();
+        const regiones = [...new Set(appOrdersData.map(o => (o['Territorio de servicio: Nombre'] || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+
+        const perm = ('Notification' in window) ? Notification.permission : 'unsupported';
+        const permHtml = {
+            granted: '<span style="background:#f0fdf4; color:#166534; padding:6px 12px; border-radius:12px; font-size:0.8rem; font-weight:700;"><i class="bi bi-check-circle-fill"></i> Permiso concedido</span>',
+            denied: '<span style="background:#fef2f2; color:#b91c1c; padding:6px 12px; border-radius:12px; font-size:0.8rem; font-weight:700;"><i class="bi bi-x-circle-fill"></i> Permiso denegado (revisa los ajustes del navegador)</span>',
+            default: '<span style="background:#fffbeb; color:#b45309; padding:6px 12px; border-radius:12px; font-size:0.8rem; font-weight:700;"><i class="bi bi-bell-slash-fill"></i> Permiso no solicitado</span>',
+            unsupported: '<span style="background:#f1f5f9; color:#475569; padding:6px 12px; border-radius:12px; font-size:0.8rem; font-weight:700;"><i class="bi bi-question-circle-fill"></i> Notificaciones no soportadas</span>'
+        }[perm] || '';
+
+        content.innerHTML = `
+            <section style="margin-bottom:1rem;">
+                <div style="background:white; border:1px solid #e2e8f0; border-radius:16px; padding:1.2rem; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:1rem;">
+                        <div style="background:#FDE8EA; color:#E31837; width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i class="bi bi-bell-fill"></i></div>
+                        <div>
+                            <h3 style="font-size:1.05rem; font-weight:800; margin:0; color:#111;">Notificaciones de órdenes estancadas</h3>
+                            <span style="font-size:0.78rem; color:#64748b;">Se muestra una alerta local cuando una orden supera los umbrales.</span>
+                        </div>
+                    </div>
+
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:0.9rem 1rem; margin-bottom:1rem;">
+                        <input type="checkbox" id="alertas-enabled" ${cfg.enabled ? 'checked' : ''} style="width:20px; height:20px; accent-color:#E31837; cursor:pointer;">
+                        <span style="font-weight:700; font-size:0.95rem; color:#111;">Activar notificaciones de alerta</span>
+                    </label>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.7rem; margin-bottom:1rem;">
+                        <div>
+                            <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Sin cambios (días)</label>
+                            <input type="number" id="alertas-dias-sin-cambios" value="${cfg.diasSinCambios}" min="1" style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; box-sizing:border-box; outline:none;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Desde creación (días)</label>
+                            <input type="number" id="alertas-dias-creacion" value="${cfg.diasCreacion}" min="1" style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; box-sizing:border-box; outline:none;">
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom:1rem;">
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Región</label>
+                        <select id="alertas-region" style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;">
+                            <option value="todas" ${cfg.region === 'todas' ? 'selected' : ''}>Todas las regiones</option>
+                            ${regiones.map(r => `<option value="${escapeHTML(r)}" ${cfg.region === r ? 'selected' : ''}>${escapeHTML(r)}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:1rem;">${permHtml}</div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.7rem;">
+                        <button id="alertas-solicitar-permiso" style="background:#f1f5f9; color:#111; border:1px solid #e2e8f0; padding:12px 10px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer;"><i class="bi bi-bell"></i> Solicitar permiso</button>
+                        <button id="alertas-probar" style="background:#111; color:white; border:none; padding:12px 10px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer;"><i class="bi bi-bell-fill"></i> Probar notificación</button>
+                        <button id="alertas-enviar-ahora" style="background:#E31837; color:white; border:none; padding:12px 10px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer; grid-column:1 / -1;"><i class="bi bi-send-fill"></i> Verificar y enviar alertas ahora</button>
+                    </div>
+                </div>
+            </section>
+            <div id="alertas-resultado" style="display:flex; flex-direction:column; gap:0.7rem;"></div>
+        `;
+
+        document.getElementById('alertas-enabled')?.addEventListener('change', (e) => {
+            cfg.enabled = e.target.checked;
+            saveAlertasConfig(cfg);
+        });
+        document.getElementById('alertas-dias-sin-cambios')?.addEventListener('input', (e) => {
+            cfg.diasSinCambios = Math.max(1, parseInt(e.target.value, 10) || 1);
+            saveAlertasConfig(cfg);
+        });
+        document.getElementById('alertas-dias-creacion')?.addEventListener('input', (e) => {
+            cfg.diasCreacion = Math.max(1, parseInt(e.target.value, 10) || 1);
+            saveAlertasConfig(cfg);
+        });
+        document.getElementById('alertas-region')?.addEventListener('change', (e) => {
+            cfg.region = e.target.value;
+            saveAlertasConfig(cfg);
+        });
+        document.getElementById('alertas-solicitar-permiso')?.addEventListener('click', () => {
+            if ('Notification' in window) {
+                Notification.requestPermission().then(() => renderAlertasConfig());
+            }
+        });
+        document.getElementById('alertas-probar')?.addEventListener('click', () => {
+            if (('Notification' in window) && Notification.permission === 'granted') {
+                new Notification('✅ Notificaciones de Dismac', {
+                    body: 'Esta es una prueba. Las alertas de órdenes estancadas llegarán así.',
+                    icon: 'icono-servicio-tecnico.png'
+                });
+            } else {
+                alert('Primero solicita el permiso de notificaciones.');
+            }
+        });
+        document.getElementById('alertas-enviar-ahora')?.addEventListener('click', () => {
+            renderAlertasResultado(checkAlertasPush(true));
+        });
+    }
+
+    function renderAlertasResultado(res) {
+        const el = document.getElementById('alertas-resultado');
+        if (!el) return;
+        if (res.error) {
+            el.innerHTML = `<div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:1rem; color:#b91c1c; font-weight:600; font-size:0.9rem;"><i class="bi bi-exclamation-triangle-fill" style="margin-right:6px;"></i>${res.error}</div>`;
+            return;
+        }
+        if (res.total === 0) {
+            el.innerHTML = '<div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:1rem; color:#166534; font-weight:600;"><i class="bi bi-check-circle-fill" style="margin-right:6px;"></i>Sin órdenes que superen los umbrales.</div>';
+            return;
+        }
+        el.innerHTML = res.items.map(a => `
+            <div style="background:white; border:1px solid ${a.yaEnviada ? '#cbd5e1' : '#fde68a'}; border-left:5px solid ${a.yaEnviada ? '#94a3b8' : '#f59e0b'}; border-radius:12px; padding:0.85rem 1rem;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                    <div style="flex:1;">
+                        <p style="margin:0 0 4px 0; font-weight:800; font-size:0.92rem; color:#111;">${escapeHTML(a.o['Cuenta: Nombre de la cuenta'])}</p>
+                        <p style="margin:0; font-size:0.8rem; color:#64748b;">${escapeHTML(a.o['Producto ST'])} · ${escapeHTML(a.o['Territorio de servicio: Nombre'])}</p>
+                        <p style="margin:4px 0 0 0; font-size:0.78rem; color:#b45309; font-weight:600;">${a.razones.join(' · ')}</p>
+                    </div>
+                    <span style="background:${a.yaEnviada ? '#e2e8f0' : '#f59e0b'}; color:${a.yaEnviada ? '#475569' : 'white'}; padding:3px 10px; border-radius:12px; font-size:0.65rem; font-weight:800; flex-shrink:0;">${a.yaEnviada ? 'ENVIADA HOY' : 'NOTIFICADA'}</span>
+                </div>
+            </div>`).join('');
+    }
+
+    function checkAlertasPush(force) {
+        const cfg = getAlertasConfig();
+        if (!cfg.enabled && !force) return { total: 0, items: [] };
+        if (!('Notification' in window)) return { error: 'Este navegador no soporta notificaciones.', total: 0, items: [] };
+        if (Notification.permission !== 'granted') return { error: 'El permiso de notificaciones no está concedido. Solicitálo con el botón.', total: 0, items: [] };
+
+        const data = dataFiltradaPorRol();
+        const estadosExcluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
+        const alerts = [];
+        data.forEach(o => {
+            const e = normalizarTexto(o.Estado);
+            if (estadosExcluidos.some(x => e.includes(x))) return;
+            if (cfg.region !== 'todas' && !isOrderInRegion(o, cfg.region)) return;
+            const diasMod = diasDesde(o['Fecha de la última modificación']);
+            const diasCreacion = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10);
+            const razones = [];
+            if (diasMod !== null && diasMod >= cfg.diasSinCambios) razones.push(`${diasMod}d sin cambios`);
+            if (diasCreacion >= cfg.diasCreacion) razones.push(`${diasCreacion}d desde creación`);
+            if (razones.length) alerts.push({ o, razones });
+        });
+
+        let fired;
+        try { fired = JSON.parse(localStorage.getItem('alertas_fired') || '{}'); } catch (e) { fired = {}; }
+        const hoy = new Date().toISOString().slice(0, 10);
+
+        const result = alerts.map(a => {
+            const odt = a.o['Número de orden de trabajo'];
+            const yaEnviada = fired[odt] === hoy;
+            if (!yaEnviada) {
+                const n = new Notification(`⚠️ Orden estancada — ${a.o['Cuenta: Nombre de la cuenta']}`, {
+                    body: `${a.o['Producto ST']} · ${a.o['Territorio de servicio: Nombre']} · ${a.razones.join(' · ')}`,
+                    icon: 'icono-servicio-tecnico.png',
+                    tag: odt
+                });
+                n.onclick = () => window.focus();
+                fired[odt] = hoy;
+            }
+            return { o: a.o, razones: a.razones, yaEnviada };
+        });
+        localStorage.setItem('alertas_fired', JSON.stringify(fired));
+        return { total: alerts.length, items: result };
     }
 
     // ── ENCUESTAS NPS (Solo Admin) ─────────────────────────────────────────
@@ -2283,16 +2636,78 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+        const w = doc.internal.pageSize.getWidth();
+        const h = doc.internal.pageSize.getHeight();
+        const RED = [227, 24, 55];
 
-        const fecha = new Date().toLocaleDateString('es-BO', { day: '2-digit', month: 'long', year: 'numeric' });
+        // Banda superior corporativa
+        doc.setFillColor(...RED);
+        doc.rect(0, 0, w, 44, 'F');
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 44, w, 3, 'F');
+
+        // Wordmark DISMAC ("dis" rojo / "mac" negro)
+        doc.setFillColor(...RED);
+        doc.roundedRect(40, 14, 36, 17, 3, 3, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(255, 255, 255);
+        doc.text('dis', 43, 26);
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(76, 14, 38, 17, 3, 3, 'F');
+        doc.setTextColor(0, 0, 0);
+        doc.text('mac', 79, 26);
+
+        // Título
         doc.setFontSize(16);
-        doc.setTextColor(227, 24, 55);
-        doc.text('DISMAC — Reporte de Órdenes', 40, 40);
-        doc.setFontSize(10);
-        doc.setTextColor(60, 60, 60);
-        doc.text(`Generado: ${fecha}`, 40, 58);
-        doc.text(`Total de órdenes: ${data.length}`, 40, 72);
+        doc.setTextColor(17, 17, 17);
+        doc.text('Reporte de Órdenes de Servicio', 140, 25);
 
+        doc.setFontSize(9);
+        doc.setTextColor(100, 116, 139);
+        const fecha = new Date().toLocaleDateString('es-BO', { day: '2-digit', month: 'long', year: 'numeric' });
+        doc.text(`Generado: ${fecha}`, 140, 35);
+
+        const usuario = localStorage.getItem('usuario_actual') || '—';
+        doc.text(`Usuario: ${usuario}`, w - 40, 25, { align: 'right' });
+
+        // Resumen ejecutivo
+        const estadosExcluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
+        const isExcluido = (o) => {
+            const e = normalizarTexto(o.Estado);
+            return estadosExcluidos.some(x => e.includes(x));
+        };
+        const activas = data.filter(o => !isExcluido(o));
+        const estancadas = activas.filter(o => {
+            const dc = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10);
+            const dm = diasDesde(o['Fecha de la última modificación']);
+            return (dm !== null && dm >= 4) || dc >= 8;
+        });
+        const enGarantia = data.filter(o => getWarrantyInfo(o).status === 'en_garantia').length;
+
+        const resumen = [
+            ['Total', data.length],
+            ['Activas', activas.length],
+            ['Estancadas', estancadas.length],
+            ['En garantía', enGarantia]
+        ];
+        let rx = 40;
+        resumen.forEach(([label, val]) => {
+            doc.setFillColor(250, 250, 250);
+            doc.roundedRect(rx, 56, 116, 36, 6, 6, 'F');
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...RED);
+            doc.text(String(val), rx + 12, 74);
+            doc.setFontSize(7.5);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 116, 139);
+            doc.text(label.toUpperCase(), rx + 12, 84);
+            rx += 124;
+        });
+
+        // Filtros aplicados
+        let y = 106;
         const filtros = [];
         const fRegion = document.getElementById('reporte-filtro-region')?.value;
         const fEstado = document.getElementById('reporte-filtro-estado')?.value;
@@ -2300,7 +2715,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (fRegion && fRegion !== 'todas') filtros.push(`Región: ${fRegion}`);
         if (fEstado && fEstado !== 'todos') filtros.push(`Estado: ${fEstado}`);
         if (fMarca && fMarca !== 'todas') filtros.push(`Marca: ${fMarca}`);
-        if (filtros.length) doc.text(`Filtros: ${filtros.join(' · ')}`, 40, 86);
+        const q = normalizarTexto(document.getElementById('reporte-buscador')?.value);
+        if (q) filtros.push(`Búsqueda: "${q}"`);
+        doc.setFontSize(8);
+        doc.setTextColor(60, 60, 60);
+        doc.text(filtros.length ? `Filtros: ${filtros.join(' · ')}` : 'Filtros: todos los datos', 40, y);
 
         const head = [['Nro Orden', 'Referencia', 'Cliente', 'Producto', 'Marca / ST', 'Tipo', 'Región', 'Estado', 'Días', 'Garantía']];
         const body = data.map(o => [
@@ -2319,12 +2738,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         doc.autoTable({
             head,
             body,
-            startY: 100,
+            startY: y + 14,
+            margin: { left: 40, right: 40 },
             styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },
-            headStyles: { fillColor: [227, 24, 55], textColor: 255, fontStyle: 'bold' },
+            headStyles: { fillColor: RED, textColor: 255, fontStyle: 'bold' },
             alternateRowStyles: { fillColor: [245, 245, 245] },
             columnStyles: { 3: { cellWidth: 140 }, 4: { cellWidth: 90 } }
         });
+
+        // Pie de página con paginación
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setDrawColor(...RED);
+            doc.setLineWidth(1.5);
+            doc.line(40, h - 42, w - 40, h - 42);
+            doc.setFontSize(7);
+            doc.setTextColor(...RED);
+            doc.text('CONFIDENCIAL — USO INTERNO', 40, h - 28);
+            doc.setTextColor(120, 130, 145);
+            doc.text(`Página ${i} de ${pageCount} · Soporte Técnico Dismac`, w - 40, h - 28, { align: 'right' });
+        }
 
         doc.save(`reporte_dismac_${fechaArchivo()}.pdf`);
     }
