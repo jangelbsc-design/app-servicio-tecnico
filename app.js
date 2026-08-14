@@ -2221,31 +2221,42 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     <div style="display:flex; align-items:center; gap:10px; margin-bottom:1rem;">${permHtml}</div>
 
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.7rem;">
-                        <button id="alertas-solicitar-permiso" style="background:#f1f5f9; color:#111; border:1px solid #e2e8f0; padding:12px 10px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer;"><i class="bi bi-bell"></i> Solicitar permiso</button>
-                        <button id="alertas-probar" style="background:#111; color:white; border:none; padding:12px 10px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer;"><i class="bi bi-bell-fill"></i> Probar notificación</button>
-                        <button id="alertas-enviar-ahora" style="background:#E31837; color:white; border:none; padding:12px 10px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer; grid-column:1 / -1;"><i class="bi bi-send-fill"></i> Verificar y enviar alertas ahora</button>
+                    <div style="display:flex; flex-direction:column; gap:0.7rem;">
+                        <button id="alertas-solicitar-permiso" style="width:100%; background:#f1f5f9; color:#111; border:1px solid #e2e8f0; padding:12px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer;"><i class="bi bi-bell"></i> Solicitar permiso</button>
+                        <button id="alertas-probar" style="width:100%; background:#111; color:white; border:none; padding:12px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer;"><i class="bi bi-bell-fill"></i> Probar notificación</button>
+                        <button id="alertas-enviar-ahora" style="width:100%; background:#E31837; color:white; border:none; padding:12px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer;"><i class="bi bi-send-fill"></i> Verificar y enviar alertas ahora</button>
+                        <button id="alertas-detener" style="width:100%; background:#111; color:white; border:none; padding:12px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:800; font-size:0.85rem; cursor:pointer;"><i class="bi bi-stop-circle-fill" style="color:#E31837;"></i> Detener todas las notificaciones</button>
                     </div>
                 </div>
             </section>
             <div id="alertas-resultado" style="display:flex; flex-direction:column; gap:0.7rem;"></div>
         `;
 
+        const refrescarVista = () => renderAlertasPreview();
+
         document.getElementById('alertas-enabled')?.addEventListener('change', (e) => {
             cfg.enabled = e.target.checked;
             saveAlertasConfig(cfg);
+            if (cfg.enabled && ('Notification' in window) && Notification.permission !== 'granted') {
+                Notification.requestPermission().then(() => renderAlertasConfig());
+            } else {
+                refrescarVista();
+            }
         });
         document.getElementById('alertas-dias-sin-cambios')?.addEventListener('input', (e) => {
             cfg.diasSinCambios = Math.max(1, parseInt(e.target.value, 10) || 1);
             saveAlertasConfig(cfg);
+            refrescarVista();
         });
         document.getElementById('alertas-dias-creacion')?.addEventListener('input', (e) => {
             cfg.diasCreacion = Math.max(1, parseInt(e.target.value, 10) || 1);
             saveAlertasConfig(cfg);
+            refrescarVista();
         });
         document.getElementById('alertas-region')?.addEventListener('change', (e) => {
             cfg.region = e.target.value;
             saveAlertasConfig(cfg);
+            refrescarVista();
         });
         document.getElementById('alertas-solicitar-permiso')?.addEventListener('click', () => {
             if ('Notification' in window) {
@@ -2265,6 +2276,67 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('alertas-enviar-ahora')?.addEventListener('click', () => {
             renderAlertasResultado(checkAlertasPush(true));
         });
+        document.getElementById('alertas-detener')?.addEventListener('click', () => {
+            cfg.enabled = false;
+            saveAlertasConfig(cfg);
+            localStorage.removeItem('alertas_fired');
+            renderAlertasConfig();
+            alert('Notificaciones detenidas. Ya no se mostrarán alertas al abrir la app.');
+        });
+
+        renderAlertasPreview();
+    }
+
+    function listAlertasStancadas() {
+        const cfg = getAlertasConfig();
+        const data = dataFiltradaPorRol();
+        const estadosExcluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
+        const alerts = [];
+        data.forEach(o => {
+            const e = normalizarTexto(o.Estado);
+            if (estadosExcluidos.some(x => e.includes(x))) return;
+            if (cfg.region !== 'todas' && !isOrderInRegion(o, cfg.region)) return;
+            const diasMod = diasDesde(o['Fecha de la última modificación']);
+            const diasCreacion = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10);
+            const razones = [];
+            if (diasMod !== null && diasMod >= cfg.diasSinCambios) razones.push(`${diasMod}d sin cambios`);
+            if (diasCreacion >= cfg.diasCreacion) razones.push(`${diasCreacion}d desde creación`);
+            if (razones.length) alerts.push({ o, razones });
+        });
+        alerts.sort((a, b) => {
+            const da = Math.max(parseInt(a.o['Tiempo desde apertura (Días)'] || '0', 10), diasDesde(a.o['Fecha de la última modificación']) || 0);
+            const db = Math.max(parseInt(b.o['Tiempo desde apertura (Días)'] || '0', 10), diasDesde(b.o['Fecha de la última modificación']) || 0);
+            return db - da;
+        });
+        return alerts;
+    }
+
+    function renderAlertasPreview() {
+        const el = document.getElementById('alertas-resultado');
+        if (!el) return;
+        const cfg = getAlertasConfig();
+        if (!cfg.enabled) {
+            el.innerHTML = '<div style="background:#f1f5f9; border:1px dashed #cbd5e1; border-radius:12px; padding:1rem; color:#475569; font-size:0.85rem; font-weight:600;"><i class="bi bi-bell-slash" style="margin-right:6px;"></i> Notificaciones desactivadas. Activa el interruptor para ver qué órdenes generarían alertas con los filtros.</div>';
+            return;
+        }
+        const alerts = listAlertasStancadas();
+        if (alerts.length === 0) {
+            el.innerHTML = '<div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:1rem; color:#166534; font-weight:600;"><i class="bi bi-check-circle-fill" style="margin-right:6px;"></i>Sin órdenes que superen los umbrales con los filtros actuales.</div>';
+            return;
+        }
+        el.innerHTML = `
+            <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:0.7rem 1rem; color:#b45309; font-weight:800; font-size:0.85rem;"><i class="bi bi-bell-fill" style="margin-right:6px;"></i>${alerts.length} orden${alerts.length === 1 ? '' : 'es'} generarían alerta con estos filtros (región y días)</div>
+            ${alerts.map(a => `
+                <div style="background:white; border:1px solid #e2e8f0; border-left:5px solid #f59e0b; border-radius:12px; padding:0.85rem 1rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                        <div style="flex:1;">
+                            <p style="margin:0 0 4px 0; font-weight:800; font-size:0.92rem; color:#111;">${escapeHTML(a.o['Cuenta: Nombre de la cuenta'])}</p>
+                            <p style="margin:0; font-size:0.8rem; color:#64748b;">${escapeHTML(a.o['Producto ST'])} · ${escapeHTML(a.o['Territorio de servicio: Nombre'])}</p>
+                            <p style="margin:4px 0 0 0; font-size:0.78rem; color:#b45309; font-weight:600;">${a.razones.join(' · ')}</p>
+                        </div>
+                    </div>
+                </div>`).join('')}
+        `;
     }
 
     function renderAlertasResultado(res) {
@@ -2297,20 +2369,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!('Notification' in window)) return { error: 'Este navegador no soporta notificaciones.', total: 0, items: [] };
         if (Notification.permission !== 'granted') return { error: 'El permiso de notificaciones no está concedido. Solicitálo con el botón.', total: 0, items: [] };
 
-        const data = dataFiltradaPorRol();
-        const estadosExcluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
-        const alerts = [];
-        data.forEach(o => {
-            const e = normalizarTexto(o.Estado);
-            if (estadosExcluidos.some(x => e.includes(x))) return;
-            if (cfg.region !== 'todas' && !isOrderInRegion(o, cfg.region)) return;
-            const diasMod = diasDesde(o['Fecha de la última modificación']);
-            const diasCreacion = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10);
-            const razones = [];
-            if (diasMod !== null && diasMod >= cfg.diasSinCambios) razones.push(`${diasMod}d sin cambios`);
-            if (diasCreacion >= cfg.diasCreacion) razones.push(`${diasCreacion}d desde creación`);
-            if (razones.length) alerts.push({ o, razones });
-        });
+        const alerts = listAlertasStancadas();
 
         let fired;
         try { fired = JSON.parse(localStorage.getItem('alertas_fired') || '{}'); } catch (e) { fired = {}; }
@@ -2368,18 +2427,97 @@ document.addEventListener('DOMContentLoaded', async () => {
         }[clasif] || { bg: '#f8fafc', border: '#cbd5e1', color: '#64748b', label: '—', icon: 'bi-question-circle' };
     }
 
+    function encuestaFiltrada() {
+        const fRegion = document.getElementById('encuesta-filtro-region')?.value || 'todas';
+        const fStatus = document.getElementById('encuesta-filtro-status')?.value || 'todas';
+        const q = normalizarTexto(document.getElementById('encuesta-buscador')?.value);
+        return appEncuestaData.filter(r => {
+            if (fRegion !== 'todas' && encuestaRegion(r) !== fRegion) return false;
+            if (fStatus !== 'todas' && !((r['NPS Status'] || '').includes(fStatus))) return false;
+            if (q) {
+                const campos = [
+                    r['Tecnico'], r['Activo: Nombre de activo'], r['Tipo de Servicio'],
+                    r['Número de orden de trabajo'], r['Numero'], r['NPS Q1'],
+                    r['Tipificación'], r['V2_GE_QF'], r['V2_GE_Q2'],
+                    r['SERVICIOS'], r['Marca'], r['Modelo'], r['Referencia']
+                ];
+                return campos.some(c => normalizarTexto(c).includes(q));
+            }
+            return true;
+        });
+    }
+
     function showEncuesta() {
         console.log('⭐ Abriendo Encuestas NPS (Admin)');
         const contentEl = document.getElementById('encuesta-content');
         if (!contentEl) return;
 
-        const data = appEncuestaData;
-        if (data.length === 0) {
+        if (appEncuestaData.length === 0) {
             contentEl.innerHTML = '<div style="text-align:center;padding:3rem;color:#64748b;"><i class="bi bi-emoji-smile" style="font-size:2rem; display:block; margin-bottom:10px;"></i>Sin datos de encuestas disponibles.</div>';
             showView(viewEncuesta);
             return;
         }
 
+        const allRegiones = [...new Set(appEncuestaData.map(encuestaRegion))]
+            .sort((a, b) => a.localeCompare(b, 'es'))
+            .map(r => `<option value="${escapeHTML(r)}">${escapeHTML(r)}</option>`).join('');
+
+        const filtersHtml = `
+            <section style="margin-bottom:1rem;">
+                <h3 style="font-size:1.1rem; font-weight:800; margin-bottom:0.75rem; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-funnel-fill" style="color:#E31837;"></i> Filtros</h3>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.7rem;">
+                    <div>
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Regional</label>
+                        <select id="encuesta-filtro-region"
+                            style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;">
+                            <option value="todas">Todas</option>
+                            ${allRegiones}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Clasificación</label>
+                        <select id="encuesta-filtro-status"
+                            style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;">
+                            <option value="todas">Todas</option>
+                            <option value="Promoter">Promotores</option>
+                            <option value="Passive">Pasivos</option>
+                            <option value="Detractor">Detractores</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-top:0.7rem;">
+                    <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Buscar (técnico, producto, tipo, ODT, comentario)</label>
+                    <input type="search" id="encuesta-buscador" placeholder="Ej: Lavadora, 139471, Kernig..."
+                        style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;">
+                </div>
+            </section>
+            <div id="encuesta-lista"></div>
+        `;
+
+        contentEl.innerHTML = `
+            <div id="encuesta-resumen"></div>
+            ${filtersHtml}
+        `;
+
+        ['encuesta-filtro-region', 'encuesta-filtro-status'].forEach(id => {
+            document.getElementById(id)?.addEventListener('change', renderEncuestaView);
+        });
+        document.getElementById('encuesta-buscador')?.addEventListener('input', renderEncuestaView);
+
+        renderEncuestaView();
+        showView(viewEncuesta);
+    }
+
+    function renderEncuestaView() {
+        renderEncuestaResumen();
+        renderEncuestaList();
+    }
+
+    function renderEncuestaResumen() {
+        const el = document.getElementById('encuesta-resumen');
+        if (!el) return;
+
+        const data = encuestaFiltrada();
         const stats = getEncuestaStats(data);
 
         const kpiCard = (label, value, color, icon, sub) => `
@@ -2393,9 +2531,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
         `;
 
+        const fRegion = document.getElementById('encuesta-filtro-region')?.value || 'todas';
+        const fStatus = document.getElementById('encuesta-filtro-status')?.value || 'todas';
+        const activos = [];
+        if (fRegion !== 'todas') activos.push(`Regional: ${fRegion}`);
+        if (fStatus !== 'todas') activos.push(`Clasificación: ${fStatus}`);
+
         const kpiHtml = `
             <section style="margin-bottom:1.5rem;">
                 <h3 style="font-size:1.1rem; font-weight:800; margin-bottom:0.75rem; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-emoji-smile-fill" style="color:#E31837;"></i> Resumen de Encuestas NPS</h3>
+                ${activos.length ? `<p style="font-size:0.78rem; color:#b45309; font-weight:700; margin:0 0 0.75rem 0;"><i class="bi bi-funnel-fill"></i> Filtrado por: ${activos.join(' · ')}</p>` : ''}
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;">
                     ${kpiCard('Encuestas', stats.total, '#3b82f6', 'bi-file-earmark-text')}
                     ${kpiCard('NPS Global', stats.nps, stats.nps >= 0 ? '#16a34a' : '#ef4444', 'bi-graph-up-arrow')}
@@ -2439,75 +2584,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             </section>
         `;
 
-        const regionSelect = [...byRegion.keys()]
-            .sort((a, b) => a.localeCompare(b, 'es'))
-            .map(r => `<option value="${escapeHTML(r)}">${escapeHTML(r)}</option>`).join('');
-
-        const filtersHtml = `
-            <section style="margin-bottom:1rem;">
-                <h3 style="font-size:1.1rem; font-weight:800; margin-bottom:0.75rem; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-funnel-fill" style="color:#E31837;"></i> Detalle de Respuestas</h3>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.7rem;">
-                    <div>
-                        <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Regional</label>
-                        <select id="encuesta-filtro-region"
-                            style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;">
-                            <option value="todas">Todas</option>
-                            ${regionSelect}
-                        </select>
-                    </div>
-                    <div>
-                        <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Clasificación</label>
-                        <select id="encuesta-filtro-status"
-                            style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;">
-                            <option value="todas">Todas</option>
-                            <option value="Promoter">Promotores</option>
-                            <option value="Passive">Pasivos</option>
-                            <option value="Detractor">Detractores</option>
-                        </select>
-                    </div>
-                </div>
-                <div style="margin-top:0.7rem;">
-                    <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Buscar (técnico, producto, tipo, ODT, comentario)</label>
-                    <input type="search" id="encuesta-buscador" placeholder="Ej: Lavadora, 139471, Kernig..."
-                        style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;">
-                </div>
-            </section>
-            <div id="encuesta-lista"></div>
-        `;
-
-        contentEl.innerHTML = kpiHtml + regionSection + filtersHtml;
-
-        ['encuesta-filtro-region', 'encuesta-filtro-status'].forEach(id => {
-            document.getElementById(id)?.addEventListener('change', renderEncuestaList);
-        });
-        document.getElementById('encuesta-buscador')?.addEventListener('input', renderEncuestaList);
-
-        renderEncuestaList();
-        showView(viewEncuesta);
+        el.innerHTML = kpiHtml + regionSection;
     }
 
     function renderEncuestaList() {
         const container = document.getElementById('encuesta-lista');
         if (!container) return;
 
-        const fRegion = document.getElementById('encuesta-filtro-region')?.value || 'todas';
-        const fStatus = document.getElementById('encuesta-filtro-status')?.value || 'todas';
-        const q = normalizarTexto(document.getElementById('encuesta-buscador')?.value);
-
-        let list = appEncuestaData.filter(r => {
-            if (fRegion !== 'todas' && encuestaRegion(r) !== fRegion) return false;
-            if (fStatus !== 'todas' && !((r['NPS Status'] || '').includes(fStatus))) return false;
-            if (q) {
-                const campos = [
-                    r['Tecnico'], r['Activo: Nombre de activo'], r['Tipo de Servicio'],
-                    r['Número de orden de trabajo'], r['Numero'], r['NPS Q1'],
-                    r['Tipificación'], r['V2_GE_QF'], r['V2_GE_Q2'],
-                    r['SERVICIOS'], r['Marca'], r['Modelo'], r['Referencia']
-                ];
-                return campos.some(c => normalizarTexto(c).includes(q));
-            }
-            return true;
-        });
+        let list = encuestaFiltrada();
 
         const orden = { detractor: 0, passive: 1, promoter: 2 };
         list.sort((a, b) => {
