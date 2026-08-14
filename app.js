@@ -19,7 +19,7 @@ const SHEETS_CONFIG = {
     },
     encuesta: {
         id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
-        sheetName: 'ENCUESTA'
+        sheetName: 'nps%20por%20regional'
     }
 };
 
