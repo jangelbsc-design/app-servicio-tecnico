@@ -2221,42 +2221,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     <div style="display:flex; align-items:center; gap:10px; margin-bottom:1rem;">${permHtml}</div>
 
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:0.75rem 1rem; margin-bottom:1rem; font-size:0.8rem; color:#64748b; font-weight:600;"><i class="bi bi-info-circle-fill" style="color:#E31837;"></i> Los cambios en región y días se aplican al presionar <strong>Buscar órdenes</strong>.</div>
+
                     <div style="display:flex; flex-direction:column; gap:0.7rem;">
+                        <button id="alertas-buscar" style="width:100%; background:#E31837; color:white; border:none; padding:14px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:800; font-size:0.95rem; cursor:pointer;"><i class="bi bi-search"></i> Buscar órdenes</button>
+                        <button id="alertas-enviar-ahora" style="width:100%; background:#111; color:white; border:none; padding:12px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer;"><i class="bi bi-send-fill"></i> Verificar y enviar alertas ahora</button>
                         <button id="alertas-solicitar-permiso" style="width:100%; background:#f1f5f9; color:#111; border:1px solid #e2e8f0; padding:12px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer;"><i class="bi bi-bell"></i> Solicitar permiso</button>
-                        <button id="alertas-probar" style="width:100%; background:#111; color:white; border:none; padding:12px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer;"><i class="bi bi-bell-fill"></i> Probar notificación</button>
-                        <button id="alertas-enviar-ahora" style="width:100%; background:#E31837; color:white; border:none; padding:12px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer;"><i class="bi bi-send-fill"></i> Verificar y enviar alertas ahora</button>
+                        <button id="alertas-probar" style="width:100%; background:#f1f5f9; color:#111; border:1px solid #e2e8f0; padding:12px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer;"><i class="bi bi-bell-fill"></i> Probar notificación</button>
                         <button id="alertas-detener" style="width:100%; background:#111; color:white; border:none; padding:12px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:800; font-size:0.85rem; cursor:pointer;"><i class="bi bi-stop-circle-fill" style="color:#E31837;"></i> Detener todas las notificaciones</button>
                     </div>
                 </div>
             </section>
-            <div id="alertas-resultado" style="display:flex; flex-direction:column; gap:0.7rem;"></div>
+            <div id="alertas-resultado" style="display:flex; flex-direction:column; gap:0.7rem;">
+                <div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:12px; padding:1rem; color:#64748b; font-size:0.85rem; font-weight:600; text-align:center;"><i class="bi bi-search" style="margin-right:6px;"></i> Selecciona los filtros y presiona <strong>Buscar órdenes</strong> para ver los resultados.</div>
+            </div>
         `;
-
-        const refrescarVista = () => renderAlertasPreview();
 
         document.getElementById('alertas-enabled')?.addEventListener('change', (e) => {
             cfg.enabled = e.target.checked;
             saveAlertasConfig(cfg);
             if (cfg.enabled && ('Notification' in window) && Notification.permission !== 'granted') {
                 Notification.requestPermission().then(() => renderAlertasConfig());
-            } else {
-                refrescarVista();
             }
         });
         document.getElementById('alertas-dias-sin-cambios')?.addEventListener('input', (e) => {
             cfg.diasSinCambios = Math.max(1, parseInt(e.target.value, 10) || 1);
             saveAlertasConfig(cfg);
-            refrescarVista();
         });
         document.getElementById('alertas-dias-creacion')?.addEventListener('input', (e) => {
             cfg.diasCreacion = Math.max(1, parseInt(e.target.value, 10) || 1);
             saveAlertasConfig(cfg);
-            refrescarVista();
         });
         document.getElementById('alertas-region')?.addEventListener('change', (e) => {
             cfg.region = e.target.value;
             saveAlertasConfig(cfg);
-            refrescarVista();
         });
         document.getElementById('alertas-solicitar-permiso')?.addEventListener('click', () => {
             if ('Notification' in window) {
@@ -2273,6 +2271,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 alert('Primero solicita el permiso de notificaciones.');
             }
         });
+        document.getElementById('alertas-buscar')?.addEventListener('click', () => {
+            renderAlertasPreview();
+        });
         document.getElementById('alertas-enviar-ahora')?.addEventListener('click', () => {
             renderAlertasResultado(checkAlertasPush(true));
         });
@@ -2283,8 +2284,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             renderAlertasConfig();
             alert('Notificaciones detenidas. Ya no se mostrarán alertas al abrir la app.');
         });
-
-        renderAlertasPreview();
     }
 
     function listAlertasStancadas() {
