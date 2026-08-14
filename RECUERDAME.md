@@ -64,6 +64,23 @@ App web estática (mobile-first, estética Dismac rojo/blanco/negro) de **soport
 - `encuestaFiltrada()` compartida; los filtros (regional, clasificación, búsqueda) actualizan KPIs + tarjetas "Por Regional" + lista.
 - Aviso "Filtrado por: …" cuando hay filtros activos. Regiones del select construidas desde todos los datos.
 
+### 7. Google Sheets — pestaña "última modificación" ordenada (14/08/2026)
+- La pestaña **"última modificación"** (8 columnas: N° orden, Producto, Taller/ST, Contacto, Territorio, Fecha últ. modificación, Estado, Sub_estado) estaba vacía (solo encabezado). Se llenó con una fórmula en **A2** que trae las órdenes de `REPORTE GLOBAL` **ordenadas de la modificación más antigua a la más reciente**.
+- **Problema clave:** `Fecha de la última modificación` (columna **H**) es **texto** `DD-MM-YYYY` (a veces con hora y sin ceros, ej. `5-8-2025`). Ordenar directo falla → la fórmula convierte cada fecha a fecha real con `DATE(VALUE(REGEXEXTRACT(...)))`.
+- **IMPORTANTE para reescribirla:** la hoja está en **locale español** → los argumentos de funciones usan **`;`** y el separador de columnas dentro de `{...}` es **`\`** (NO `,`). Si se copia una versión con `,` da "Formula parse error / comprueba la sintaxis". **Pegar SIEMPRE en la barra de fórmulas `fx`** (no en la celda) para que no se corte el inicio `=LET(fechas,...)`.
+- Mapeo de columnas: A=N° orden, C=Producto ST, E=Taller/ST, L=Contacto (cliente), D=Territorio, H=Fecha, N=Estado, O=Sub_estado. (Confirmar si "Contacto" debería ser otra columna.)
+- Usa `LET` + `FILTER` + `SORT` + `ARRAYFORMULA`; excluye la fila de encabezado con `ROW(...)>1` y pone las órdenes sin fecha al final (`DATE(9999,12,31)`).
+- **Columna I "Días sin modificación"** (14/08/2026): fórmula en **I2** que resta la fecha de H al día actual:
+  `=ARRAYFORMULA(IF(F2:F="";"";IFERROR(TODAY()-DATE(VALUE(REGEXEXTRACT(TO_TEXT(F2:F);"-(\d+)$"));VALUE(REGEXEXTRACT(TO_TEXT(F2:F);"-(\d+)-"));VALUE(REGEXEXTRACT(TO_TEXT(F2:F);"^(\d+)")));"")))`
+- **Formato condicional (semáforo)** en rango `A2:I`: Rojo `=$I2>=4`, Amarillo `=AND($I2>=2;$I2<4)`, Verde `=$I2<=1` (locale español → `;`). Confirmado por el usuario.
+- La lógica se validó con las ~622 órdenes reales descargadas del sheet (scripts `test_sort.js`, `test_ultima_mod.js` en `Temp\opencode`).
+
+### 8. App — botón "Última Modificación" en el menú principal (14/08/2026)
+- Nueva card en el inicio (`view-dashboard`) con `data-action="view-ultima-modificacion"` → `handleNavigation` → `showUltimaModificacion()` (v39).
+- Lista las órdenes **de la modificación más antigua a la más reciente** (`parseFecha('Fecha de la última modificación')` asc; sin fecha al final), respetando el filtro de rol regional y los estados excluidos (cancelado/error/entregado/cerrado).
+- Cada tarjeta muestra un **badge semáforo de días sin modificación** (rojo ≥4, amarillo 2-3, verde 0-1, gris sin fecha) además de los botones Ll./WA del taller.
+- Implementación: `renderOrdenes(region, ordenes, opciones)` ahora acepta `{ordenarPor:'modificacion', titulo}`; el buscador de órdenes también funciona en esta vista; el botón "Volver" regresa al inicio.
+
 ## 🧩 Cómo se probó
 
 - Scripts de verificación en `C:\Users\jabustos\AppData\Local\Temp\opencode\` (ej. `test_alert.js`): simulan el filtro de alertas con datos reales. Verificado: región sí filtra (228 todas → 95 Santa Cruz → 48 La Paz → etc.).
@@ -89,9 +106,13 @@ App web estática (mobile-first, estética Dismac rojo/blanco/negro) de **soport
 - `9ca4103` — fix: alertas con botón de detener y vista previa en vivo, filtros de región/días en alertas y NPS.
 - `a5dbe9b` — fix: botón **Buscar** como disparador de resultados en alertas push.
 - `fe47b53` — chore: quitar captura de prueba del repo.
-- **Versión actual en producción: `app.js?v=37`.**
+- `8d88c4a` — feat: satisfacción del cliente lee la pestaña 'nps por regional' (v38).
+- `529cd3e` — fix: padding inferior en desktop para que la barra de navegación no tape el dashboard ejecutivo (style.css v17).
+- **Versión actual en producción: `app.js?v=39`.**
 
 ## 🔮 Pendiente / a confirmar
 
 - Confirmar con el usuario que en su teléfono ya se ve el botón completo y el flujo Buscar funciona (estaba viendo una versión vieja en caché).
 - `DASHBOARD_CAMBIOS.md` y `presentacion_app.md` están desactualizados si se quieren documentar los últimos fixes.
+- **Pestaña "última modificación":** confirmar si debe mostrar **solo órdenes activas** (hoy trae todas, incluido Completado) y si el mapeo de "Contacto" (→ `Cuenta: Nombre de la cuenta`) es correcto.
+- **Botón "Última Modificación" en la app (v39):** confirmar en el teléfono que la card aparece en el inicio y que el badge semáforo y los botones Ll./WA se ven bien (recarga forzada, esperar ~2 min tras el push).

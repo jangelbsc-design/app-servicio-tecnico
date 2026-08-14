@@ -456,8 +456,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const estadosSearchInput = document.getElementById('estados-search-input');
     estadosSearchInput?.addEventListener('input', debounce((e) => {
         const query = e.target.value.toLowerCase();
-        filteredOrdenes = appOrdersData.filter(o =>
-            isOrderInRegion(o, currentRegionOrdenes) &&
+        const esUltimaMod = currentRegionOrdenes === 'Última Modificación';
+        const base = esUltimaMod
+            ? dataFiltradaPorRol()
+            : appOrdersData.filter(o => isOrderInRegion(o, currentRegionOrdenes));
+        filteredOrdenes = base.filter(o =>
             ((o['Número de orden de trabajo'] || "").toLowerCase().includes(query) ||
                 (o['Cuenta: Nombre de la cuenta'] || "").toLowerCase().includes(query) ||
                 (o['Producto ST'] || "").toLowerCase().includes(query) ||
@@ -476,7 +479,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 (o.adicDetalleFalla || "").toLowerCase().includes(query) ||
                 (o.adicObservaciones || "").toLowerCase().includes(query))
         );
-        renderOrdenes(currentRegionOrdenes, filteredOrdenes);
+        renderOrdenes(currentRegionOrdenes, filteredOrdenes,
+            esUltimaMod ? { ordenarPor: 'modificacion', titulo: 'Órdenes por última modificación' } : undefined);
     }, 300));
 
     // Lógica de Búsqueda Global
@@ -766,7 +770,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     document.getElementById('btn-back-estados-list')?.addEventListener('click', () => {
-        if (globalSearchInput && globalSearchInput.value.trim() !== "") {
+        if (currentRegionOrdenes === 'Última Modificación') {
+            console.log("← Volver al dashboard (vista última modificación)");
+            currentRegionOrdenes = "";
+            showView(viewDashboard);
+        } else if (globalSearchInput && globalSearchInput.value.trim() !== "") {
             console.log("← Volver al dashboard (resultado de búsqueda)");
             showView(viewDashboard);
         } else {
@@ -824,6 +832,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 break;
             case 'view-ejecutivo':
                 showEjecutivo();
+                break;
+            case 'view-ultima-modificacion':
+                showUltimaModificacion();
                 break;
             case 'view-alertas':
                 showAlertas();
@@ -1017,9 +1028,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderOrdenes(region, filteredOrdenes);
     }
 
-    function renderOrdenes(region, ordenes) {
+    function showUltimaModificacion() {
+        console.log("\n📋 Mostrando órdenes por última modificación (antiguas primero)");
+        currentRegionOrdenes = 'Última Modificación';
+        filteredOrdenes = appOrdersData;
+
+        if (estadosSearchInput) estadosSearchInput.value = "";
+        renderOrdenes('Última Modificación', filteredOrdenes, {
+            ordenarPor: 'modificacion',
+            titulo: 'Órdenes por última modificación'
+        });
+    }
+
+    function renderOrdenes(region, ordenes, opciones) {
         const titleEl = document.getElementById('view-estados-title');
-        if (titleEl) titleEl.textContent = `Órdenes - ${region}`;
+        if (titleEl) titleEl.textContent = (opciones && opciones.titulo) ? opciones.titulo : `Órdenes - ${region}`;
 
         const contentEl = document.getElementById('estados-content');
         if (!contentEl) return;
@@ -1038,12 +1061,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             ordenesFiltradas = ordenesFiltradas.filter(o => isOrderInRegion(o, regional));
         }
 
-        // ORDENAMIENTO: más antiguas primero (urgencia)
-        ordenesFiltradas.sort((a, b) => {
-            const da = parseInt(a['Tiempo desde apertura (Días)'] || '0', 10);
-            const db = parseInt(b['Tiempo desde apertura (Días)'] || '0', 10);
-            return db - da;
-        });
+        // ORDENAMIENTO
+        if (opciones && opciones.ordenarPor === 'modificacion') {
+            // Por fecha de última modificación: de la más antigua a la más reciente (sin fecha al final)
+            ordenesFiltradas.sort((a, b) => {
+                const fa = parseFecha(a['Fecha de la última modificación']);
+                const fb = parseFecha(b['Fecha de la última modificación']);
+                if (!fa && !fb) return 0;
+                if (!fa) return 1;
+                if (!fb) return -1;
+                return fa - fb;
+            });
+        } else {
+            // más antiguas primero (urgencia)
+            ordenesFiltradas.sort((a, b) => {
+                const da = parseInt(a['Tiempo desde apertura (Días)'] || '0', 10);
+                const db = parseInt(b['Tiempo desde apertura (Días)'] || '0', 10);
+                return db - da;
+            });
+        }
 
         if (ordenesFiltradas.length === 0) {
             contentEl.innerHTML = '<p style="text-align:center;padding:2rem;">No se encontraron órdenes activas.</p>';
@@ -1095,6 +1131,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             const activo = o['Producto ST'] || 'N/A';
             const nroOrdenMarca = o['Nro de orden de trabajo (Marca)'] || 'S/O';
             const diasST = o['Tiempo desde apertura (Días)'] || '0';
+
+            // Badge de días sin modificación (semáforo) — solo en la vista de última modificación
+            const diasMod = diasDesde(o['Fecha de la última modificación']);
+            let modBadge = '';
+            if (opciones && opciones.ordenarPor === 'modificacion') {
+                let bg = '#f1f5f9', col = '#64748b';
+                if (diasMod !== null && diasMod !== undefined) {
+                    if (diasMod >= 4) { bg = '#fee2e2'; col = '#dc2626'; }
+                    else if (diasMod >= 2) { bg = '#fef9c3'; col = '#b45309'; }
+                    else { bg = '#dcfce7'; col = '#16a34a'; }
+                }
+                modBadge = `<span style="display:flex; align-items:center; gap:4px; background:${bg}; color:${col}; padding:2px 8px; border-radius:12px; font-weight:800; white-space:nowrap;"><i class="bi bi-hourglass-split"></i> ${diasMod ?? '—'}d</span>`;
+            }
 
             if (workshop) {
                 // Formatear mensaje para taller específico
@@ -1183,6 +1232,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <div style="display:flex; align-items:center; gap:12px; font-size:0.8rem; color:#64748b;">
                                     <span style="display:flex; align-items:center; gap:4px;"><i class="bi bi-geo-alt-fill" style="color:#ef4444;"></i> ${o['Territorio de servicio: Nombre'] || 'Sin región'}</span>
                                     <span style="display:flex; align-items:center; gap:4px;"><i class="bi bi-clock-fill" style="color:#f59e0b;"></i> ${o['Tiempo desde apertura (Días)'] || '0'}d</span>
+                                    ${modBadge}
                                 </div>
                             </div>
                             <div style="display:flex; flex-direction:column; align-items:flex-end; justify-content:space-between; height:100%; min-height:60px;">
