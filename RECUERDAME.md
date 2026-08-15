@@ -82,6 +82,15 @@ App web estática (mobile-first, estética Dismac rojo/blanco/negro) de **soport
 - Implementación: `renderOrdenes(region, ordenes, opciones)` ahora acepta `{ordenarPor:'modificacion', titulo}`; el buscador de órdenes también funciona en esta vista; el botón "Volver" regresa al inicio.
 - **Filtro por regional con chips** (v40): dentro de la vista aparece una fila de chips `#modificacion-filtro` generados por `renderUltimaModFiltro()` con las opciones **"Todas"**, **"Regionales"** (agrupa todo excepto Santa Cruz/El Alto/Cochabamba/La Paz y municipios — misma lógica que `isOrderInRegion('Regionales')`) y cada territorio presente en los datos. El chip activo filtra la lista manteniendo el orden por última modificación y actualiza el título. Estado: `ultimaModFiltro` (se resetea a 'todas' al volver al dashboard). El buscador respeta el chip seleccionado.
 
+### 9. App — íconos por criterio en las tarjetas del menú + limpieza del buscador (14/08/2026)
+- Íconos de las tarjetas del inicio (se intentó primero el wordmark dis|mac® v41, luego se cambió por íconos que representan el criterio de cada botón, v42):
+  - **Dashboard Ejecutivo** → velocímetro `bi-speedometer2` (tablero/gestión).
+  - **Última Modificación** → el ícono es un **círculo contador** `#contador-ultima-mod` (rojo `#E31837`, número blanco bold) que muestra el total de órdenes activas con **≥4 días sin modificar** (las "rojas" del semáforo); si es 0 pasa a verde. Se calcula en `renderKPIs()` (respeta el rol regional).
+  - **Satisfacción del Cliente** → silueta de perfil sin foto `bi-person-circle`.
+- **Fondo gris de los íconos** `#B8B8B8` (igual que el del botón Estados de Servicio; se muestreó el PNG `icono-servicio-tecnico.png`: RGB ~184/184/184).
+- **Limpieza del buscador global al volver al menú principal** (v43): en `showView()`, si la vista destino es `viewDashboard`, se vacía `#global-search-input`, se ocultan los resultados y se restaura el dashboard.
+- Colores de marca: rojo `#E31837`, blanco, negro `#111`, gris `#B8B8B8`.
+
 ## 🧩 Cómo se probó
 
 - Scripts de verificación en `C:\Users\jabustos\AppData\Local\Temp\opencode\` (ej. `test_alert.js`): simulan el filtro de alertas con datos reales. Verificado: región sí filtra (228 todas → 95 Santa Cruz → 48 La Paz → etc.).
@@ -109,11 +118,11 @@ App web estática (mobile-first, estética Dismac rojo/blanco/negro) de **soport
 - `fe47b53` — chore: quitar captura de prueba del repo.
 - `8d88c4a` — feat: satisfacción del cliente lee la pestaña 'nps por regional' (v38).
 - `529cd3e` — fix: padding inferior en desktop para que la barra de navegación no tape el dashboard ejecutivo (style.css v17).
-- **Versión actual en producción: `app.js?v=40`.**
+- **Versión actual en producción: `app.js?v=43`.**
 
 ## 🔮 Pendiente / a confirmar
 
 - Confirmar con el usuario que en su teléfono ya se ve el botón completo y el flujo Buscar funciona (estaba viendo una versión vieja en caché).
 - `DASHBOARD_CAMBIOS.md` y `presentacion_app.md` están desactualizados si se quieren documentar los últimos fixes.
 - **Pestaña "última modificación":** confirmar si debe mostrar **solo órdenes activas** (hoy trae todas, incluido Completado) y si el mapeo de "Contacto" (→ `Cuenta: Nombre de la cuenta`) es correcto.
-- **Botón "Última Modificación" en la app (v40):** confirmar en el teléfono que la card aparece en el inicio, que el filtro por regional (chips con opción "Regionales") funciona y que el badge semáforo y los botones Ll./WA se ven bien (recarga forzada, esperar ~2 min tras el push).
+- **Botón "Última Modificación" en la app (v43):** confirmar en el teléfono que la card aparece en el inicio, que el filtro por regional (chips con opción "Regionales") funciona y que el badge semáforo y los botones Ll./WA se ven bien (recarga forzada, esperar ~2 min tras el push).

@@ -557,6 +557,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             return (diasMod !== null && diasMod >= 4) || diasCreacion >= 8;
         });
 
+        // Contador del botón "Última Modificación": órdenes con >=4 días sin modificar (semáforo rojo)
+        const sinModificar4 = activas.filter(o => {
+            const dm = diasDesde(o['Fecha de la última modificación']);
+            return dm !== null && dm >= 4;
+        }).length;
+        const contadorEl = document.getElementById('contador-ultima-mod');
+        if (contadorEl) {
+            contadorEl.textContent = sinModificar4;
+            if (sinModificar4 > 0) {
+                contadorEl.style.background = '#E31837';
+                contadorEl.style.color = '#ffffff';
+                contadorEl.style.boxShadow = '0 2px 8px rgba(227,24,55,0.3)';
+            } else {
+                contadorEl.style.background = '#dcfce7';
+                contadorEl.style.color = '#16a34a';
+                contadorEl.style.boxShadow = '0 2px 8px rgba(22,163,74,0.25)';
+            }
+        }
+
         const regionesSet = new Set(activas.map(o => (o['Territorio de servicio: Nombre'] || 'Sin región').trim()));
 
         const set = (id, val) => {
@@ -2938,6 +2957,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     function showView(view) {
         document.querySelectorAll('.main-content').forEach(v => v.classList.add('hidden'));
         view?.classList.remove('hidden');
+
+        // Al volver al menú principal, limpiar la búsqueda global (input + resultados)
+        if (view === viewDashboard) {
+            if (globalSearchInput) globalSearchInput.value = "";
+            const clearGlobal = document.getElementById('clear-global-search');
+            if (clearGlobal) clearGlobal.style.display = 'none';
+            if (globalSearchResults) {
+                globalSearchResults.classList.add('hidden');
+                globalSearchResults.innerHTML = '';
+            }
+            if (dashboardMainGrid) dashboardMainGrid.classList.remove('hidden');
+            if (dashboardContact) dashboardContact.classList.remove('hidden');
+            if (dashboardFaq) dashboardFaq.classList.remove('hidden');
+        }
     }
 
     async function loadAllData() {
