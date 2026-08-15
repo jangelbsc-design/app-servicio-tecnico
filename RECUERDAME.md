@@ -80,6 +80,7 @@ App web estática (mobile-first, estética Dismac rojo/blanco/negro) de **soport
 - Lista las órdenes **de la modificación más antigua a la más reciente** (`parseFecha('Fecha de la última modificación')` asc; sin fecha al final), respetando el filtro de rol regional y los estados excluidos (cancelado/error/entregado/cerrado).
 - Cada tarjeta muestra un **badge semáforo de días sin modificación** (rojo ≥4, amarillo 2-3, verde 0-1, gris sin fecha) además de los botones Ll./WA del taller.
 - Implementación: `renderOrdenes(region, ordenes, opciones)` ahora acepta `{ordenarPor:'modificacion', titulo}`; el buscador de órdenes también funciona en esta vista; el botón "Volver" regresa al inicio.
+- **Filtro por regional con chips** (v40): dentro de la vista aparece una fila de chips `#modificacion-filtro` generados por `renderUltimaModFiltro()` con las opciones **"Todas"**, **"Regionales"** (agrupa todo excepto Santa Cruz/El Alto/Cochabamba/La Paz y municipios — misma lógica que `isOrderInRegion('Regionales')`) y cada territorio presente en los datos. El chip activo filtra la lista manteniendo el orden por última modificación y actualiza el título. Estado: `ultimaModFiltro` (se resetea a 'todas' al volver al dashboard). El buscador respeta el chip seleccionado.
 
 ## 🧩 Cómo se probó
 
@@ -108,11 +109,11 @@ App web estática (mobile-first, estética Dismac rojo/blanco/negro) de **soport
 - `fe47b53` — chore: quitar captura de prueba del repo.
 - `8d88c4a` — feat: satisfacción del cliente lee la pestaña 'nps por regional' (v38).
 - `529cd3e` — fix: padding inferior en desktop para que la barra de navegación no tape el dashboard ejecutivo (style.css v17).
-- **Versión actual en producción: `app.js?v=39`.**
+- **Versión actual en producción: `app.js?v=40`.**
 
 ## 🔮 Pendiente / a confirmar
 
 - Confirmar con el usuario que en su teléfono ya se ve el botón completo y el flujo Buscar funciona (estaba viendo una versión vieja en caché).
 - `DASHBOARD_CAMBIOS.md` y `presentacion_app.md` están desactualizados si se quieren documentar los últimos fixes.
 - **Pestaña "última modificación":** confirmar si debe mostrar **solo órdenes activas** (hoy trae todas, incluido Completado) y si el mapeo de "Contacto" (→ `Cuenta: Nombre de la cuenta`) es correcto.
-- **Botón "Última Modificación" en la app (v39):** confirmar en el teléfono que la card aparece en el inicio y que el badge semáforo y los botones Ll./WA se ven bien (recarga forzada, esperar ~2 min tras el push).
+- **Botón "Última Modificación" en la app (v40):** confirmar en el teléfono que la card aparece en el inicio, que el filtro por regional (chips con opción "Regionales") funciona y que el badge semáforo y los botones Ll./WA se ven bien (recarga forzada, esperar ~2 min tras el push).

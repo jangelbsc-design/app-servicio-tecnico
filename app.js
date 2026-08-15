@@ -436,6 +436,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let filteredTalleres = [];
     let currentRegionOrdenes = "";
     let filteredOrdenes = [];
+    let ultimaModFiltro = 'todas';
 
     // Buscador Regional de Talleres
     const workshopSearchInput = document.getElementById('workshop-search-input');
@@ -458,7 +459,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const query = e.target.value.toLowerCase();
         const esUltimaMod = currentRegionOrdenes === 'Última Modificación';
         const base = esUltimaMod
-            ? dataFiltradaPorRol()
+            ? (ultimaModFiltro === 'todas' ? appOrdersData : appOrdersData.filter(o => isOrderInRegion(o, ultimaModFiltro)))
             : appOrdersData.filter(o => isOrderInRegion(o, currentRegionOrdenes));
         filteredOrdenes = base.filter(o =>
             ((o['Número de orden de trabajo'] || "").toLowerCase().includes(query) ||
@@ -773,6 +774,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (currentRegionOrdenes === 'Última Modificación') {
             console.log("← Volver al dashboard (vista última modificación)");
             currentRegionOrdenes = "";
+            ultimaModFiltro = 'todas';
+            const filtroEl = document.getElementById('modificacion-filtro');
+            if (filtroEl) filtroEl.classList.add('hidden');
             showView(viewDashboard);
         } else if (globalSearchInput && globalSearchInput.value.trim() !== "") {
             console.log("← Volver al dashboard (resultado de búsqueda)");
@@ -1028,15 +1032,50 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderOrdenes(region, filteredOrdenes);
     }
 
+    function renderUltimaModFiltro() {
+        const cont = document.getElementById('modificacion-filtro');
+        if (!cont) return;
+
+        const territorios = [...new Set(appOrdersData.map(o => (o['Territorio de servicio: Nombre'] || '').trim()).filter(t => t !== ''))];
+        const opciones = ['todas', 'Regionales', ...territorios];
+
+        const baseStyle = 'padding:6px 12px;border-radius:16px;border:1px solid #e2e8f0;background:#ffffff;color:#334155;font-family:"Outfit",sans-serif;font-size:0.78rem;font-weight:600;cursor:pointer;';
+        const activeStyle = 'padding:6px 12px;border-radius:16px;border:1px solid #dc2626;background:#dc2626;color:#ffffff;font-family:"Outfit",sans-serif;font-size:0.78rem;font-weight:600;cursor:pointer;';
+
+        cont.innerHTML = opciones.map(op => {
+            const label = op === 'todas' ? 'Todas' : op;
+            const active = op === ultimaModFiltro;
+            return `<button type="button" data-region="${escapeHTML(op)}" style="${active ? activeStyle : baseStyle}">${escapeHTML(label)}</button>`;
+        }).join('');
+
+        cont.querySelectorAll('[data-region]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                ultimaModFiltro = btn.getAttribute('data-region');
+                showUltimaModificacion();
+            });
+        });
+    }
+
     function showUltimaModificacion() {
         console.log("\n📋 Mostrando órdenes por última modificación (antiguas primero)");
         currentRegionOrdenes = 'Última Modificación';
-        filteredOrdenes = appOrdersData;
+
+        const filtroEl = document.getElementById('modificacion-filtro');
+        if (filtroEl) filtroEl.classList.remove('hidden');
+        renderUltimaModFiltro();
+
+        if (ultimaModFiltro === 'todas') {
+            filteredOrdenes = appOrdersData;
+        } else {
+            filteredOrdenes = appOrdersData.filter(o => isOrderInRegion(o, ultimaModFiltro));
+        }
 
         if (estadosSearchInput) estadosSearchInput.value = "";
         renderOrdenes('Última Modificación', filteredOrdenes, {
             ordenarPor: 'modificacion',
-            titulo: 'Órdenes por última modificación'
+            titulo: ultimaModFiltro === 'todas'
+                ? 'Órdenes por última modificación'
+                : `Última modificación — ${ultimaModFiltro}`
         });
     }
 
