@@ -557,6 +557,26 @@ document.addEventListener('DOMContentLoaded', async () => {
             return (diasMod !== null && diasMod >= 4) || diasCreacion >= 8;
         });
 
+        const escalamientos = activas.filter(o => {
+            const diasCompra = diasDesde(o['Fecha de compra']);
+            const tieneFalla = o.adicDetalleFalla && o.adicDetalleFalla.trim().length > 0;
+            return diasCompra !== null && diasCompra <= 30 && tieneFalla;
+        });
+
+        const contadorEsc = document.getElementById('contador-escalamientos');
+        if (contadorEsc) {
+            contadorEsc.textContent = escalamientos.length;
+            if (escalamientos.length > 0) {
+                contadorEsc.style.background = '#E31837';
+                contadorEsc.style.color = '#ffffff';
+                contadorEsc.style.boxShadow = '0 2px 8px rgba(227,24,55,0.3)';
+            } else {
+                contadorEsc.style.background = '#dcfce7';
+                contadorEsc.style.color = '#16a34a';
+                contadorEsc.style.boxShadow = '0 2px 8px rgba(22,163,74,0.25)';
+            }
+        }
+
         // Contador del botón "Última Modificación": órdenes con >=4 días sin modificar (semáforo rojo)
         const sinModificar4 = activas.filter(o => {
             const dm = diasDesde(o['Fecha de la última modificación']);
@@ -797,6 +817,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const filtroEl = document.getElementById('modificacion-filtro');
             if (filtroEl) filtroEl.classList.add('hidden');
             showView(viewDashboard);
+        } else if (currentRegionOrdenes === 'Escalamientos') {
+            console.log("← Volver al dashboard (vista escalamientos)");
+            currentRegionOrdenes = "";
+            showView(viewDashboard);
         } else if (globalSearchInput && globalSearchInput.value.trim() !== "") {
             console.log("← Volver al dashboard (resultado de búsqueda)");
             showView(viewDashboard);
@@ -858,6 +882,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 break;
             case 'view-ultima-modificacion':
                 showUltimaModificacion();
+                break;
+            case 'view-escalamientos':
+                showEscalamientos();
                 break;
             case 'view-alertas':
                 showAlertas();
@@ -1095,6 +1122,37 @@ document.addEventListener('DOMContentLoaded', async () => {
             titulo: ultimaModFiltro === 'todas'
                 ? 'Órdenes por última modificación'
                 : `Última modificación — ${ultimaModFiltro}`
+        });
+    }
+
+    function showEscalamientos() {
+        console.log("\n📋 Mostrando órdenes para Escalamiento (Cambio de equipo)");
+        currentRegionOrdenes = 'Escalamientos';
+
+        const filtroEl = document.getElementById('modificacion-filtro');
+        if (filtroEl) filtroEl.classList.add('hidden');
+
+        // Filtrar
+        const estados_excluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
+        let ordenesFiltradas = appOrdersData.filter(o => {
+            const e = (o.Estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            if (estados_excluidos.some(ex => e.includes(ex))) return false;
+
+            const diasCompra = diasDesde(o['Fecha de compra']);
+            const tieneFalla = o.adicDetalleFalla && o.adicDetalleFalla.trim().length > 0;
+            return diasCompra !== null && diasCompra <= 30 && tieneFalla;
+        });
+
+        const rol = localStorage.getItem('usuario_rol');
+        const regional = localStorage.getItem('usuario_regional');
+        if (rol === 'regional' && regional) {
+            ordenesFiltradas = ordenesFiltradas.filter(o => isOrderInRegion(o, regional));
+        }
+
+        if (estadosSearchInput) estadosSearchInput.value = "";
+        
+        renderOrdenes('Escalamientos', ordenesFiltradas, {
+            titulo: 'Escalamientos (Cambio de equipo ≤ 30 días)'
         });
     }
 
