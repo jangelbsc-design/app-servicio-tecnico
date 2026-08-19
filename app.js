@@ -90,6 +90,13 @@ function diasDesde(fechaStr) {
     return Math.floor((hoy - f) / 86400000);
 }
 
+function diasEntre(fecha1Str, fecha2Str) {
+    const f1 = parseFecha(fecha1Str);
+    const f2 = parseFecha(fecha2Str);
+    if (!f1 || !f2) return null;
+    return Math.floor(Math.abs(f2 - f1) / 86400000);
+}
+
 // Configuración de garantía (días).
 const GARANTIA_DIAS_DEFAULT = 365;
 
@@ -558,7 +565,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         const escalamientos = activas.filter(o => {
-            const diasCompra = diasDesde(o['Fecha de compra']);
+            const diasCompra = diasEntre(o['Fecha de compra'], o['Fecha de inicio']);
             const tieneFalla = o.adicDetalleFalla && o.adicDetalleFalla.trim().length > 0;
             return diasCompra !== null && diasCompra <= 30 && tieneFalla;
         });
