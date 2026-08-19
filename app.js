@@ -1132,6 +1132,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         const filtroEl = document.getElementById('modificacion-filtro');
         if (filtroEl) filtroEl.classList.add('hidden');
 
+        // DEBUG: diagnosticar por qué no muestra datos
+        const conFechaCompra = appOrdersData.filter(o => o['Fecha de compra'] && o['Fecha de compra'].trim());
+        const conDetalleFalla = appOrdersData.filter(o => o.adicDetalleFalla && o.adicDetalleFalla.trim().length > 0);
+        const conAmbos = appOrdersData.filter(o => {
+            const fc = o['Fecha de compra'] && o['Fecha de compra'].trim();
+            const df = o.adicDetalleFalla && o.adicDetalleFalla.trim().length > 0;
+            return fc && df;
+        });
+        console.log(`[DEBUG ESC] Total órdenes: ${appOrdersData.length}`);
+        console.log(`[DEBUG ESC] Con Fecha de compra: ${conFechaCompra.length}`);
+        console.log(`[DEBUG ESC] Con Detalle de falla: ${conDetalleFalla.length}`);
+        console.log(`[DEBUG ESC] Con ambos: ${conAmbos.length}`);
+        if (conAmbos.length > 0) {
+            console.log(`[DEBUG ESC] Ejemplo:`, conAmbos[0]['Fecha de compra'], conAmbos[0].adicDetalleFalla?.substring(0, 50));
+        }
+        // Muestra los primeros 3 que tengan fecha de compra
+        const ejemplos = conFechaCompra.slice(0, 3);
+        ejemplos.forEach(o => {
+            console.log(`[DEBUG ESC] Ejemplo FC: "${o['Fecha de compra']}" → diasDesde=${diasDesde(o['Fecha de compra'])}, adicDetalleFalla=${o.adicDetalleFalla ? o.adicDetalleFalla.substring(0, 30) : '(vacío)'}`);
+        });
+
         // Filtrar
         const estados_excluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
         let ordenesFiltradas = appOrdersData.filter(o => {
@@ -1142,6 +1163,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             const tieneFalla = o.adicDetalleFalla && o.adicDetalleFalla.trim().length > 0;
             return diasCompra !== null && diasCompra <= 30 && tieneFalla;
         });
+        console.log(`[DEBUG ESC] Después del filtro: ${ordenesFiltradas.length} órdenes`);
+        // Mostrar nombres de columnas que contienen "fecha" o "compra"
+        if (appOrdersData.length > 0) {
+            const cols = Object.keys(appOrdersData[0]);
+            const fechaCols = cols.filter(c => /fecha|compra|purchase/i.test(c));
+            console.log(`[DEBUG ESC] Columnas con "fecha/compra":`, fechaCols);
+        }
 
         const rol = localStorage.getItem('usuario_rol');
         const regional = localStorage.getItem('usuario_regional');
