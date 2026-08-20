@@ -564,7 +564,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return (diasMod !== null && diasMod >= 4) || diasCreacion >= 8;
         });
 
-        const escalamientos = activas.filter(o => {
+        const escalamientos = appOrdersData.filter(o => {
             const diasCompra = diasEntre(o['Fecha de compra'], o['Fecha de inicio']);
             return diasCompra !== null && diasCompra <= 30;
         });
@@ -1160,10 +1160,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Filtrar
-        const estados_excluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
+        const estados_excluidos_esc = ['cancelado', 'error', 'entregado', 'cerrado'];
         let ordenesFiltradas = appOrdersData.filter(o => {
             const e = (o.Estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            if (estados_excluidos.some(ex => e.includes(ex))) return false;
+            if (estados_excluidos_esc.some(ex => e.includes(ex))) return false;
 
             const diasCompra = diasEntre(o['Fecha de compra'], o['Fecha de inicio']);
             return diasCompra !== null && diasCompra <= 30;
@@ -1185,7 +1185,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (estadosSearchInput) estadosSearchInput.value = "";
         
         renderOrdenes('Escalamientos', ordenesFiltradas, {
-            titulo: 'Escalamientos (Cambio de equipo ≤ 30 días)'
+            titulo: 'Escalamientos (Cambio de equipo ≤ 30 días)',
+            incluirCompletado: true
         });
     }
 
@@ -1197,10 +1198,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!contentEl) return;
 
         // FILTRO DE ESTADOS: Excluir error, entregado, cerrado
-        const estados_excluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
+        const estados_excluidos_re = ['cancelado', 'error', 'entregado', 'cerrado'];
         let ordenesFiltradas = ordenes.filter(o => {
             const e = (o.Estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            return !estados_excluidos.some(ex => e.includes(ex));
+            if (opciones && opciones.incluirCompletado) {
+                return !estados_excluidos_re.some(ex => e.includes(ex));
+            }
+            return !estados_excluidos_re.some(ex => e.includes(ex)) && !e.includes('completado');
         });
 
         // FILTRO DE USUARIO (NUEVO)
