@@ -218,6 +218,10 @@ function parseAllData(workshopData, globalData, adicionalesData) {
             contacto = "60263531 - 60264988";
         }
 
+        if (taller && taller.toUpperCase().includes("FRIO GAS") && !contacto) {
+            contacto = "69308611 - 75501753";
+        }
+
         const ubicacion = getVal(row, 'UBICACIÓN POR GPS', 'Ubicación', 'UBICACION', 'UBICACIÓN GPS');
 
         if (ciudad !== "") {
