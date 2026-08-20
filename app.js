@@ -444,6 +444,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentRegionOrdenes = "";
     let filteredOrdenes = [];
     let ultimaModFiltro = 'todas';
+    let escFiltro = 'todas';
 
     // Buscador Regional de Talleres
     const workshopSearchInput = document.getElementById('workshop-search-input');
@@ -826,6 +827,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else if (currentRegionOrdenes === 'Escalamientos') {
             console.log("← Volver al dashboard (vista escalamientos)");
             currentRegionOrdenes = "";
+            escFiltro = 'todas';
+            const filtroEl = document.getElementById('modificacion-filtro');
+            if (filtroEl) filtroEl.classList.add('hidden');
             showView(viewDashboard);
         } else if (globalSearchInput && globalSearchInput.value.trim() !== "") {
             console.log("← Volver al dashboard (resultado de búsqueda)");
@@ -1131,61 +1135,56 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    function renderEscFiltro(ordenes) {
+        const cont = document.getElementById('modificacion-filtro');
+        if (!cont) return;
+        const territorios = [...new Set(ordenes.map(o => (o['Territorio de servicio: Nombre'] || '').trim()).filter(t => t !== ''))];
+        const opciones = ['todas', 'Regionales', ...territorios];
+        const baseStyle = 'padding:6px 12px;border-radius:16px;border:1px solid #e2e8f0;background:#ffffff;color:#334155;font-family:"Outfit",sans-serif;font-size:0.78rem;font-weight:600;cursor:pointer;';
+        const activeStyle = 'padding:6px 12px;border-radius:16px;border:1px solid #dc2626;background:#dc2626;color:#ffffff;font-family:"Outfit",sans-serif;font-size:0.78rem;font-weight:600;cursor:pointer;';
+        cont.innerHTML = opciones.map(op => {
+            const label = op === 'todas' ? 'Todas' : op;
+            const active = op === escFiltro;
+            return `<button type="button" data-esc="${escapeHTML(op)}" style="${active ? activeStyle : baseStyle}">${escapeHTML(label)}</button>`;
+        }).join('');
+        cont.querySelectorAll('[data-esc]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                escFiltro = btn.getAttribute('data-esc');
+                showEscalamientos();
+            });
+        });
+    }
+
     function showEscalamientos() {
         console.log("\n📋 Mostrando órdenes para Escalamiento (Cambio de equipo)");
         currentRegionOrdenes = 'Escalamientos';
 
         const filtroEl = document.getElementById('modificacion-filtro');
-        if (filtroEl) filtroEl.classList.add('hidden');
+        if (filtroEl) filtroEl.classList.remove('hidden');
 
-        // DEBUG: diagnosticar por qué no muestra datos
-        const conFechaCompra = appOrdersData.filter(o => o['Fecha de compra'] && o['Fecha de compra'].trim());
-        const conDetalleFalla = appOrdersData.filter(o => o.adicDetalleFalla && o.adicDetalleFalla.trim().length > 0);
-        const conAmbos = appOrdersData.filter(o => {
-            const fc = o['Fecha de compra'] && o['Fecha de compra'].trim();
-            const df = o.adicDetalleFalla && o.adicDetalleFalla.trim().length > 0;
-            return fc && df;
-        });
-        console.log(`[DEBUG ESC] Total órdenes: ${appOrdersData.length}`);
-        console.log(`[DEBUG ESC] Con Fecha de compra: ${conFechaCompra.length}`);
-        console.log(`[DEBUG ESC] Con Detalle de falla: ${conDetalleFalla.length}`);
-        console.log(`[DEBUG ESC] Con ambos: ${conAmbos.length}`);
-        if (conAmbos.length > 0) {
-            console.log(`[DEBUG ESC] Ejemplo:`, conAmbos[0]['Fecha de compra'], conAmbos[0].adicDetalleFalla?.substring(0, 50));
-        }
-        // Muestra los primeros 3 que tengan fecha de compra
-        const ejemplos = conFechaCompra.slice(0, 3);
-        ejemplos.forEach(o => {
-            console.log(`[DEBUG ESC] Ejemplo FC: "${o['Fecha de compra']}" → diasDesde=${diasDesde(o['Fecha de compra'])}, adicDetalleFalla=${o.adicDetalleFalla ? o.adicDetalleFalla.substring(0, 30) : '(vacío)'}`);
-        });
-
-        // Filtrar
         const estados_excluidos_esc = ['cancelado', 'error', 'entregado', 'cerrado'];
-        let ordenesFiltradas = appOrdersData.filter(o => {
+        let ordenesBase = appOrdersData.filter(o => {
             const e = (o.Estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             if (estados_excluidos_esc.some(ex => e.includes(ex))) return false;
-
             const diasCompra = diasEntre(o['Fecha de compra'], o['Fecha de inicio']);
             return diasCompra !== null && diasCompra <= 30;
         });
-        console.log(`[DEBUG ESC] Después del filtro: ${ordenesFiltradas.length} órdenes`);
-        // Mostrar nombres de columnas que contienen "fecha" o "compra"
-        if (appOrdersData.length > 0) {
-            const cols = Object.keys(appOrdersData[0]);
-            const fechaCols = cols.filter(c => /fecha|compra|purchase/i.test(c));
-            console.log(`[DEBUG ESC] Columnas con "fecha/compra":`, fechaCols);
-        }
 
-        const rol = localStorage.getItem('usuario_rol');
-        const regional = localStorage.getItem('usuario_regional');
-        if (rol === 'regional' && regional) {
-            ordenesFiltradas = ordenesFiltradas.filter(o => isOrderInRegion(o, regional));
+        renderEscFiltro(ordenesBase);
+
+        let ordenesFiltradas;
+        if (escFiltro === 'todas') {
+            ordenesFiltradas = ordenesBase;
+        } else {
+            ordenesFiltradas = ordenesBase.filter(o => isOrderInRegion(o, escFiltro));
         }
 
         if (estadosSearchInput) estadosSearchInput.value = "";
-        
+
         renderOrdenes('Escalamientos', ordenesFiltradas, {
-            titulo: 'Escalamientos (Cambio de equipo ≤ 30 días)',
+            titulo: escFiltro === 'todas'
+                ? 'Escalamientos (Cambio de equipo ≤ 30 días)'
+                : `Escalamientos — ${escFiltro}`,
             incluirCompletado: true
         });
     }
