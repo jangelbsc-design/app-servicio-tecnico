@@ -1166,7 +1166,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const e = (o.Estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             if (estados_excluidos.some(ex => e.includes(ex))) return false;
 
-            const diasCompra = diasDesde(o['Fecha de compra']);
+            const diasCompra = diasEntre(o['Fecha de compra'], o['Fecha de inicio']);
             const tieneFalla = o.adicDetalleFalla && o.adicDetalleFalla.trim().length > 0;
             return diasCompra !== null && diasCompra <= 30 && tieneFalla;
         });
