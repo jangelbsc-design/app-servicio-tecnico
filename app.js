@@ -426,9 +426,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Cargar datos
     // Sincronizar el rol del usuario con la hoja (soporta sesiones antiguas sin rol guardado)
     await syncSessionUser();
-    // Mostrar tarjeta de encuestas NPS solo para administradores (antes de cargar datos)
+    // Mostrar tarjetas solo para administradores (antes de cargar datos)
     const adminEncuestaCard = document.getElementById('admin-encuesta-card');
     if (adminEncuestaCard) adminEncuestaCard.classList.toggle('hidden', !isAdmin());
+    document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !isAdmin()));
 
     console.log("📥 Cargando datos...");
     await loadAllData();
