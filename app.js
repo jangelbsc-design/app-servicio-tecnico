@@ -681,7 +681,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <span style="font-weight:700; font-size:1rem; color:#111;">${t.TALLER}</span>
                                 <span style="font-size:0.75rem; background:#f1f5f9; padding:2px 8px; border-radius:10px; color:#64748b;">${t.CIUDAD}</span>
                             </div>
-                            <div style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">${t.MARCA}</div>
+                            <div style="font-size:0.85rem; color:#64748b; margin-bottom:5px;">${t.MARCA}</div>
+                            ${numList.length > 0 ? `<div style="font-size:0.8rem; color:#475569; margin-bottom:10px;"><i class="bi bi-telephone" style="margin-right:4px;"></i>${numList.join(' · ')}</div>` : ''}
                             <div style="display:flex; gap:8px;">
                                 ${firstNum ? `
                                     <a href="tel:${firstNum}" style="text-decoration:none; background:#E31837; color:white; padding:5px 12px; border-radius:8px; font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:5px;">
