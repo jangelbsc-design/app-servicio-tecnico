@@ -566,8 +566,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const escalamientos = activas.filter(o => {
             const diasCompra = diasEntre(o['Fecha de compra'], o['Fecha de inicio']);
-            const tieneFalla = o.adicDetalleFalla && o.adicDetalleFalla.trim().length > 0;
-            return diasCompra !== null && diasCompra <= 30 && tieneFalla;
+            return diasCompra !== null && diasCompra <= 30;
         });
 
         const contadorEsc = document.getElementById('contador-escalamientos');
@@ -1167,8 +1166,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (estados_excluidos.some(ex => e.includes(ex))) return false;
 
             const diasCompra = diasEntre(o['Fecha de compra'], o['Fecha de inicio']);
-            const tieneFalla = o.adicDetalleFalla && o.adicDetalleFalla.trim().length > 0;
-            return diasCompra !== null && diasCompra <= 30 && tieneFalla;
+            return diasCompra !== null && diasCompra <= 30;
         });
         console.log(`[DEBUG ESC] Después del filtro: ${ordenesFiltradas.length} órdenes`);
         // Mostrar nombres de columnas que contienen "fecha" o "compra"
