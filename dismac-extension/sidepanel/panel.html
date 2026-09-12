@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dismac Assist</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <div class="sp-container">
+    <header class="sp-header">
+      <div class="sp-logo">
+        <div class="sp-logo-dis">dis</div>
+        <div class="sp-logo-mac">mac<sup>&reg;</sup></div>
+      </div>
+      <div class="sp-header-right">
+        <span class="sp-sync-status" id="sync-indicator" title="Estado de sincronización">
+          <i class="bi bi-check-circle-fill" style="color:#16a34a;"></i>
+        </span>
+        <button class="sp-btn-icon" id="refresh-btn" title="Sincronizar datos">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+        <span class="sp-user-name" id="header-usuario">—</span>
+      </div>
+    </header>
+
+    <main class="sp-main" id="sp-content">
+      <!-- Dashboard -->
+      <div id="view-dashboard" class="sp-view">
+        <div class="sp-welcome">
+          <h1>¡Hola!<br>¿Cómo podemos ayudarte?</h1>
+        </div>
+
+        <div class="sp-search-box">
+          <i class="bi bi-search"></i>
+          <input type="text" id="global-search" placeholder="Buscar servicios o talleres...">
+          <i class="bi bi-x-circle-fill sp-clear" id="clear-search" style="display:none;"></i>
+        </div>
+
+        <div id="search-results" class="sp-hidden"></div>
+
+        <div class="sp-cards" id="main-cards">
+          <button class="sp-card" data-action="red-talleres">
+            <div class="sp-card-icon" style="background:#fee2e2; color:#E31837;">
+              <i class="bi bi-geo-alt-fill"></i>
+            </div>
+            <div class="sp-card-text">
+              <span class="sp-card-title">Red de Talleres</span>
+              <span class="sp-card-sub">Contactos regionales</span>
+            </div>
+            <i class="bi bi-chevron-right sp-arrow"></i>
+          </button>
+
+          <button class="sp-card" data-action="estados-menu">
+            <div class="sp-card-icon" style="background:#e0e7ff; color:#3b82f6;">
+              <i class="bi bi-file-earmark-text"></i>
+            </div>
+            <div class="sp-card-text">
+              <span class="sp-card-title">Estados de Servicio</span>
+              <span class="sp-card-sub">Seguimiento de órdenes</span>
+            </div>
+            <i class="bi bi-chevron-right sp-arrow"></i>
+          </button>
+
+          <button class="sp-card" data-action="ultima-mod">
+            <div class="sp-card-icon" style="background:#fef3c7; color:#d97706;">
+              <i class="bi bi-hourglass-split"></i>
+            </div>
+            <div class="sp-card-text">
+              <span class="sp-card-title">Última Modificación</span>
+              <span class="sp-card-sub">Órdenes sin cambios</span>
+            </div>
+            <span class="sp-badge" id="badge-ultima-mod">0</span>
+          </button>
+
+          <button class="sp-card" data-action="escalamientos">
+            <div class="sp-card-icon" style="background:#dcfce7; color:#16a34a;">
+              <i class="bi bi-arrow-up-right-circle"></i>
+            </div>
+            <div class="sp-card-text">
+              <span class="sp-card-title">Escalamientos</span>
+              <span class="sp-card-sub">Cambio de equipo ≤30d</span>
+            </div>
+            <span class="sp-badge sp-badge-green" id="badge-esc">0</span>
+          </button>
+
+          <button class="sp-card" data-action="encuesta">
+            <div class="sp-card-icon" style="background:#f3e8ff; color:#8b5cf6;">
+              <i class="bi bi-emoji-smile"></i>
+            </div>
+            <div class="sp-card-text">
+              <span class="sp-card-title">Satisfacción (NPS)</span>
+              <span class="sp-card-sub">Encuestas por regional</span>
+            </div>
+            <i class="bi bi-chevron-right sp-arrow"></i>
+          </button>
+
+          <button class="sp-card" data-action="citas">
+            <div class="sp-card-icon" style="background:#ecfdf5; color:#059669;">
+              <i class="bi bi-calendar-check"></i>
+            </div>
+            <div class="sp-card-text">
+              <span class="sp-card-title">Citas del Día</span>
+              <span class="sp-card-sub">Gestión de citas por taller</span>
+            </div>
+            <span class="sp-badge sp-badge-green" id="badge-citas">0</span>
+          </button>
+        </div>
+
+        <section class="sp-kpi-section">
+          <h3>Resumen</h3>
+          <div class="sp-kpi-grid">
+            <div class="sp-kpi-card">
+              <div class="sp-kpi-icon" style="background:#e0e7ff; color:#3b82f6;"><i class="bi bi-file-earmark-text"></i></div>
+              <div><div class="sp-kpi-val" id="kpi-ordenes">0</div><div class="sp-kpi-label">Activas</div></div>
+            </div>
+            <div class="sp-kpi-card">
+              <div class="sp-kpi-icon" style="background:#fee2e2; color:#ef4444;"><i class="bi bi-exclamation-triangle"></i></div>
+              <div><div class="sp-kpi-val" id="kpi-estancadas">0</div><div class="sp-kpi-label">Estancadas</div></div>
+            </div>
+            <div class="sp-kpi-card">
+              <div class="sp-kpi-icon" style="background:#dcfce7; color:#16a34a;"><i class="bi bi-buildings"></i></div>
+              <div><div class="sp-kpi-val" id="kpi-talleres">0</div><div class="sp-kpi-label">Talleres</div></div>
+            </div>
+            <div class="sp-kpi-card">
+              <div class="sp-kpi-icon" style="background:#fef3c7; color:#d97706;"><i class="bi bi-geo-alt"></i></div>
+              <div><div class="sp-kpi-val" id="kpi-regiones">0</div><div class="sp-kpi-label">Regiones</div></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="sp-contact-section">
+          <h3>Contacto Rápido</h3>
+          <div class="sp-contact-grid">
+            <a href="https://wa.me/59175010500" target="_blank" class="sp-contact-btn sp-wa">
+              <i class="bi bi-whatsapp"></i> WhatsApp
+            </a>
+            <a href="tel:80010200" class="sp-contact-btn sp-phone">
+              <i class="bi bi-telephone"></i> Llamar
+            </a>
+          </div>
+        </section>
+      </div>
+
+      <!-- Regiones Talleres -->
+      <div id="view-talleres" class="sp-view sp-hidden">
+        <div class="sp-view-header">
+          <button class="sp-btn-back" data-action="go-home"><i class="bi bi-arrow-left"></i></button>
+          <h2>Regiones</h2>
+        </div>
+        <div class="sp-cards">
+          <button class="sp-card" data-action="talleres-region" data-region="Tarija"><span class="sp-card-title">Tarija</span></button>
+          <button class="sp-card" data-action="talleres-region" data-region="Sucre"><span class="sp-card-title">Sucre</span></button>
+          <button class="sp-card" data-action="talleres-region" data-region="Santa Cruz"><span class="sp-card-title">Santa Cruz</span></button>
+          <button class="sp-card" data-action="talleres-region" data-region="La Paz"><span class="sp-card-title">La Paz</span></button>
+          <button class="sp-card" data-action="talleres-region" data-region="Cochabamba"><span class="sp-card-title">Cochabamba</span></button>
+        </div>
+      </div>
+
+      <!-- Lista Talleres -->
+      <div id="view-talleres-list" class="sp-view sp-hidden">
+        <div class="sp-view-header">
+          <button class="sp-btn-back" data-action="red-talleres"><i class="bi bi-arrow-left"></i></button>
+          <h2 id="talleres-list-title">Talleres</h2>
+        </div>
+        <div class="sp-search-box">
+          <i class="bi bi-search"></i>
+          <input type="text" id="talleres-search" placeholder="Buscar taller o marca...">
+        </div>
+        <div id="talleres-content"></div>
+      </div>
+
+      <!-- Menú Estados -->
+      <div id="view-estados-menu" class="sp-view sp-hidden">
+        <div class="sp-view-header">
+          <button class="sp-btn-back" data-action="go-home"><i class="bi bi-arrow-left"></i></button>
+          <h2>Órdenes</h2>
+        </div>
+        <div class="sp-cards">
+          <button class="sp-card" data-action="ordenes-region" data-region="Regionales" style="border:2px solid #fecaca; background:linear-gradient(135deg,#fff5f5,#fff);">
+            <span class="sp-card-title">Regionales</span>
+          </button>
+          <button class="sp-card" data-action="ordenes-region" data-region="Tarija"><span class="sp-card-title">Tarija</span></button>
+          <button class="sp-card" data-action="ordenes-region" data-region="Sucre"><span class="sp-card-title">Sucre</span></button>
+          <button class="sp-card" data-action="ordenes-region" data-region="Santa Cruz"><span class="sp-card-title">Santa Cruz</span></button>
+          <button class="sp-card" data-action="ordenes-region" data-region="Municipios"><span class="sp-card-title">Municipios (SCZ)</span></button>
+          <button class="sp-card" data-action="ordenes-region" data-region="La Paz"><span class="sp-card-title">La Paz</span></button>
+          <button class="sp-card" data-action="ordenes-region" data-region="Cochabamba"><span class="sp-card-title">Cochabamba</span></button>
+          <button class="sp-card" data-action="ordenes-region" data-region="Oruro"><span class="sp-card-title">Oruro</span></button>
+          <button class="sp-card" data-action="ordenes-region" data-region="Beni"><span class="sp-card-title">Beni</span></button>
+          <button class="sp-card" data-action="ordenes-region" data-region="Potosí"><span class="sp-card-title">Potosí</span></button>
+        </div>
+      </div>
+
+      <!-- Lista Órdenes -->
+      <div id="view-ordenes" class="sp-view sp-hidden">
+        <div class="sp-view-header">
+          <button class="sp-btn-back" id="btn-back-ordenes"><i class="bi bi-arrow-left"></i></button>
+          <h2 id="ordenes-title">Órdenes</h2>
+        </div>
+        <div class="sp-search-box">
+          <i class="bi bi-search"></i>
+          <input type="text" id="ordenes-search" placeholder="Buscar por ODT, cliente o producto...">
+        </div>
+        <div id="ordenes-content"></div>
+        <div id="ordenes-pagination" class="sp-pagination"></div>
+      </div>
+
+      <!-- Detalle de Orden -->
+      <div id="view-orden-detail" class="sp-view sp-hidden">
+        <div class="sp-view-header">
+          <button class="sp-btn-back" id="btn-back-orden"><i class="bi bi-arrow-left"></i></button>
+          <h2>Detalle Orden</h2>
+        </div>
+        <div id="orden-detail-content"></div>
+      </div>
+
+      <!-- NPS Encuesta -->
+      <div id="view-encuesta" class="sp-view sp-hidden">
+        <div class="sp-view-header">
+          <button class="sp-btn-back" data-action="go-home"><i class="bi bi-arrow-left"></i></button>
+          <h2>Satisfacción (NPS)</h2>
+        </div>
+        <div id="encuesta-content"></div>
+      </div>
+
+      <!-- Citas del Día -->
+      <div id="view-citas" class="sp-view sp-hidden">
+        <div class="sp-view-header">
+          <button class="sp-btn-back" data-action="go-home"><i class="bi bi-arrow-left"></i></button>
+          <h2>Citas</h2>
+        </div>
+        <div class="sp-citas-filters">
+          <div class="sp-citas-filter-row">
+            <button class="sp-citas-filter active" data-cita-filter="todas">Todas</button>
+            <button class="sp-citas-filter" data-cita-filter="hoy">Hoy</button>
+            <button class="sp-citas-filter" data-cita-filter="manana">Mañana</button>
+            <button class="sp-citas-filter" data-cita-filter="semana">Semana</button>
+          </div>
+          <div class="sp-citas-filter-row">
+            <button class="sp-citas-status active" data-status-filter="todas">Todos estados</button>
+            <button class="sp-citas-status" data-status-filter="completado">Completados</button>
+            <button class="sp-citas-status" data-status-filter="cancelado">Cancelados</button>
+            <button class="sp-citas-status" data-status-filter="programado">Programados</button>
+          </div>
+          <button class="sp-citas-search-btn" id="citas-buscar-btn">Buscar</button>
+        </div>
+        <div class="sp-search-box">
+          <i class="bi bi-search"></i>
+          <input type="text" id="citas-search" placeholder="Buscar por cliente, ODT, técnico o ciudad...">
+        </div>
+        <div id="citas-content"></div>
+      </div>
+
+      <!-- Detalle de Cita -->
+      <div id="view-cita-detail" class="sp-view sp-hidden">
+        <div class="sp-view-header">
+          <button class="sp-btn-back" id="btn-back-citas"><i class="bi bi-arrow-left"></i></button>
+          <h2>Detalle de Cita</h2>
+        </div>
+        <div id="cita-detail-content"></div>
+      </div>
+    </main>
+
+    <div class="sp-footer" id="sp-footer">
+      <span id="last-sync-text">Última sincronización: —</span>
+    </div>
+  </div>
+
+  <script src="panel.js"></script>
+</body>
+</html>

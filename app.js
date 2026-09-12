@@ -20,6 +20,10 @@ const SHEETS_CONFIG = {
     encuesta: {
         id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
         sheetName: 'nps%20por%20regional'
+    },
+    transporte: {
+        id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
+        sheetName: 'TRANSPORTE'
     }
 };
 
@@ -278,6 +282,54 @@ function parseAllData(workshopData, globalData, adicionalesData) {
     return { parsedWorkshopData, parsedOrdersData };
 }
 
+function parseTransporteData(transporteRaw) {
+    if (!transporteRaw || !Array.isArray(transporteRaw)) return [];
+
+    const getVal = (row, ...keys) => {
+        const rowKeys = Object.keys(row);
+        for (const key of keys) {
+            const exactKey = rowKeys.find(k => k.trim().toUpperCase() === key.toUpperCase());
+            if (exactKey && row[exactKey] !== undefined && row[exactKey] !== null) {
+                return row[exactKey].toString().trim();
+            }
+        }
+        return "";
+    };
+
+    return transporteRaw.map(row => {
+        const orden = getVal(row, 'Número de orden de trabajo', 'N° orden', 'N° Orden', 'Orden de trabajo', 'Referencia', 'ODT', 'ORDEN', 'NRO ORDEN');
+        const cuenta = getVal(row, 'Cuenta: Nombre de la cuenta', 'Cuenta', 'Encargado', 'Cliente', 'Nombre del cliente', 'SOLICITANTE', 'Contacto');
+        const producto = getVal(row, 'Producto ST', 'Producto', 'Equipo', 'ACTIVO', 'DESCRIPCION', 'PRODUCTO');
+        const territorio = getVal(row, 'Territorio de servicio: Nombre', 'Territorio', 'Regional', 'Origen', 'CIUDAD', 'UBICACION', 'Ciudad');
+        const estado = getVal(row, 'Estado', 'ESTADO', 'Estado Orden', 'ESTADO TRASLADO') || 'En Traslado';
+        const subEstado = getVal(row, 'Sub_estado', 'Sub Estado', 'Subestado') || '';
+        const fechaMod = getVal(row, 'Fecha de la última modificación', 'Fecha modificación', 'Fecha mod', 'Fecha');
+        const fechaApertura = getVal(row, 'Fecha de creación', 'Fecha apertura', 'Fecha creación', 'Fecha inicio', 'Fecha Origen');
+        const diasAperturaRaw = getVal(row, 'Tiempo desde apertura (Días)', 'Días apertura', 'Días sin movimiento', 'Días');
+        const diasApertura = diasAperturaRaw !== "" ? diasAperturaRaw : (fechaApertura ? (diasDesde(fechaApertura) ?? '0') : '0');
+        const origen = getVal(row, 'Origen', 'Lugar Origen', 'Tienda Origen', 'Ubicación Origen');
+        const destino = getVal(row, 'Destino', 'Lugar Destino', 'ST Destino', 'Tienda Destino');
+        const tipoServicio = getVal(row, 'Tipo de Servicio', 'Tipo Servicio') || 'TRANSPORTE';
+
+        return {
+            ...row,
+            'Número de orden de trabajo': orden || getVal(row, 'Referencia') || 'TR-S/N',
+            'Referencia': getVal(row, 'Referencia') || orden || '',
+            'Cuenta: Nombre de la cuenta': cuenta || 'ENCARGADO / CLIENTE S/N',
+            'Producto ST': producto || 'EQUIPO EN TRASLADO',
+            'Territorio de servicio: Nombre': territorio || 'Sin región',
+            'Estado': estado,
+            'Sub_estado': subEstado,
+            'Fecha de la última modificación': fechaMod,
+            'Tiempo desde apertura (Días)': diasApertura.toString(),
+            'Tipo de Servicio': tipoServicio,
+            'Origen': origen,
+            'Destino': destino,
+            esTransporte: true
+        };
+    }).filter(o => o['Número de orden de trabajo'] && o['Número de orden de trabajo'].trim() !== '');
+}
+
 function checkSessionOnLoad() {
     const sesionActiva = localStorage.getItem('dismatec_session');
     const overlay = document.getElementById('login-overlay');
@@ -314,7 +366,13 @@ async function syncSessionUser() {
 
 let appWorkshopData = [];
 let appOrdersData = [];
+let appTransporteData = [];
 let appEncuestaData = [];
+let tipoFiltroOrdenes = 'todas';
+let estadosCurrentPage = 1;
+let estadosCurrentRegion = undefined;
+let estadosCurrentOrdenes = null;
+let estadosCurrentOpciones = null;
 // ────────────────────────────────────────────────────────────────────────────
 
 console.log("🔧 APP.JS CARGADO");
@@ -493,6 +551,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 (o.adicDetalleFalla || "").toLowerCase().includes(query) ||
                 (o.adicObservaciones || "").toLowerCase().includes(query))
         );
+        estadosCurrentPage = 1;
         renderOrdenes(currentRegionOrdenes, filteredOrdenes,
             esUltimaMod ? { ordenarPor: 'modificacion', titulo: 'Órdenes por última modificación' } : undefined);
     }, 300));
@@ -525,8 +584,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             (t.CONTACTO || "").toLowerCase().includes(query)
         );
 
-        // Filtrar Órdenes (mismo criterio que el buscador regional)
-        const matchedOrdenes = appOrdersData.filter(o =>
+        // Filtrar Órdenes (respetando datos permitidos por rol regional y criterio del buscador)
+        const baseOrdenesData = dataFiltradaPorRol();
+        const matchedOrdenes = baseOrdenesData.filter(o =>
             (o['Número de orden de trabajo'] || "").toLowerCase().includes(query) ||
             (o['Cuenta: Nombre de la cuenta'] || "").toLowerCase().includes(query) ||
             (o['Producto ST'] || "").toLowerCase().includes(query) ||
@@ -1070,10 +1130,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (region === 'Regionales') {
-            const excluidas = ['santa cruz', 'el alto', 'cochabamba', 'la paz'];
-            if (excluidas.some(x => terr.includes(x))) return false;
-            if (municipios.some(m => terr.includes(m))) return false;
-            return true;
+            const noSupervisadas = ['santa cruz', 'el alto', 'cochabamba', 'la paz', 'achocalla'];
+            return !noSupervisadas.some(x => terr.includes(x));
         }
 
         if (region === 'Santa Cruz') {
@@ -1082,15 +1140,75 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const regionNormalized = region.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+        if (regionNormalized === 'sucre' || regionNormalized === 'tarija') {
+            return terr.includes(regionNormalized) || municipios.some(m => terr.includes(m));
+        }
+
         return terr.includes(regionNormalized);
+    }
+
+    function renderTipoOrdenFiltro(region, ordenesBase) {
+        const cont = document.getElementById('tipo-orden-filtro');
+        if (!cont) return;
+
+        const hayTransporte = ordenesBase.some(o => o.esTransporte);
+        if (!hayTransporte) {
+            cont.classList.add('hidden');
+            cont.innerHTML = '';
+            return;
+        }
+
+        cont.classList.remove('hidden');
+
+        const totalCount = ordenesBase.length;
+        const stCount = ordenesBase.filter(o => !o.esTransporte).length;
+        const trCount = ordenesBase.filter(o => o.esTransporte).length;
+
+        const baseStyle = 'padding:6px 14px; border-radius:16px; border:1px solid #e2e8f0; background:#ffffff; color:#334155; font-family:"Outfit",sans-serif; font-size:0.78rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:all 0.2s;';
+        const activeStyle = 'padding:6px 14px; border-radius:16px; border:1px solid #dc2626; background:#dc2626; color:#ffffff; font-family:"Outfit",sans-serif; font-size:0.78rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 6px rgba(220,38,38,0.25);';
+
+        const opciones = [
+            { key: 'todas', label: `Todas (${totalCount})`, icon: 'bi-grid-fill' },
+            { key: 'servicio', label: `Servicio Técnico (${stCount})`, icon: 'bi-tools' },
+            { key: 'transporte', label: `Transporte (${trCount})`, icon: 'bi-truck' }
+        ];
+
+        cont.innerHTML = opciones.map(op => {
+            const active = op.key === tipoFiltroOrdenes;
+            return `<button type="button" data-tipo="${op.key}" style="${active ? activeStyle : baseStyle}"><i class="bi ${op.icon}"></i> ${escapeHTML(op.label)}</button>`;
+        }).join('');
+
+        cont.querySelectorAll('[data-tipo]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                tipoFiltroOrdenes = btn.getAttribute('data-tipo');
+                if (estadosCurrentRegion) {
+                    showRegionOrdenes(estadosCurrentRegion);
+                }
+            });
+        });
     }
 
     function showRegionOrdenes(region) {
         console.log(`\n📋 Mostrando órdenes de: ${region}`);
         currentRegionOrdenes = region;
-        filteredOrdenes = appOrdersData.filter(o => isOrderInRegion(o, region));
+
+        const modFiltro = document.getElementById('modificacion-filtro');
+        if (modFiltro) modFiltro.classList.add('hidden');
+
+        const baseRegional = appOrdersData.filter(o => isOrderInRegion(o, region));
+        renderTipoOrdenFiltro(region, baseRegional);
+
+        if (tipoFiltroOrdenes === 'servicio') {
+            filteredOrdenes = baseRegional.filter(o => !o.esTransporte);
+        } else if (tipoFiltroOrdenes === 'transporte') {
+            filteredOrdenes = baseRegional.filter(o => o.esTransporte);
+        } else {
+            filteredOrdenes = baseRegional;
+        }
 
         if (estadosSearchInput) estadosSearchInput.value = "";
+        estadosCurrentPage = 1;
         renderOrdenes(region, filteredOrdenes);
     }
 
@@ -1124,6 +1242,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const filtroEl = document.getElementById('modificacion-filtro');
         if (filtroEl) filtroEl.classList.remove('hidden');
+        const tipoEl = document.getElementById('tipo-orden-filtro');
+        if (tipoEl) tipoEl.classList.add('hidden');
         renderUltimaModFiltro();
 
         if (ultimaModFiltro === 'todas') {
@@ -1167,6 +1287,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const filtroEl = document.getElementById('modificacion-filtro');
         if (filtroEl) filtroEl.classList.remove('hidden');
+        const tipoEl = document.getElementById('tipo-orden-filtro');
+        if (tipoEl) tipoEl.classList.add('hidden');
 
         const estados_excluidos_esc = ['cancelado', 'error', 'entregado', 'cerrado'];
         let ordenesBase = appOrdersData.filter(o => {
@@ -1196,6 +1318,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function renderOrdenes(region, ordenes, opciones) {
+        estadosCurrentRegion = region;
+        estadosCurrentOrdenes = ordenes;
+        estadosCurrentOpciones = opciones;
+
         const titleEl = document.getElementById('view-estados-title');
         if (titleEl) titleEl.textContent = (opciones && opciones.titulo) ? opciones.titulo : `Órdenes - ${region}`;
 
@@ -1241,11 +1367,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (ordenesFiltradas.length === 0) {
             contentEl.innerHTML = '<p style="text-align:center;padding:2rem;">No se encontraron órdenes activas.</p>';
+            const pagEl = document.getElementById('estados-pagination');
+            if (pagEl) pagEl.innerHTML = '';
             showView(viewEstadosServicio);
             return;
         }
 
-        const html = ordenesFiltradas.map((o, idx) => {
+        // PAGINACIÓN: 10 órdenes por página
+        const ORDENES_POR_PAGINA = 10;
+        const totalPaginas = Math.max(1, Math.ceil(ordenesFiltradas.length / ORDENES_POR_PAGINA));
+        const currentPage = (estadosCurrentPage || 1);
+        if (currentPage > totalPaginas) estadosCurrentPage = totalPaginas;
+        const page = currentPage > totalPaginas ? totalPaginas : currentPage;
+        const inicio = (page - 1) * ORDENES_POR_PAGINA;
+        const paginaOrdenes = ordenesFiltradas.slice(inicio, inicio + ORDENES_POR_PAGINA);
+
+        const html = paginaOrdenes.map((o, idx) => {
             const workshopNameRaw = (o['¿Qué servicio técnico ?'] || "").trim();
             const workshopName = workshopNameRaw.toUpperCase();
             
@@ -1379,8 +1516,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `;
             }
 
+            const transporteInfoHtml = o.esTransporte ? `
+                ${o.Origen ? `<p style="margin:0;"><strong>Origen:</strong> ${escapeHTML(o.Origen)}</p>` : ''}
+                ${o.Destino ? `<p style="margin:0;"><strong>Destino:</strong> ${escapeHTML(o.Destino)}</p>` : ''}
+            ` : '';
+
             return `
-                <div class="accordion-item" style="margin-bottom:12px; border-radius:15px; border:1px solid #e2e8f0; border-left:4px solid #3b82f6; background:white; overflow:hidden;">
+                <div class="accordion-item" style="margin-bottom:12px; border-radius:15px; border:1px solid #e2e8f0; border-left:4px solid ${o.esTransporte ? '#f59e0b' : '#3b82f6'}; background:white; overflow:hidden;">
                     <button class="accordion-header" style="width:100%; border:none; background:none; padding:15px; text-align:left; cursor:pointer;" onclick="this.parentElement.classList.toggle('active')">
                         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                             <div style="flex:1; padding-right:10px;">
@@ -1395,7 +1537,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                             </div>
                             <div style="display:flex; flex-direction:column; align-items:flex-end; justify-content:space-between; height:100%; min-height:60px;">
                                 <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px;">
-                                    <span style="background:#e0e7ff; color:#3b82f6; padding:4px 10px; border-radius:12px; font-size:0.7rem; font-weight:700; white-space:nowrap;">${o.Estado || 'S/E'}</span>
+                                    ${o.esTransporte ? '<span style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; padding:3px 9px; border-radius:12px; font-size:0.72rem; font-weight:800; white-space:nowrap;"><i class="bi bi-truck"></i> TRANSPORTE</span>' : ''}
+                                    <span style="background:${o.esTransporte ? '#fff7ed' : '#e0e7ff'}; color:${o.esTransporte ? '#c2410c' : '#3b82f6'}; padding:4px 10px; border-radius:12px; font-size:0.7rem; font-weight:700; white-space:nowrap;">${o.Estado || 'S/E'}</span>
                                     ${warrantyBadgeHtml(o)}
                                 </div>
                                 <i class="bi bi-chevron-down acc-arrow" style="transition: transform 0.3s ease; color:#cbd5e1; font-size:1.2rem;"></i>
@@ -1414,6 +1557,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <p style="margin:0;"><strong>Fecha de ingreso a la marca:</strong> ${o['Fecha de ingreso a la marca'] || '—'}</p>
                             <p style="margin:0;"><strong>Referencia:</strong> ${o['Referencia'] || '—'}</p>
                             <p style="margin:0;"><strong>Estado:</strong> ${o.Estado || '—'}</p>
+                            ${transporteInfoHtml}
                             ${workshopHtml}
                             ${adicionalesInfoHtml}
                             
@@ -1425,7 +1569,76 @@ document.addEventListener('DOMContentLoaded', async () => {
         }).join('');
 
         contentEl.innerHTML = html;
+        renderEstadosPagination(ordenesFiltradas.length);
         showView(viewEstadosServicio);
+    }
+
+    function renderEstadosPagination(totalOrdenes) {
+        const pagEl = document.getElementById('estados-pagination');
+        if (!pagEl) return;
+
+        const ORDENES_POR_PAGINA = 10;
+        const totalPaginas = Math.max(1, Math.ceil(totalOrdenes / ORDENES_POR_PAGINA));
+        const page = (estadosCurrentPage || 1);
+
+        if (totalPaginas <= 1) {
+            pagEl.innerHTML = `<div style="text-align:center;color:#64748b;font-size:0.85rem;padding:10px;">${totalOrdenes} órdenes</div>`;
+            return;
+        }
+
+        const inicio = (page - 1) * ORDENES_POR_PAGINA + 1;
+        const fin = Math.min(page * ORDENES_POR_PAGINA, totalOrdenes);
+
+        let html = `<div style="text-align:center;color:#64748b;font-size:0.85rem;padding:8px;">${inicio}–${fin} de ${totalOrdenes} órdenes</div>`;
+        html += `<div style="display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;">`;
+
+        html += `<button class="estados-page-btn" data-page="${page - 1}" ${page === 1 ? 'disabled' : ''} style="border:1px solid #e2e8f0;background:#fff;color:#3b82f6;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;"><i class="bi bi-chevron-left"></i></button>`;
+
+        const visibles = [];
+        if (totalPaginas <= 7) {
+            for (let p = 1; p <= totalPaginas; p++) visibles.push(p);
+        } else {
+            visibles.push(1);
+            if (page > 4) visibles.push('...');
+            const desde = Math.max(2, page - 1);
+            const hasta = Math.min(totalPaginas - 1, page + 1);
+            for (let p = desde; p <= hasta; p++) visibles.push(p);
+            if (page < totalPaginas - 3) visibles.push('...');
+            visibles.push(totalPaginas);
+        }
+
+        visibles.forEach(v => {
+            if (v === '...') {
+                html += `<span style="color:#94a3b8;padding:0 2px;">…</span>`;
+            } else {
+                const active = (v === page);
+                html += `<button class="estados-page-btn" data-page="${v}" ${active ? 'disabled' : ''} style="border:1px solid ${active ? '#3b82f6' : '#e2e8f0'};background:${active ? '#3b82f6' : '#fff'};color:${active ? '#fff' : '#3b82f6'};font-weight:700;min-width:34px;padding:6px 10px;border-radius:8px;cursor:pointer;">${v}</button>`;
+            }
+        });
+
+        html += `<button class="estados-page-btn" data-page="${page + 1}" ${page === totalPaginas ? 'disabled' : ''} style="border:1px solid #e2e8f0;background:#fff;color:#3b82f6;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;"><i class="bi bi-chevron-right"></i></button>`;
+
+        html += `</div>`;
+
+        html += `<div style="display:flex;justify-content:center;gap:6px;margin-top:8px;flex-wrap:wrap;">`;
+        html += `<button class="estados-page-btn" data-page="1" ${page === 1 ? 'disabled' : ''} style="border:1px solid #e2e8f0;background:#fff;color:#3b82f6;font-size:0.75rem;font-weight:600;padding:6px 12px;border-radius:8px;cursor:pointer;">Primera</button>`;
+        html += `<button class="estados-page-btn" data-page="${totalPaginas}" ${page === totalPaginas ? 'disabled' : ''} style="border:1px solid #e2e8f0;background:#fff;color:#3b82f6;font-size:0.75rem;font-weight:600;padding:6px 12px;border-radius:8px;cursor:pointer;">Última</button>`;
+        html += `</div>`;
+
+        pagEl.innerHTML = html;
+
+        pagEl.querySelectorAll('.estados-page-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const p = parseInt(this.dataset.page, 10);
+                if (!this.disabled && p >= 1 && p <= totalPaginas) {
+                    estadosCurrentPage = p;
+                    const region = estadosCurrentRegion;
+                    const ordenes = estadosCurrentOrdenes;
+                    const opciones = estadosCurrentOpciones;
+                    if (region !== undefined && ordenes) renderOrdenes(region, ordenes, opciones);
+                }
+            });
+        });
     }
 
     function showProtocol() {
@@ -1625,7 +1838,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (fRegion === 'Regionales') {
                 data = data.filter(o => isOrderInRegion(o, 'Regionales'));
             } else {
-                data = data.filter(o => normalizarTexto(o['Territorio de servicio: Nombre']) === normalizarTexto(fRegion));
+                data = data.filter(o => isOrderInRegion(o, fRegion));
             }
         }
         if (fEstado !== 'todos') {
@@ -3075,7 +3288,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadAllData() {
         try {
-            const [workshopData, globalData, adicionalesData, encuestaData] = await Promise.all([
+            const [workshopData, globalData, adicionalesData, encuestaData, transporteRaw] = await Promise.all([
                 fetchGoogleSheet(SHEETS_CONFIG.talleres.id, SHEETS_CONFIG.talleres.sheetName),
                 fetchGoogleSheet(SHEETS_CONFIG.seguimiento.id, SHEETS_CONFIG.seguimiento.sheetName),
                 fetchGoogleSheet(SHEETS_CONFIG.adicionales.id, SHEETS_CONFIG.adicionales.sheetName).catch(err => {
@@ -3085,17 +3298,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                 fetchGoogleSheet(SHEETS_CONFIG.encuesta.id, SHEETS_CONFIG.encuesta.sheetName).catch(err => {
                     console.warn("Error al cargar ENCUESTA, continuando sin ella:", err);
                     return [];
+                }),
+                fetchGoogleSheet(SHEETS_CONFIG.transporte.id, SHEETS_CONFIG.transporte.sheetName).catch(err => {
+                    console.warn("Error al cargar TRANSPORTE, continuando sin ella:", err);
+                    return [];
                 })
             ]);
 
             const parsed = parseAllData(workshopData, globalData, adicionalesData);
+            const parsedTransporte = parseTransporteData(transporteRaw);
+
             appWorkshopData = parsed.parsedWorkshopData;
-            appOrdersData = parsed.parsedOrdersData;
+            appTransporteData = parsedTransporte;
+            appOrdersData = [...parsed.parsedOrdersData, ...parsedTransporte];
             appEncuestaData = encuestaData;
 
             console.log('Datos procesados:', {
                 talleres: appWorkshopData.length,
-                ordenes: appOrdersData.length,
+                ordenesServicio: parsed.parsedOrdersData.length,
+                ordenesTransporte: appTransporteData.length,
+                totalOrdenes: appOrdersData.length,
                 encuestas: appEncuestaData.length,
                 ordenesEnriquecidasAdicionales: appOrdersData.filter(o => o.adicionalesEnriched).length
             });

@@ -91,6 +91,54 @@ App web estática (mobile-first, estética Dismac rojo/blanco/negro) de **soport
 - **Limpieza del buscador global al volver al menú principal** (v43): en `showView()`, si la vista destino es `viewDashboard`, se vacía `#global-search-input`, se ocultan los resultados y se restaura el dashboard.
 - Colores de marca: rojo `#E31837`, blanco, negro `#111`, gris `#B8B8B8`.
 
+## 🧩 Proyecto TidyWork (integración / mapeo de API)
+
+Proyecto paralelo: **entender la API de TidyWork** (`https://tidywork.dismac.com.bo`) para (a) que la extensión/app consulten datos directo (JSON) en vez de scrapear HTML, (b) alimentar la app Dismac con info real y en vivo, sin deslogueos.
+
+- **Documento vivo del mapeo:** `C:\Users\jabustos\Desktop\APP y N8N\App\MAPEO-TIDYWORK.md` (388 líneas, actualizado 29/08/2026). **Siempre actualizarlo** al descubrir endpoints.
+- **Extensión (internal, MV3 side_panel):** `C:\Users\jabustos\Desktop\APP y N8N\App\dismac-extension\` (service-worker + content script `content/tidywork.js` + sidepanel). ZIP de distribución `dismac-assist-1.0.0.zip` con `GUIA-INSTALACION.md` (instalar descomprimida en modo desarrollador).
+- **Páginas guardadas localmente (Ctrl+S "Página web, completa"):**
+  - `C:\Users\jabustos\Desktop\Tidy Work _ Orden de Trabajo.html` + `..._files\` (WorkOrder; contiene Manage.js 122 KB, Layout.js, Entities.js, Enum.js, fcm.js, etc. .descarga)
+  - `C:\Users\jabustos\Desktop\Tidy Work _ Citas.html` + `..._files\` (Appointment; contiene Index(1).js)
+
+### 🔑 Cómo funcionan las llamadas de TidyWork
+- `Tools.SendPost/SendGet(url, data)` → `Fetch().form()`: headers `X-XSRF-TOKEN` (de `meta[name="x-xsrf-token"]`), `Tidy-Fetch: true`, `Content-Type: application/x-www-form-urlencoded`; acepta `200/201`. Respuestas: `{ Success, Data, Errors, ErrorsAll }`.
+- **Causa raíz de los deslogueos:** el server NO manda 401 HTTP; manda `200` con `Errors:[{ErrorCode:401}]`. La app abre popup "Inicia Sesión" (`GET /Account/GetUrlAuthentication`), espera `TIDYSESSIONBAR.ok` (postMessage), y si se cierra → `Tools.Redirect('/')` = deslogueo. Gestionar sesión por request evita entrar a ese flujo.
+
+### 📅 Aprendido el 29/08/2026 (hoy)
+1. **Sistema de notificaciones push (FCM):** `POST /Home/RegisterDevice {token}`, `GET /Home/GetFirebaseConfig` (ApiKey, VapidKey...), `GET /Home/GetNotifications`, `POST /Home/ReadNotification {id}`. El push llega con `body = JSON { Id, Body, Icon, Link }`. Service worker `firebase-messaging-sw.js` se registra con placeholders.
+2. **Página de Citas `/Appointment`** (JS `Index(1).js`) — endpoints: `POST /Appointment/Filter { filter }` (tabla DataTable), `POST /Appointment/SaveFilter`, `GET /Appointment/GetTerritorys {territoryId}`, `GET /Appointment/GetTechnicalsByTerritories {TerritoriesId}`. Filtro: `{ TerritoryId, WokTypeIds, Technicals, StatusIds, StartDate:'YYYY/MM/DD', EndDate, Coment:'NONE' }`. Estados cita (`EnumAppointmentStatus`): 1=NINGUNO/PENDIENTE, 2=PROGRAMADO, 3=ENVIADO, 4=EN_CAMINO, 5=EN_CURSO, 6=NO_SE_PUEDE_COMPLETAR, 7=COMPLETADO, 8=CANCELADO, 9=ERROR.
+3. **"Trampa" de paginación en citas:** la UI muestra máx. 100 registros/página, pero la API `/Appointment/Filter` acepta `StatusIds` → se pueden pedir solo no trabajadas (`[3,4,5]` o `[2,3,4,5]`) y todas las páginas. No hay límite real por API.
+4. **WorkOrder (~45 endpoints)** ya mapeados desde el 27/08: listado `POST /WorkOrder/Get`, detalle `POST /WorkOrder/GetAppointments`, guardar `POST /WorkOrder/Create|Update` con `{ eWorkOrder }`, agenda `GetSchedule`, `AddAppointment`, `GetSkill`, citas especiales `GetViewCreateSchedule`, `CreateScheduleSpecial`. Catálogos `GetListSubStatus`, etc.
+5. **Módulo /Control (mapa + calendario de derivación)** mapeado (29/08, página `Tidy Work _ Calendario.html`):
+   - `GET /Control/GetEvents { TerritoryId, TypesId, StatusId, StartDate, EndDate, TechnicalsId }` → **una llamada** carga calendario + mapa + tabla + marcadores + polígonos + técnicos (rango `StartDate..StartDate+7dias`).
+   - 🔥 `POST /Appointment/SendAppointmentTechnical { Id, StatusId, StatusName, TechnicalReference }` = **derivar/enviar al técnico (ENVIADO)** — el flujo clave que el usuario usa.
+   - `POST /Control/GetDetailById { id }` (modal detalle), `POST /Control/RescheduleAppointment { AppointmentId, StartDate, EndDate, TechnicalId }` (drag & drop), `POST /Control/GetTechnicals { territoryId }`, `POST /WorkOrder/GetTerritorys { territoryId }`, `POST /Control/SaveFilter`, `POST /Control/AbsenceTecnical` / `CreateListAbsences { eAbsences }` (ausencias).
+   - Librerías de esa vista: **Leaflet** (mapa, `Map.js` + `leaflet-fullscreen` + `leaflet-providers`) y **event-calendar** (timeline con drag & drop).
+
+### For derivar (flujo confirmado):
+`GetDetailById` → modal → usuario elige estado + `TechnicalReference` → `SendAppointmentTechnical` → toast "Estado actualizado" → recarga.
+5. **Módulo /Control (mapa + calendario de derivación)** ma
+
+### ⏳ Pendiente del mapeo TidyWork
+- ~~Página de mapa/derivación~~ ✅ **HECHO** (módulo `/Control`, `Tidy Work _ Calendario.html`).
+- **`/Appointment/Manage/{id}`** (detalle/edición de cita): su `Appointment/Manage.js` no se guardó aún (igual que la de WorkOrder cuando faltaba). Mismo paso: Ctrl+S en esa vista.
+- **`/Control`** es el mismo que la página de derivación (ya mapeado). Falta revisar si hay una vista de Control separada del mapa.
+- **Verificar en vivo los endpoints mapeados** con la sesión real (probarlos desde la pestaña de Tidy para confirmar datos/formatos).
+
+### 🚀 Fusión TidyWork ↔ App Dismac (análisis en curso)
+Objetivo: la app Dismac muestra/a iguala datos de TidyWork en vivo, sin scraping ni deslogueos. Opciones de menor a mayor ambición (ver detalle + decisiones en `MAPEO-TIDYWORK.md` / discusión):
+1. **O1 — Mini-dashboard en vivo** (rápido): extension consume `POST /Appointment/Filter` con `StatusIds=[3,4,5]` y muestra en sidepanel las citas en curso/camino; la app consulta las mismas con la sesión activa.
+2. **O2 — Fusión por sesión/auth**: la app guarda cookies de sesión de TidyWork (login 1 vez) y consulta JSON directo (`/WorkOrder/Get`, `/Appointment/Filter`, `/WorkOrder/GetAppointments`) desde un backend/proxy local para evitar CORS y el antiforgery.
+3. **O3 — Mini-Tidy mobile funcional**: PWA propia que imite el flujo de citas/órdenes consumiendo la API mapeada.
+4. **O4 — Recrear Tidy (viajar completo)**: terreno avanzado (60-70% cubierto), requiere mapear Control, mapa, formulario crear/editar.
+
+**DECISIÓN TOMADA (29/08/2026):** 
+- **Alcance = FASE 1 "Espejo en vivo"**: vista/panel que consulta citas en vivo desde la pestaña de Tidy abierta (content-script, mismo origen, cero CORS), sin backend.
+- **Modelo de sesión = "sesión del propio navegador"**: cada usuario usa SU propia sesión de TidyWork; sin cuentas nuevas ni expiración central.
+- **Mapeo del flujo de derivación COMPLETO** (el que mueve ENVIADO): `GetDetailById` → modal → `SendAppointmentTechnical`. Con esto la Fase 1 puede leer y también derivar citas.
+- **Próximo paso antes de implementar:** verificar los endpoints con sesión real + (opcional) capturar `/Appointment/Manage/{id}`.
+
 ## 🧩 Cómo se probó
 
 - Scripts de verificación en `C:\Users\jabustos\AppData\Local\Temp\opencode\` (ej. `test_alert.js`): simulan el filtro de alertas con datos reales. Verificado: región sí filtra (228 todas → 95 Santa Cruz → 48 La Paz → etc.).
@@ -118,11 +166,17 @@ App web estática (mobile-first, estética Dismac rojo/blanco/negro) de **soport
 - `fe47b53` — chore: quitar captura de prueba del repo.
 - `8d88c4a` — feat: satisfacción del cliente lee la pestaña 'nps por regional' (v38).
 - `529cd3e` — fix: padding inferior en desktop para que la barra de navegación no tape el dashboard ejecutivo (style.css v17).
-- **Versión actual en producción: `app.js?v=43`.**
+### 10. App — Integración de pestaña TRANSPORTE por regional (11/09/2026, v54)
+- Integración de la hoja Google `TRANSPORTE` (`SHEETS_CONFIG.transporte`).
+- Las órdenes de transporte se leen y se distribuyen automáticamente en las vistas por regional de **Estados de Servicio**.
+- Identificador visual **`🚛 TRANSPORTE`** (badge ámbar, borde `#f59e0b`).
+- Sub-filtro rápido con chips dentro de la vista de cada regional: **Todas**, **Servicio Técnico** y **Transporte**.
+- Inclusión de órdenes de transporte en el buscador global y buscador regional.
+
+- **Versión actual en producción: `app.js?v=54`.**
 
 ## 🔮 Pendiente / a confirmar
 
-- Confirmar con el usuario que en su teléfono ya se ve el botón completo y el flujo Buscar funciona (estaba viendo una versión vieja en caché).
-- `DASHBOARD_CAMBIOS.md` y `presentacion_app.md` están desactualizados si se quieren documentar los últimos fixes.
+- Confirmar con el usuario que en su teléfono se visualiza la versión v54 tras la recarga forzada (~2 min post-push).
 - **Pestaña "última modificación":** confirmar si debe mostrar **solo órdenes activas** (hoy trae todas, incluido Completado) y si el mapeo de "Contacto" (→ `Cuenta: Nombre de la cuenta`) es correcto.
-- **Botón "Última Modificación" en la app (v43):** confirmar en el teléfono que la card aparece en el inicio, que el filtro por regional (chips con opción "Regionales") funciona y que el badge semáforo y los botones Ll./WA se ven bien (recarga forzada, esperar ~2 min tras el push).
+

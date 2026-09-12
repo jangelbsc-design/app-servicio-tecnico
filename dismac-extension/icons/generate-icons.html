@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head><title>Generar Iconos Dismac Assist</title></head>
+<body>
+<h2>Generador de Iconos</h2>
+<p>Haz clic en cada botón para descargar los iconos:</p>
+<canvas id="c16" width="16" height="16"></canvas>
+<canvas id="c48" width="48" height="48"></canvas>
+<canvas id="c128" width="128" height="128"></canvas>
+<br><br>
+<button onclick="download('c16', 'icon16.png')">Descargar 16x16</button>
+<button onclick="download('c48', 'icon48.png')">Descargar 48x48</button>
+<button onclick="download('c128', 'icon128.png')">Descargar 128x128</button>
+<script>
+function drawIcon(canvasId, size) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const s = size;
+  
+  ctx.fillStyle = '#E31837';
+  ctx.beginPath();
+  ctx.roundRect(0, 0, s, s, s * 0.2);
+  ctx.fill();
+  
+  ctx.fillStyle = 'white';
+  ctx.font = `bold ${s * 0.45}px Arial`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('D', s/2, s/2);
+}
+
+drawIcon('c16', 16);
+drawIcon('c48', 48);
+drawIcon('c128', 128);
+
+function download(canvasId, filename) {
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = document.getElementById(canvasId).toDataURL();
+  link.click();
+}
+</script>
+</body>
+</html>

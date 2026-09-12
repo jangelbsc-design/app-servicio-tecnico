@@ -1,0 +1,10 @@
+#dismac-assist-panel {
+  font-family: 'Outfit', -apple-system, sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+  all: initial;
+}
+
+#dismac-assist-panel * {
+  font-family: 'Outfit', -apple-system, sans-serif !important;
+}

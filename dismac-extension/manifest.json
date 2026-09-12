@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Dismac Assist",
+  "version": "1.0.0",
+  "description": "Panel de soporte técnico Dismac — Talleres, órdenes, garantías y contacto directo. Integrado con TidyWork.",
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "alarms",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://docs.google.com/*",
+    "https://tidywork.dismac.com.bo/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel/panel.html"
+  },
+  "action": {
+    "default_title": "Abrir Dismac Assist",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://tidywork.dismac.com.bo/*"],
+      "js": ["content/tidywork.js"],
+      "css": ["content/tidywork.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
