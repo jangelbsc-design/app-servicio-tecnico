@@ -173,10 +173,16 @@ Objetivo: la app Dismac muestra/a iguala datos de TidyWork en vivo, sin scraping
 - Sub-filtro rápido con chips dentro de la vista de cada regional: **Todas**, **Servicio Técnico** y **Transporte**.
 - Inclusión de órdenes de transporte en el buscador global y buscador regional.
 
-- **Versión actual en producción: `app.js?v=54`.**
+### 11. Fix — Corrección del filtro regional de Montero y Tarija (12/09/2026, v55)
+- Corrección en `isOrderInRegion()`: se eliminó la inclusión indeseada de `municipios` de Santa Cruz en las vistas de Tarija y Sucre.
+- Montero y demás municipios de Santa Cruz quedan restringidos únicamente a la vista de **Municipios (SCZ)**.
+- **Tarija** filtra y visualiza exclusivamente sus órdenes locales y subterritorios correspondientes (**Tarija**, **Villamontes**, **Yacuiba**).
+- Sincronizado en `app.js`, `dismac-extension/sidepanel/panel.js` y `dismac-extension/background/service-worker.js`.
+
+- **Versión actual en producción: `app.js?v=55`.**
 
 ## 🔮 Pendiente / a confirmar
 
-- Confirmar con el usuario que en su teléfono se visualiza la versión v54 tras la recarga forzada (~2 min post-push).
+- Confirmar con el usuario que en su teléfono se visualiza la versión v55 tras la recarga forzada (~2 min post-push).
 - **Pestaña "última modificación":** confirmar si debe mostrar **solo órdenes activas** (hoy trae todas, incluido Completado) y si el mapeo de "Contacto" (→ `Cuenta: Nombre de la cuenta`) es correcto.
 
