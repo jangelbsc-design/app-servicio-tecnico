@@ -113,11 +113,11 @@ function normalizarTexto(str) {
 function isOrderInRegion(o, region) {
   if (!o || !region) return false;
   const terr = (o['Territorio de servicio: Nombre'] || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const municipios = ['montero', 'la guardia', 'el torno', 'cotoca', 'satelite', 'camiri', 'san julian', 'guabira', 'warnes', 'pailon', 'samaipata'];
+  const municipios = ['montero', 'la guardia', 'el torno', 'cotoca', 'satelite', 'camiri', 'san julian', 'guabira', 'warnes', 'pailon', 'samaipata', 'buena vista', 'la angostura', 'yapacani'];
   if (region === 'Municipios') return municipios.some(m => terr.includes(m));
   if (region === 'Regionales') {
     const excluidas = ['santa cruz', 'el alto', 'cochabamba', 'la paz', 'achocalla'];
-    if (excluidas.some(x => terr.includes(x))) return false;
+    if (excluidas.some(x => terr.includes(x)) || municipios.some(m => terr.includes(m))) return false;
     return true;
   }
   if (region === 'Santa Cruz') {
@@ -125,6 +125,9 @@ function isOrderInRegion(o, region) {
     return terr.includes('santa cruz') && !isMunicipio;
   }
   const regionNormalized = region.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (regionNormalized === 'tarija') {
+    return terr.includes('tarija') || terr.includes('villamontes') || terr.includes('yacuiba');
+  }
   return terr.includes(regionNormalized);
 }
 

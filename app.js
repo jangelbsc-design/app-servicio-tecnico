@@ -1123,7 +1123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function isOrderInRegion(o, region) {
         if (!o || !region) return false;
         const terr = (o['Territorio de servicio: Nombre'] || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        const municipios = ['montero', 'la guardia', 'el torno', 'cotoca', 'satelite', 'camiri', 'san julian', 'guabira', 'warnes', 'pailon', 'samaipata'];
+        const municipios = ['montero', 'la guardia', 'el torno', 'cotoca', 'satelite', 'camiri', 'san julian', 'guabira', 'warnes', 'pailon', 'samaipata', 'buena vista', 'la angostura', 'yapacani'];
 
         if (region === 'Municipios') {
             return municipios.some(m => terr.includes(m));
@@ -1131,7 +1131,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (region === 'Regionales') {
             const noSupervisadas = ['santa cruz', 'el alto', 'cochabamba', 'la paz', 'achocalla'];
-            return !noSupervisadas.some(x => terr.includes(x));
+            return !noSupervisadas.some(x => terr.includes(x)) && !municipios.some(m => terr.includes(m));
         }
 
         if (region === 'Santa Cruz') {
@@ -1141,8 +1141,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const regionNormalized = region.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-        if (regionNormalized === 'sucre' || regionNormalized === 'tarija') {
-            return terr.includes(regionNormalized) || municipios.some(m => terr.includes(m));
+        if (regionNormalized === 'tarija') {
+            return terr.includes('tarija') || terr.includes('villamontes') || terr.includes('yacuiba');
         }
 
         return terr.includes(regionNormalized);
