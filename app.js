@@ -527,11 +527,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Buscador Regional de Órdenes
     const estadosSearchInput = document.getElementById('estados-search-input');
     estadosSearchInput?.addEventListener('input', debounce((e) => {
-        const query = e.target.value.toLowerCase();
+        const query = e.target.value.toLowerCase().trim();
         const esUltimaMod = currentRegionOrdenes === 'Última Modificación';
-        const base = esUltimaMod
-            ? (ultimaModFiltro === 'todas' ? appOrdersData : appOrdersData.filter(o => isOrderInRegion(o, ultimaModFiltro)))
-            : appOrdersData.filter(o => isOrderInRegion(o, currentRegionOrdenes));
+        
+        let base;
+        if (esUltimaMod) {
+            base = (ultimaModFiltro === 'todas' ? appOrdersData : appOrdersData.filter(o => isOrderInRegion(o, ultimaModFiltro)));
+        } else {
+            const regNorm = (currentRegionOrdenes || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            if (query.length > 0 && (regNorm === 'tarija' || regNorm === 'sucre')) {
+                base = appOrdersData.filter(o => isOrderInRegion(o, currentRegionOrdenes) || isOrderInRegion(o, 'Municipios'));
+            } else {
+                base = appOrdersData.filter(o => isOrderInRegion(o, currentRegionOrdenes));
+            }
+        }
+
         filteredOrdenes = base.filter(o =>
             ((o['Número de orden de trabajo'] || "").toLowerCase().includes(query) ||
                 (o['Cuenta: Nombre de la cuenta'] || "").toLowerCase().includes(query) ||
@@ -1816,9 +1826,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     function dataFiltradaPorRol() {
         let data = appOrdersData;
         const rol = localStorage.getItem('usuario_rol');
-        const regional = localStorage.getItem('usuario_regional');
+        const regional = (localStorage.getItem('usuario_regional') || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         if (rol === 'regional' && regional) {
-            data = data.filter(o => isOrderInRegion(o, regional));
+            if (regional === 'tarija' || regional === 'sucre') {
+                data = data.filter(o => isOrderInRegion(o, regional) || isOrderInRegion(o, 'Municipios'));
+            } else {
+                data = data.filter(o => isOrderInRegion(o, regional));
+            }
         }
         return data;
     }
@@ -1838,7 +1852,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (fRegion === 'Regionales') {
                 data = data.filter(o => isOrderInRegion(o, 'Regionales'));
             } else {
-                data = data.filter(o => isOrderInRegion(o, fRegion));
+                const regNorm = fRegion.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                if (q.length > 0 && (regNorm === 'tarija' || regNorm === 'sucre')) {
+                    data = data.filter(o => isOrderInRegion(o, fRegion) || isOrderInRegion(o, 'Municipios'));
+                } else {
+                    data = data.filter(o => isOrderInRegion(o, fRegion));
+                }
             }
         }
         if (fEstado !== 'todos') {

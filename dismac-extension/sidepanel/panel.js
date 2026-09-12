@@ -925,8 +925,14 @@
     var osInput = document.getElementById('ordenes-search');
     if (osInput) {
       osInput.addEventListener('input', debounce(function(e) {
-        var q = e.target.value.toLowerCase();
-        var base = appOrdersData.filter(function(o) { return isOrderInRegion(o, currentRegion); });
+        var q = e.target.value.toLowerCase().trim();
+        var regNorm = (currentRegion || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        var base;
+        if (q.length > 0 && (regNorm === 'tarija' || regNorm === 'sucre')) {
+          base = appOrdersData.filter(function(o) { return isOrderInRegion(o, currentRegion) || isOrderInRegion(o, 'Municipios'); });
+        } else {
+          base = appOrdersData.filter(function(o) { return isOrderInRegion(o, currentRegion); });
+        }
         var filtered = base.filter(function(o) {
           return (o['Número de orden de trabajo'] || "").toLowerCase().includes(q) ||
             (o['Cuenta: Nombre de la cuenta'] || "").toLowerCase().includes(q) ||
