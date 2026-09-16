@@ -114,11 +114,11 @@ App web estática (mobile-first, estética Dismac rojo/blanco/negro) de **soport
 - Eliminado: card del menú (`view-alertas`), vista `view-alertas` en `index.html`, funciones `getAlertasConfig/saveAlertasConfig/showAlertas/renderAlertasConfig/listAlertasStancadas/renderAlertasPreview/renderAlertasResultado/checkAlertasPush`, llamada `checkAlertasPush(false)` al cargar, botón "volver" y `case 'view-alertas'` en `handleNavigation`, y el bloque FCM de primer plano en app.js (getToken/onMessage).
 - **Conservado:** la sección "Alertas SLA" (dentro de Escalamientos/Resumen) es OTRA feature y se mantuvo intacta. `sw.js` conserva el handle de mensajes FCM de fondo (inofensivo, útil si luego se hace push real).
 
-### 14. Fix — header (logo DISMAC + botón admin) fijo al hacer scroll (15/09/2026, style.css v18)
-- **Problema:** al abrir la app y scrollear, el logo DISMAC y el botón de usuario/administrador se iban con la pantalla en vez de quedarse arriba. La causa: `position: sticky` del `.header` estaba roto porque en la media query desktop `.app-container` tenía `overflow: hidden` (rompe sticky) y no había prefijo `-webkit-sticky` para iOS.
-- **Fix:** quité `overflow: hidden` de `.app-container` (media query ≥768px), agregué `position: -webkit-sticky`, y le di al `.header` un fondo translúcido con blur (`rgba(248,250,252,0.92)` + `backdrop-filter`) para que el contenido que pasa por debajo no se transparente y se vea como barra fija. Quité el inline `background: transparent` del header en `index.html`.
+### 14. Header — ida y vuelta: sticky roto → fijo → se desplaza (15/09/2026, style.css v18 → v19)
+- **v18 (fijado):** el logo DISMAC y el botón admin se iban con el scroll. Se arregló `position: sticky` (quité `overflow: hidden` del `.app-container` en desktop, agregué `-webkit-sticky`) y fondo translúcido con blur.
+- **v19 (revertido, decisión del usuario):** el banner quedaba siempre pegado arriba y eso no lo quería → **el header vuelve a desplazarse con el scroll** (quité el `sticky` y el fondo/blur del `.header`). Comportamiento final: header normal, no fijo.
 
-- **Versión actual en producción:** `app.js?v=58` · `style.css?v=18` · cache SW `dismac-app-v59`.
+- **Versión actual en producción:** `app.js?v=58` · `style.css?v=19` · cache SW `dismac-app-v60`.
 
 ## 🧩 Proyecto TidyWork (integración / mapeo de API)
 
