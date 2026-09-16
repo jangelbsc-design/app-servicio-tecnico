@@ -178,13 +178,19 @@ Objetivo: la app Dismac muestra/a iguala datos de TidyWork en vivo, sin scraping
 - **Búsqueda / Filtro por texto / Rol Regional**: Al buscar por nombre de cliente, N° orden o equipo dentro de la vista de Tarija/Sucre (o con rol regional), la búsqueda abarca **Tarija/Sucre Y Municipios (SCZ)**. Esto permite ubicar equipos de clientes de Tarija/Sucre que fueron derivados a talleres en Santa Cruz o Montero por falta de servicio técnico local.
 - Sincronizado en `app.js`, `dismac-extension/sidepanel/panel.js` y `dismac-extension/background/service-worker.js`.
 
-- **Versión actual en producción: `app.js?v=56`.**
-
 ### 12. PWA instalable con logo DISMAC (15/09/2026, v57)
 - App ahora instalable (PWA): nuevo `manifest.json` (name "Soporte Técnico Dismac", display `standalone`, theme_color `#E31837`) + `sw.js` (service worker unificado: caching de la app shell + notificaciones FCM de fondo, absorbe la lógica de `firebase-messaging-sw.js`).
 - Íconos generados desde el logo real de la extensión (`dismac-extension/icons/icon128.png` = cuadrado rojo `#E31837` redondeado con la "D" blanca): `icon-192.png`, `icon-512.png`, `icon-512-maskable.png` (esquinas rojas opacas, apto para máscaras de Android) y `apple-touch-icon.png` (180px, para iOS).
 - `index.html`: `manifest.json` + `theme-color` + `apple-touch-icon` + metas iOS, y registro de `navigator.serviceWorker.register('./sw.js')` al cargar.
 - **Importante al publicar:** `sw.js` cachea el shell por versión (`CACHE_VERSION = 'dismac-app-vNN'`). Si cambia el shell (app.js/style.css/index.html), subir `app.js?v=NN`, actualizar `CACHE_VERSION` y el `PRECACHE_URLS` (paths con espacios van URL-encoded, ej. `icono%20para%20botones.png`). Estrategia: network-first en navegación, stale-while-revalidate en estáticos (preserva el flujo de "recarga forzada para ver lo nuevo").
+
+### 13. Eliminada la sección "Alertas Push" completa (15/09/2026, v58)
+- **Decisión del usuario:** el sistema de alertas por `Notification API` no servía (pedía entrar a esa pantalla para dar permiso y solo avisaba con la app abierta). Quiere reutilizar el tema de las alertas de otra forma en el futuro.
+- Eliminado: card del menú (`view-alertas`), vista `view-alertas` en `index.html`, funciones `getAlertasConfig/saveAlertasConfig/showAlertas/renderAlertasConfig/listAlertasStancadas/renderAlertasPreview/renderAlertasResultado/checkAlertasPush`, llamada `checkAlertasPush(false)` al cargar, botón "volver" y `case 'view-alertas'` en `handleNavigation`, y el bloque FCM de primer plano en app.js (getToken/onMessage).
+- **Conservado:** la sección "Alertas SLA" (dentro de Escalamientos/Resumen) es OTRA feature y se mantuvo intacta. `sw.js` conserva el handle de mensajes FCM de fondo (inofensivo, útil si luego se hace push real).
+- Versionado: `app.js?v=58`, `CACHE_VERSION = 'dismac-app-v58'`.
+
+- **Versión actual en producción: `app.js?v=58`.**
 
 ## 🔮 Pendiente / a confirmar
 

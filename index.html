@@ -343,19 +343,6 @@
                     <i class="bi bi-chevron-right card-arrow"></i>
                 </button>
             </div>
-            <div class="dashboard-grid" style="margin-top: 1rem;">
-                <button class="dash-card admin-only hidden" data-action="view-alertas"
-                    style="border:2px solid var(--red-100); background:linear-gradient(135deg,#fff5f5,#ffffff);">
-                    <div class="card-icon-wrapper bg-red">
-                        <i class="bi bi-bell-fill"></i>
-                    </div>
-                    <div class="card-text-container">
-                        <span class="card-title">Alertas Push</span>
-                        <span class="card-subtitle">Notificaciones configurables</span>
-                    </div>
-                    <i class="bi bi-chevron-right card-arrow"></i>
-                </button>
-            </div>
         </main>
 
         <main class="main-content hidden" id="view-estados-servicio">
@@ -528,14 +515,6 @@
             <div id="ejecutivo-content" style="padding: 10px;"></div>
         </main>
 
-        <main class="main-content hidden" id="view-alertas">
-            <div class="view-header">
-                <button class="btn-back" id="btn-back-alertas"><i class="bi bi-arrow-left"></i> Volver</button>
-                <h2>Alertas Push</h2>
-            </div>
-            <div id="alertas-content" style="padding: 10px;"></div>
-        </main>
-
         <div id="sync-status" class="sync-bar hidden">
             <span id="sync-status-text"><i class="bi bi-exclamation-triangle" style="margin-right:8px;"></i> Fallo de
                 conexión</span>
@@ -564,7 +543,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=57"></script>
+    <script src="app.js?v=58"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

@@ -450,7 +450,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const viewReportes = document.getElementById('view-reportes');
     const viewEncuesta = document.getElementById('view-encuesta');
     const viewEjecutivo = document.getElementById('view-ejecutivo');
-    const viewAlertas = document.getElementById('view-alertas');
     const viewTitle = document.getElementById('view-title');
     const viewContent = document.getElementById('view-content');
 
@@ -497,9 +496,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadAllData();
     console.log(`✅ ${appWorkshopData.length} talleres, ${appOrdersData.length} órdenes`);
     renderKPIs();
-
-    // Verificar alertas push locales configuradas (sin forzar el envío)
-    checkAlertasPush(false);
 
     // Variables de estado para búsqueda regional
     let currentRegionTalleres = "";
@@ -831,35 +827,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    // Setup FCM Push Notifications
-    if (window.firebase && firebase.messaging && firebase.messaging.isSupported()) {
-        try {
-            const messaging = firebase.messaging();
-            Notification.requestPermission().then((permission) => {
-                if (permission === 'granted') {
-                    console.log('Permiso de notificación concedido.');
-                    messaging.getToken().then((currentToken) => {
-                        if (currentToken) {
-                            console.log('FCM Token:', currentToken);
-                        }
-                    }).catch((err) => console.log('Error obteniendo token FCM:', err));
-                }
-            });
-
-            messaging.onMessage((payload) => {
-                console.log('Mensaje recibido en foreground:', payload);
-                const title = payload.notification?.title || 'Notificación';
-                const options = {
-                    body: payload.notification?.body,
-                    icon: 'icono-servicio-tecnico.png'
-                };
-                new Notification(title, options);
-            });
-        } catch (e) {
-            console.error('Error configurando FCM:', e);
-        }
-    }
-
     // Event listeners para botones principales
     document.querySelectorAll('[data-action]').forEach(btn => {
         btn.addEventListener('click', function (e) {
@@ -931,11 +898,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         showView(viewDashboard);
     });
 
-    document.getElementById('btn-back-alertas')?.addEventListener('click', () => {
-        console.log("← Volver al menú de estados");
-        showView(viewEstadosMenu);
-    });
-
     document.getElementById('btn-export-csv')?.addEventListener('click', exportReportesCSV);
     document.getElementById('btn-export-pdf')?.addEventListener('click', exportReportesPDF);
 
@@ -971,9 +933,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 break;
             case 'view-escalamientos':
                 showEscalamientos();
-                break;
-            case 'view-alertas':
-                showAlertas();
                 break;
             case 'view-tarija':
                 showRegionTalleres('Tarija');
@@ -2588,248 +2547,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
         }
-    }
-
-    // ── ALERTAS PUSH ───────────────────────────────────────────────────────
-    function getAlertasConfig() {
-        const def = { enabled: false, diasSinCambios: 4, diasCreacion: 8, region: 'todas' };
-        try {
-            return Object.assign({}, def, JSON.parse(localStorage.getItem('alertas_config') || '{}'));
-        } catch (e) {
-            return def;
-        }
-    }
-
-    function saveAlertasConfig(cfg) {
-        localStorage.setItem('alertas_config', JSON.stringify(cfg));
-    }
-
-    function showAlertas() {
-        console.log('🔔 Abriendo Alertas Push');
-        showView(viewAlertas);
-        renderAlertasConfig();
-    }
-
-    function renderAlertasConfig() {
-        const content = document.getElementById('alertas-content');
-        if (!content) return;
-        const cfg = getAlertasConfig();
-        const regiones = [...new Set(appOrdersData.map(o => (o['Territorio de servicio: Nombre'] || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
-
-        const perm = ('Notification' in window) ? Notification.permission : 'unsupported';
-        const permHtml = {
-            granted: '<span style="background:#f0fdf4; color:#166534; padding:6px 12px; border-radius:12px; font-size:0.8rem; font-weight:700;"><i class="bi bi-check-circle-fill"></i> Permiso concedido</span>',
-            denied: '<span style="background:#fef2f2; color:#b91c1c; padding:6px 12px; border-radius:12px; font-size:0.8rem; font-weight:700;"><i class="bi bi-x-circle-fill"></i> Permiso denegado (revisa los ajustes del navegador)</span>',
-            default: '<span style="background:#fffbeb; color:#b45309; padding:6px 12px; border-radius:12px; font-size:0.8rem; font-weight:700;"><i class="bi bi-bell-slash-fill"></i> Permiso no solicitado</span>',
-            unsupported: '<span style="background:#f1f5f9; color:#475569; padding:6px 12px; border-radius:12px; font-size:0.8rem; font-weight:700;"><i class="bi bi-question-circle-fill"></i> Notificaciones no soportadas</span>'
-        }[perm] || '';
-
-        content.innerHTML = `
-            <section style="margin-bottom:1rem;">
-                <div style="background:white; border:1px solid #e2e8f0; border-radius:16px; padding:1.2rem; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:1rem;">
-                        <div style="background:#FDE8EA; color:#E31837; width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i class="bi bi-bell-fill"></i></div>
-                        <div>
-                            <h3 style="font-size:1.05rem; font-weight:800; margin:0; color:#111;">Notificaciones de órdenes estancadas</h3>
-                            <span style="font-size:0.78rem; color:#64748b;">Se muestra una alerta local cuando una orden supera los umbrales.</span>
-                        </div>
-                    </div>
-
-                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:0.9rem 1rem; margin-bottom:1rem;">
-                        <input type="checkbox" id="alertas-enabled" ${cfg.enabled ? 'checked' : ''} style="width:20px; height:20px; accent-color:#E31837; cursor:pointer;">
-                        <span style="font-weight:700; font-size:0.95rem; color:#111;">Activar notificaciones de alerta</span>
-                    </label>
-
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.7rem; margin-bottom:1rem;">
-                        <div>
-                            <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Sin cambios (días)</label>
-                            <input type="number" id="alertas-dias-sin-cambios" value="${cfg.diasSinCambios}" min="1" style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; box-sizing:border-box; outline:none;">
-                        </div>
-                        <div>
-                            <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Desde creación (días)</label>
-                            <input type="number" id="alertas-dias-creacion" value="${cfg.diasCreacion}" min="1" style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; box-sizing:border-box; outline:none;">
-                        </div>
-                    </div>
-
-                    <div style="margin-bottom:1rem;">
-                        <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Región</label>
-                        <select id="alertas-region" style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;">
-                            <option value="todas" ${cfg.region === 'todas' ? 'selected' : ''}>Todas las regiones</option>
-                            ${regiones.map(r => `<option value="${escapeHTML(r)}" ${cfg.region === r ? 'selected' : ''}>${escapeHTML(r)}</option>`).join('')}
-                        </select>
-                    </div>
-
-                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:1rem;">${permHtml}</div>
-
-                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:0.75rem 1rem; margin-bottom:1rem; font-size:0.8rem; color:#64748b; font-weight:600;"><i class="bi bi-info-circle-fill" style="color:#E31837;"></i> Los cambios en región y días se aplican al presionar <strong>Buscar órdenes</strong>.</div>
-
-                    <div style="display:flex; flex-direction:column; gap:0.7rem;">
-                        <button id="alertas-buscar" style="width:100%; background:#E31837; color:white; border:none; padding:14px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:800; font-size:0.95rem; cursor:pointer;"><i class="bi bi-search"></i> Buscar órdenes</button>
-                        <button id="alertas-enviar-ahora" style="width:100%; background:#111; color:white; border:none; padding:12px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer;"><i class="bi bi-send-fill"></i> Verificar y enviar alertas ahora</button>
-                        <button id="alertas-solicitar-permiso" style="width:100%; background:#f1f5f9; color:#111; border:1px solid #e2e8f0; padding:12px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer;"><i class="bi bi-bell"></i> Solicitar permiso</button>
-                        <button id="alertas-probar" style="width:100%; background:#f1f5f9; color:#111; border:1px solid #e2e8f0; padding:12px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer;"><i class="bi bi-bell-fill"></i> Probar notificación</button>
-                        <button id="alertas-detener" style="width:100%; background:#111; color:white; border:none; padding:12px; border-radius:12px; font-family:'Outfit',sans-serif; font-weight:800; font-size:0.85rem; cursor:pointer;"><i class="bi bi-stop-circle-fill" style="color:#E31837;"></i> Detener todas las notificaciones</button>
-                    </div>
-                </div>
-            </section>
-            <div id="alertas-resultado" style="display:flex; flex-direction:column; gap:0.7rem;">
-                <div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:12px; padding:1rem; color:#64748b; font-size:0.85rem; font-weight:600; text-align:center;"><i class="bi bi-search" style="margin-right:6px;"></i> Selecciona los filtros y presiona <strong>Buscar órdenes</strong> para ver los resultados.</div>
-            </div>
-        `;
-
-        document.getElementById('alertas-enabled')?.addEventListener('change', (e) => {
-            cfg.enabled = e.target.checked;
-            saveAlertasConfig(cfg);
-            if (cfg.enabled && ('Notification' in window) && Notification.permission !== 'granted') {
-                Notification.requestPermission().then(() => renderAlertasConfig());
-            }
-        });
-        document.getElementById('alertas-dias-sin-cambios')?.addEventListener('input', (e) => {
-            cfg.diasSinCambios = Math.max(1, parseInt(e.target.value, 10) || 1);
-            saveAlertasConfig(cfg);
-        });
-        document.getElementById('alertas-dias-creacion')?.addEventListener('input', (e) => {
-            cfg.diasCreacion = Math.max(1, parseInt(e.target.value, 10) || 1);
-            saveAlertasConfig(cfg);
-        });
-        document.getElementById('alertas-region')?.addEventListener('change', (e) => {
-            cfg.region = e.target.value;
-            saveAlertasConfig(cfg);
-        });
-        document.getElementById('alertas-solicitar-permiso')?.addEventListener('click', () => {
-            if ('Notification' in window) {
-                Notification.requestPermission().then(() => renderAlertasConfig());
-            }
-        });
-        document.getElementById('alertas-probar')?.addEventListener('click', () => {
-            if (('Notification' in window) && Notification.permission === 'granted') {
-                new Notification('✅ Notificaciones de Dismac', {
-                    body: 'Esta es una prueba. Las alertas de órdenes estancadas llegarán así.',
-                    icon: 'icono-servicio-tecnico.png'
-                });
-            } else {
-                alert('Primero solicita el permiso de notificaciones.');
-            }
-        });
-        document.getElementById('alertas-buscar')?.addEventListener('click', () => {
-            renderAlertasPreview();
-        });
-        document.getElementById('alertas-enviar-ahora')?.addEventListener('click', () => {
-            renderAlertasResultado(checkAlertasPush(true));
-        });
-        document.getElementById('alertas-detener')?.addEventListener('click', () => {
-            cfg.enabled = false;
-            saveAlertasConfig(cfg);
-            localStorage.removeItem('alertas_fired');
-            renderAlertasConfig();
-            alert('Notificaciones detenidas. Ya no se mostrarán alertas al abrir la app.');
-        });
-    }
-
-    function listAlertasStancadas() {
-        const cfg = getAlertasConfig();
-        const data = dataFiltradaPorRol();
-        const estadosExcluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
-        const alerts = [];
-        data.forEach(o => {
-            const e = normalizarTexto(o.Estado);
-            if (estadosExcluidos.some(x => e.includes(x))) return;
-            if (cfg.region !== 'todas' && !isOrderInRegion(o, cfg.region)) return;
-            const diasMod = diasDesde(o['Fecha de la última modificación']);
-            const diasCreacion = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10);
-            const razones = [];
-            if (diasMod !== null && diasMod >= cfg.diasSinCambios) razones.push(`${diasMod}d sin cambios`);
-            if (diasCreacion >= cfg.diasCreacion) razones.push(`${diasCreacion}d desde creación`);
-            if (razones.length) alerts.push({ o, razones });
-        });
-        alerts.sort((a, b) => {
-            const da = Math.max(parseInt(a.o['Tiempo desde apertura (Días)'] || '0', 10), diasDesde(a.o['Fecha de la última modificación']) || 0);
-            const db = Math.max(parseInt(b.o['Tiempo desde apertura (Días)'] || '0', 10), diasDesde(b.o['Fecha de la última modificación']) || 0);
-            return db - da;
-        });
-        return alerts;
-    }
-
-    function renderAlertasPreview() {
-        const el = document.getElementById('alertas-resultado');
-        if (!el) return;
-        const cfg = getAlertasConfig();
-        if (!cfg.enabled) {
-            el.innerHTML = '<div style="background:#f1f5f9; border:1px dashed #cbd5e1; border-radius:12px; padding:1rem; color:#475569; font-size:0.85rem; font-weight:600;"><i class="bi bi-bell-slash" style="margin-right:6px;"></i> Notificaciones desactivadas. Activa el interruptor para ver qué órdenes generarían alertas con los filtros.</div>';
-            return;
-        }
-        const alerts = listAlertasStancadas();
-        if (alerts.length === 0) {
-            el.innerHTML = '<div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:1rem; color:#166534; font-weight:600;"><i class="bi bi-check-circle-fill" style="margin-right:6px;"></i>Sin órdenes que superen los umbrales con los filtros actuales.</div>';
-            return;
-        }
-        el.innerHTML = `
-            <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:0.7rem 1rem; color:#b45309; font-weight:800; font-size:0.85rem;"><i class="bi bi-bell-fill" style="margin-right:6px;"></i>${alerts.length} orden${alerts.length === 1 ? '' : 'es'} generarían alerta con estos filtros (región y días)</div>
-            ${alerts.map(a => `
-                <div style="background:white; border:1px solid #e2e8f0; border-left:5px solid #f59e0b; border-radius:12px; padding:0.85rem 1rem;">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-                        <div style="flex:1;">
-                            <p style="margin:0 0 4px 0; font-weight:800; font-size:0.92rem; color:#111;">${escapeHTML(a.o['Cuenta: Nombre de la cuenta'])}</p>
-                            <p style="margin:0; font-size:0.8rem; color:#64748b;">${escapeHTML(a.o['Producto ST'])} · ${escapeHTML(a.o['Territorio de servicio: Nombre'])}</p>
-                            <p style="margin:4px 0 0 0; font-size:0.78rem; color:#b45309; font-weight:600;">${a.razones.join(' · ')}</p>
-                        </div>
-                    </div>
-                </div>`).join('')}
-        `;
-    }
-
-    function renderAlertasResultado(res) {
-        const el = document.getElementById('alertas-resultado');
-        if (!el) return;
-        if (res.error) {
-            el.innerHTML = `<div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:1rem; color:#b91c1c; font-weight:600; font-size:0.9rem;"><i class="bi bi-exclamation-triangle-fill" style="margin-right:6px;"></i>${res.error}</div>`;
-            return;
-        }
-        if (res.total === 0) {
-            el.innerHTML = '<div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:1rem; color:#166534; font-weight:600;"><i class="bi bi-check-circle-fill" style="margin-right:6px;"></i>Sin órdenes que superen los umbrales.</div>';
-            return;
-        }
-        el.innerHTML = res.items.map(a => `
-            <div style="background:white; border:1px solid ${a.yaEnviada ? '#cbd5e1' : '#fde68a'}; border-left:5px solid ${a.yaEnviada ? '#94a3b8' : '#f59e0b'}; border-radius:12px; padding:0.85rem 1rem;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-                    <div style="flex:1;">
-                        <p style="margin:0 0 4px 0; font-weight:800; font-size:0.92rem; color:#111;">${escapeHTML(a.o['Cuenta: Nombre de la cuenta'])}</p>
-                        <p style="margin:0; font-size:0.8rem; color:#64748b;">${escapeHTML(a.o['Producto ST'])} · ${escapeHTML(a.o['Territorio de servicio: Nombre'])}</p>
-                        <p style="margin:4px 0 0 0; font-size:0.78rem; color:#b45309; font-weight:600;">${a.razones.join(' · ')}</p>
-                    </div>
-                    <span style="background:${a.yaEnviada ? '#e2e8f0' : '#f59e0b'}; color:${a.yaEnviada ? '#475569' : 'white'}; padding:3px 10px; border-radius:12px; font-size:0.65rem; font-weight:800; flex-shrink:0;">${a.yaEnviada ? 'ENVIADA HOY' : 'NOTIFICADA'}</span>
-                </div>
-            </div>`).join('');
-    }
-
-    function checkAlertasPush(force) {
-        const cfg = getAlertasConfig();
-        if (!cfg.enabled && !force) return { total: 0, items: [] };
-        if (!('Notification' in window)) return { error: 'Este navegador no soporta notificaciones.', total: 0, items: [] };
-        if (Notification.permission !== 'granted') return { error: 'El permiso de notificaciones no está concedido. Solicitálo con el botón.', total: 0, items: [] };
-
-        const alerts = listAlertasStancadas();
-
-        let fired;
-        try { fired = JSON.parse(localStorage.getItem('alertas_fired') || '{}'); } catch (e) { fired = {}; }
-        const hoy = new Date().toISOString().slice(0, 10);
-
-        const result = alerts.map(a => {
-            const odt = a.o['Número de orden de trabajo'];
-            const yaEnviada = fired[odt] === hoy;
-            if (!yaEnviada) {
-                const n = new Notification(`⚠️ Orden estancada — ${a.o['Cuenta: Nombre de la cuenta']}`, {
-                    body: `${a.o['Producto ST']} · ${a.o['Territorio de servicio: Nombre']} · ${a.razones.join(' · ')}`,
-                    icon: 'icono-servicio-tecnico.png',
-                    tag: odt
-                });
-                n.onclick = () => window.focus();
-                fired[odt] = hoy;
-            }
-            return { o: a.o, razones: a.razones, yaEnviada };
-        });
-        localStorage.setItem('alertas_fired', JSON.stringify(fired));
-        return { total: alerts.length, items: result };
     }
 
     // ── ENCUESTAS NPS (Solo Admin) ─────────────────────────────────────────
