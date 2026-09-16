@@ -180,6 +180,12 @@ Objetivo: la app Dismac muestra/a iguala datos de TidyWork en vivo, sin scraping
 
 - **Versión actual en producción: `app.js?v=56`.**
 
+### 12. PWA instalable con logo DISMAC (15/09/2026, v57)
+- App ahora instalable (PWA): nuevo `manifest.json` (name "Soporte Técnico Dismac", display `standalone`, theme_color `#E31837`) + `sw.js` (service worker unificado: caching de la app shell + notificaciones FCM de fondo, absorbe la lógica de `firebase-messaging-sw.js`).
+- Íconos generados desde el logo real de la extensión (`dismac-extension/icons/icon128.png` = cuadrado rojo `#E31837` redondeado con la "D" blanca): `icon-192.png`, `icon-512.png`, `icon-512-maskable.png` (esquinas rojas opacas, apto para máscaras de Android) y `apple-touch-icon.png` (180px, para iOS).
+- `index.html`: `manifest.json` + `theme-color` + `apple-touch-icon` + metas iOS, y registro de `navigator.serviceWorker.register('./sw.js')` al cargar.
+- **Importante al publicar:** `sw.js` cachea el shell por versión (`CACHE_VERSION = 'dismac-app-vNN'`). Si cambia el shell (app.js/style.css/index.html), subir `app.js?v=NN`, actualizar `CACHE_VERSION` y el `PRECACHE_URLS` (paths con espacios van URL-encoded, ej. `icono%20para%20botones.png`). Estrategia: network-first en navegación, stale-while-revalidate en estáticos (preserva el flujo de "recarga forzada para ver lo nuevo").
+
 ## 🔮 Pendiente / a confirmar
 
 - Confirmar con el usuario que en su teléfono se visualiza la versión v55 tras la recarga forzada (~2 min post-push).
