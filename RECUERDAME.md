@@ -6,7 +6,7 @@ Archivo de memoria del proyecto. Al empezar una sesión, leé este archivo para 
 
 ## 🎯 Qué es la app
 
-App web estática (mobile-first, estética Dismac rojo/blanco/negro) de **soporte técnico** que muestra el estado de las órdenes de trabajo, gráficas, reportes, encuestas de satisfacción (NPS) y alertas push locales.
+App web estática (mobile-first, estética Dismac rojo/blanco/negro) de **soporte técnico** que muestra el estado de las órdenes de trabajo, gráficas, reportes y encuestas de satisfacción (NPS). Es una **PWA instalable**.
 
 - **Ruta local:** `C:\Users\jabustos\Desktop\APP y N8N\App\`
 - **Servidor local:** `python -m http.server 8080` → `http://127.0.0.1:8080/index.html`
@@ -18,7 +18,7 @@ App web estática (mobile-first, estética Dismac rojo/blanco/negro) de **soport
 
 - HTML + CSS + JS puro (sin frameworks). **PapaParse** para leer Google Sheets CSV, **Chart.js** para gráficas, **jsPDF + autotable** para PDF.
 - `app.js` es un solo closure dentro de `DOMContentLoaded` (todo con hoisting, se pueden agregar funciones en cualquier orden).
-- **Cache de versiones:** `index.html` carga `app.js?v=NN`. **Siempre subir el número de versión** al hacer cambios y pushear, si no los usuarios ven código viejo.
+- **Cache de versiones:** `index.html` carga `app.js?v=NN` y `style.css?v=NN`, y `sw.js` usa `CACHE_VERSION = 'dismac-app-vNN'` con su `PRECACHE_URLS`. **Siempre subir las versiones que correspondan** al hacer cambios y pushear, si no los usuarios ven código viejo.
 - GitHub Pages cachea `index.html` hasta 10 min → tras un push hay que esperar ~2 min y hacer **recarga forzada** en el teléfono para ver lo nuevo.
 
 ## 📊 Fuentes de datos
@@ -44,13 +44,13 @@ App web estática (mobile-first, estética Dismac rojo/blanco/negro) de **soport
 - Gráficas de tendencia por estado/marca/regional con exportación a CSV y PDF.
 - `exportReportesPDF()` con **branding Dismac**: banda roja, wordmark, tarjetas de resumen, línea de filtros, tabla con `autoTable` y pie de página paginado "CONFIDENCIAL — USO INTERNO · Página X de Y".
 
-### 4. Feature 3 — Alertas Push configurables
+### 4. Feature 3 — Alertas Push configurables ⚠️ (ELIMINADA en v58, ver sección 13)
 - Alertas locales (Notification API) cuando una orden supera los umbrales de "Sin cambios (días)" (por defecto 4) y "Desde creación (días)" (por defecto 8).
 - `checkAlertasPush(false)` se ejecuta al cargar datos (si `enabled` está activo).
 - Config en `localStorage`: `alertas_config` = `{enabled, diasSinCambios, diasCreacion, region}`; `alertas_fired` = `{odt:'YYYY-MM-DD'}` (evita repetir el mismo día); `sla_atendidas` (array).
 - Estados excluidos de las alertas: `cancelado`, `error`, `entregado`, `cerrado`.
 
-### 5. Fixes de la pantalla de Alertas (versión actual, V37)
+### 5. Fixes de la pantalla de Alertas (histórico, V37) — ⚠️ feature eliminada en v58 (ver sección 13)
 - **Botones de ancho completo apilados** (antes iban en 2 columnas y en pantallas chicas se cortaban). Nueva jerarquía de botones:
   1. **Buscar órdenes** (rojo, principal) — dispara la búsqueda.
   2. Verificar y enviar alertas ahora (negro).
@@ -91,6 +91,35 @@ App web estática (mobile-first, estética Dismac rojo/blanco/negro) de **soport
 - **Limpieza del buscador global al volver al menú principal** (v43): en `showView()`, si la vista destino es `viewDashboard`, se vacía `#global-search-input`, se ocultan los resultados y se restaura el dashboard.
 - Colores de marca: rojo `#E31837`, blanco, negro `#111`, gris `#B8B8B8`.
 
+### 10. App — Integración de pestaña TRANSPORTE por regional (11/09/2026, v54)
+- Integración de la hoja Google `TRANSPORTE` (`SHEETS_CONFIG.transporte`).
+- Las órdenes de transporte se leen y se distribuyen automáticamente en las vistas por regional de **Estados de Servicio**.
+- Identificador visual **`🚛 TRANSPORTE`** (badge ámbar, borde `#f59e0b`).
+- Sub-filtro rápido con chips dentro de la vista de cada regional: **Todas**, **Servicio Técnico** y **Transporte**.
+- Inclusión de órdenes de transporte en el buscador global y buscador regional.
+
+### 11. Fix — Corrección del filtro regional y búsqueda en Tarija/Sucre (12/09/2026, v56)
+- **Vista por defecto sin búsqueda**: `isOrderInRegion()` muestra limpiamente solo las órdenes pertenecientes a la regional elegida (**Tarija**, **Villamontes**, **Yacuiba** en Tarija; **Sucre** en Sucre). Evita que órdenes generales de Montero saturen la lista inicial.
+- **Búsqueda / Filtro por texto / Rol Regional**: Al buscar por nombre de cliente, N° orden o equipo dentro de la vista de Tarija/Sucre (o con rol regional), la búsqueda abarca **Tarija/Sucre Y Municipios (SCZ)**. Esto permite ubicar equipos de clientes de Tarija/Sucre que fueron derivados a talleres en Santa Cruz o Montero por falta de servicio técnico local.
+- Sincronizado en `app.js`, `dismac-extension/sidepanel/panel.js` y `dismac-extension/background/service-worker.js`.
+
+### 12. PWA instalable con logo DISMAC (15/09/2026, v57)
+- App ahora instalable (PWA): nuevo `manifest.json` (name "Soporte Técnico Dismac", display `standalone`, theme_color `#E31837`) + `sw.js` (service worker unificado: caching de la app shell + notificaciones FCM de fondo, absorbe la lógica de `firebase-messaging-sw.js`).
+- Íconos generados desde el logo real de la extensión (`dismac-extension/icons/icon128.png` = cuadrado rojo `#E31837` redondeado con la "D" blanca): `icon-192.png`, `icon-512.png`, `icon-512-maskable.png` (esquinas rojas opacas, apto para máscaras de Android) y `apple-touch-icon.png` (180px, para iOS).
+- `index.html`: `manifest.json` + `theme-color` + `apple-touch-icon` + metas iOS, y registro de `navigator.serviceWorker.register('./sw.js')` al cargar.
+- **Importante al publicar:** `sw.js` cachea el shell por versión (`CACHE_VERSION = 'dismac-app-vNN'`). Si cambia el shell (app.js/style.css/index.html), subir `app.js?v=NN` / `style.css?v=NN`, actualizar `CACHE_VERSION` y el `PRECACHE_URLS` (paths con espacios van URL-encoded, ej. `icono%20para%20botones.png`). Estrategia: network-first en navegación, stale-while-revalidate en estáticos (preserva el flujo de "recarga forzada para ver lo nuevo").
+
+### 13. Eliminada la sección "Alertas Push" completa (15/09/2026, v58)
+- **Decisión del usuario:** el sistema de alertas por `Notification API` no servía (pedía entrar a esa pantalla para dar permiso y solo avisaba con la app abierta). Quiere reutilizar el tema de las alertas de otra forma en el futuro.
+- Eliminado: card del menú (`view-alertas`), vista `view-alertas` en `index.html`, funciones `getAlertasConfig/saveAlertasConfig/showAlertas/renderAlertasConfig/listAlertasStancadas/renderAlertasPreview/renderAlertasResultado/checkAlertasPush`, llamada `checkAlertasPush(false)` al cargar, botón "volver" y `case 'view-alertas'` en `handleNavigation`, y el bloque FCM de primer plano en app.js (getToken/onMessage).
+- **Conservado:** la sección "Alertas SLA" (dentro de Escalamientos/Resumen) es OTRA feature y se mantuvo intacta. `sw.js` conserva el handle de mensajes FCM de fondo (inofensivo, útil si luego se hace push real).
+
+### 14. Fix — header (logo DISMAC + botón admin) fijo al hacer scroll (15/09/2026, style.css v18)
+- **Problema:** al abrir la app y scrollear, el logo DISMAC y el botón de usuario/administrador se iban con la pantalla en vez de quedarse arriba. La causa: `position: sticky` del `.header` estaba roto porque en la media query desktop `.app-container` tenía `overflow: hidden` (rompe sticky) y no había prefijo `-webkit-sticky` para iOS.
+- **Fix:** quité `overflow: hidden` de `.app-container` (media query ≥768px), agregué `position: -webkit-sticky`, y le di al `.header` un fondo translúcido con blur (`rgba(248,250,252,0.92)` + `backdrop-filter`) para que el contenido que pasa por debajo no se transparente y se vea como barra fija. Quité el inline `background: transparent` del header en `index.html`.
+
+- **Versión actual en producción:** `app.js?v=58` · `style.css?v=18` · cache SW `dismac-app-v59`.
+
 ## 🧩 Proyecto TidyWork (integración / mapeo de API)
 
 Proyecto paralelo: **entender la API de TidyWork** (`https://tidywork.dismac.com.bo`) para (a) que la extensión/app consulten datos directo (JSON) en vez de scrapear HTML, (b) alimentar la app Dismac con info real y en vivo, sin deslogueos.
@@ -118,7 +147,6 @@ Proyecto paralelo: **entender la API de TidyWork** (`https://tidywork.dismac.com
 
 ### For derivar (flujo confirmado):
 `GetDetailById` → modal → usuario elige estado + `TechnicalReference` → `SendAppointmentTechnical` → toast "Estado actualizado" → recarga.
-5. **Módulo /Control (mapa + calendario de derivación)** ma
 
 ### ⏳ Pendiente del mapeo TidyWork
 - ~~Página de mapa/derivación~~ ✅ **HECHO** (módulo `/Control`, `Tidy Work _ Calendario.html`).
@@ -152,11 +180,12 @@ Objetivo: la app Dismac muestra/a iguala datos de TidyWork en vivo, sin scraping
 
 ## 🚀 Flujo para publicar cambios
 
-1. Editar `app.js` y/o `index.html`.
-2. `node --check app.js`.
-3. Subir la versión en `index.html`: `app.js?v=NN` → `?v=NN+1`.
-4. `git add -A`, `git commit -m "..."`, `git push origin main`.
-5. Avisar al usuario: esperar ~2 min y hacer recarga forzada en el teléfono.
+1. Editar `app.js`, `style.css` y/o `index.html`.
+2. `node --check app.js` (y `node --check sw.js` si tocaste el service worker).
+3. Subir versiones en `index.html`: `app.js?v=NN` → `?v=NN+1` y/o `style.css?v=NN` → `?v=NN+1`.
+4. Si el shell cambia, subir `CACHE_VERSION` y ajustar el `PRECACHE_URLS` en `sw.js`.
+5. `git add -A`, `git commit -m "..."`, `git push origin main`.
+6. Avisar al usuario: esperar ~2 min y hacer recarga forzada en el teléfono.
 
 ## 📌 Estado de commits
 
@@ -166,39 +195,13 @@ Objetivo: la app Dismac muestra/a iguala datos de TidyWork en vivo, sin scraping
 - `fe47b53` — chore: quitar captura de prueba del repo.
 - `8d88c4a` — feat: satisfacción del cliente lee la pestaña 'nps por regional' (v38).
 - `529cd3e` — fix: padding inferior en desktop para que la barra de navegación no tape el dashboard ejecutivo (style.css v17).
-### 10. App — Integración de pestaña TRANSPORTE por regional (11/09/2026, v54)
-- Integración de la hoja Google `TRANSPORTE` (`SHEETS_CONFIG.transporte`).
-- Las órdenes de transporte se leen y se distribuyen automáticamente en las vistas por regional de **Estados de Servicio**.
-- Identificador visual **`🚛 TRANSPORTE`** (badge ámbar, borde `#f59e0b`).
-- Sub-filtro rápido con chips dentro de la vista de cada regional: **Todas**, **Servicio Técnico** y **Transporte**.
-- Inclusión de órdenes de transporte en el buscador global y buscador regional.
-
-### 11. Fix — Corrección del filtro regional y búsqueda en Tarija/Sucre (12/09/2026, v56)
-- **Vista por defecto sin búsqueda**: `isOrderInRegion()` muestra limpiamente solo las órdenes pertenecientes a la regional elegida (**Tarija**, **Villamontes**, **Yacuiba** en Tarija; **Sucre** en Sucre). Evita que órdenes generales de Montero saturen la lista inicial.
-- **Búsqueda / Filtro por texto / Rol Regional**: Al buscar por nombre de cliente, N° orden o equipo dentro de la vista de Tarija/Sucre (o con rol regional), la búsqueda abarca **Tarija/Sucre Y Municipios (SCZ)**. Esto permite ubicar equipos de clientes de Tarija/Sucre que fueron derivados a talleres en Santa Cruz o Montero por falta de servicio técnico local.
-- Sincronizado en `app.js`, `dismac-extension/sidepanel/panel.js` y `dismac-extension/background/service-worker.js`.
-
-### 12. PWA instalable con logo DISMAC (15/09/2026, v57)
-- App ahora instalable (PWA): nuevo `manifest.json` (name "Soporte Técnico Dismac", display `standalone`, theme_color `#E31837`) + `sw.js` (service worker unificado: caching de la app shell + notificaciones FCM de fondo, absorbe la lógica de `firebase-messaging-sw.js`).
-- Íconos generados desde el logo real de la extensión (`dismac-extension/icons/icon128.png` = cuadrado rojo `#E31837` redondeado con la "D" blanca): `icon-192.png`, `icon-512.png`, `icon-512-maskable.png` (esquinas rojas opacas, apto para máscaras de Android) y `apple-touch-icon.png` (180px, para iOS).
-- `index.html`: `manifest.json` + `theme-color` + `apple-touch-icon` + metas iOS, y registro de `navigator.serviceWorker.register('./sw.js')` al cargar.
-- **Importante al publicar:** `sw.js` cachea el shell por versión (`CACHE_VERSION = 'dismac-app-vNN'`). Si cambia el shell (app.js/style.css/index.html), subir `app.js?v=NN`, actualizar `CACHE_VERSION` y el `PRECACHE_URLS` (paths con espacios van URL-encoded, ej. `icono%20para%20botones.png`). Estrategia: network-first en navegación, stale-while-revalidate en estáticos (preserva el flujo de "recarga forzada para ver lo nuevo").
-
-### 13. Eliminada la sección "Alertas Push" completa (15/09/2026, v58)
-- **Decisión del usuario:** el sistema de alertas por `Notification API` no servía (pedía entrar a esa pantalla para dar permiso y solo avisaba con la app abierta). Quiere reutilizar el tema de las alertas de otra forma en el futuro.
-- Eliminado: card del menú (`view-alertas`), vista `view-alertas` en `index.html`, funciones `getAlertasConfig/saveAlertasConfig/showAlertas/renderAlertasConfig/listAlertasStancadas/renderAlertasPreview/renderAlertasResultado/checkAlertasPush`, llamada `checkAlertasPush(false)` al cargar, botón "volver" y `case 'view-alertas'` en `handleNavigation`, y el bloque FCM de primer plano en app.js (getToken/onMessage).
-- **Conservado:** la sección "Alertas SLA" (dentro de Escalamientos/Resumen) es OTRA feature y se mantuvo intacta. `sw.js` conserva el handle de mensajes FCM de fondo (inofensivo, útil si luego se hace push real).
-- Versionado: `app.js?v=58`, `CACHE_VERSION = 'dismac-app-v58'`.
-
-- **Versión actual en producción: `app.js?v=58`.**
-
-### 14. Fix — header (logo DISMAC + botón admin) fijo al hacer scroll (15/09/2026, style.css v18)
-- **Problema:** al abrir la app y scrollear, el logo DISMAC y el botón de usuario/administrador se iban con la pantalla en vez de quedarse arriba. La causa: `position: sticky` del `.header` estaba roto porque en la media query desktop `.app-container` tenía `overflow: hidden` (rompe sticky) y no había prefijo `-webkit-sticky` para iOS.
-- **Fix:** quité `overflow: hidden` de `.app-container` (media query ≥768px), agregué `position: -webkit-sticky`, y le di al `.header` un fondo translúcido con blur (`rgba(248,250,252,0.92)` + `backdrop-filter`) para que el contenido que pasa por debajo no se transparente y se vea como barra fija. Quité el inline `background: transparent` del header en `index.html`.
-- Versionado: `style.css?v=18`, `CACHE_VERSION = 'dismac-app-v59'`. `app.js` no cambió (sigue v58).
+- `bbc532c` — fix: habilitar búsqueda cruzada en Municipios para Tarija y Sucre (v56).
+- `6069ef8` — feat: PWA instalable con logo DISMAC, manifest y service worker unificado (v57).
+- `35852d6` — refactor: eliminar sección Alertas Push y FCM en primer plano (v58).
+- `87d7f69` — fix: header fijo al hacer scroll, quitar overflow:hidden que rompía sticky (style.css v18).
 
 ## 🔮 Pendiente / a confirmar
 
-- Confirmar con el usuario que en su teléfono se visualiza la versión v55 tras la recarga forzada (~2 min post-push).
+- Confirmar con el usuario que en su teléfono se visualiza la **v58** (app.js) + **style.css v18** tras recarga forzada (~2 min post-push y con la app PWA, quizá reinstalar para ver si el SW cachea lo nuevo).
 - **Pestaña "última modificación":** confirmar si debe mostrar **solo órdenes activas** (hoy trae todas, incluido Completado) y si el mapeo de "Contacto" (→ `Cuenta: Nombre de la cuenta`) es correcto.
 
