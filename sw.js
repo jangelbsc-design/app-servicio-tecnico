@@ -1,11 +1,11 @@
 /* Service Worker — Soporte Técnico Dismac
    Funciones: caching PWA (instalable/offline) + notificaciones FCM de fondo.
    Actualizar CACHE_VERSION al publicar cambios en el shell de la app. */
-const CACHE_VERSION = 'dismac-app-v58';
+const CACHE_VERSION = 'dismac-app-v59';
 const PRECACHE_URLS = [
     './',
     './index.html',
-    './style.css?v=17',
+    './style.css?v=18',
     './app.js?v=58',
     './icono-servicio-tecnico.png',
     './mapa-talleres.png',

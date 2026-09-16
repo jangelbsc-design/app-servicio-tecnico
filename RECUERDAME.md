@@ -192,6 +192,11 @@ Objetivo: la app Dismac muestra/a iguala datos de TidyWork en vivo, sin scraping
 
 - **Versión actual en producción: `app.js?v=58`.**
 
+### 14. Fix — header (logo DISMAC + botón admin) fijo al hacer scroll (15/09/2026, style.css v18)
+- **Problema:** al abrir la app y scrollear, el logo DISMAC y el botón de usuario/administrador se iban con la pantalla en vez de quedarse arriba. La causa: `position: sticky` del `.header` estaba roto porque en la media query desktop `.app-container` tenía `overflow: hidden` (rompe sticky) y no había prefijo `-webkit-sticky` para iOS.
+- **Fix:** quité `overflow: hidden` de `.app-container` (media query ≥768px), agregué `position: -webkit-sticky`, y le di al `.header` un fondo translúcido con blur (`rgba(248,250,252,0.92)` + `backdrop-filter`) para que el contenido que pasa por debajo no se transparente y se vea como barra fija. Quité el inline `background: transparent` del header en `index.html`.
+- Versionado: `style.css?v=18`, `CACHE_VERSION = 'dismac-app-v59'`. `app.js` no cambió (sigue v58).
+
 ## 🔮 Pendiente / a confirmar
 
 - Confirmar con el usuario que en su teléfono se visualiza la versión v55 tras la recarga forzada (~2 min post-push).
