@@ -3,7 +3,6 @@
 
   let appWorkshopData = [];
   let appOrdersData = [];
-  let appEncuestaData = [];
   let appCitasData = [];
   let currentView = 'dashboard';
   let currentRegion = '';
@@ -46,12 +45,6 @@
     if (!f) return null;
     const hoy = new Date(); hoy.setHours(0,0,0,0);
     return Math.floor((hoy - f) / 86400000);
-  }
-
-  function diasEntre(f1, f2) {
-    const a = parseFecha(f1), b = parseFecha(f2);
-    if (!a || !b) return null;
-    return Math.floor(Math.abs(b - a) / 86400000);
   }
 
   const GARANTIA_DIAS_DEFAULT = 365;
@@ -145,10 +138,9 @@
 
   async function loadDataFromStorage() {
     return new Promise((resolve) => {
-      chrome.storage.local.get(['talleres', 'ordenes', 'encuestas', 'citas', 'lastSync', 'syncStatus', 'usuario'], (data) => {
+      chrome.storage.local.get(['talleres', 'ordenes', 'citas', 'lastSync', 'syncStatus', 'usuario'], (data) => {
         appWorkshopData = data.talleres || [];
         appOrdersData = data.ordenes || [];
-        appEncuestaData = data.encuestas || [];
         appCitasData = data.citas || [];
         currentUser = data.usuario || null;
         resolve(data);
@@ -213,16 +205,6 @@
       badgeMod.style.background = sinModificar4 > 0 ? '#E31837' : '#16a34a';
     }
 
-    const escCount = appOrdersData.filter(o => {
-      const dc = diasEntre(o['Fecha de compra'], o['Fecha de inicio']);
-      return dc !== null && dc <= 30;
-    }).length;
-    const badgeEsc = document.getElementById('badge-esc');
-    if (badgeEsc) {
-      badgeEsc.textContent = escCount;
-      badgeEsc.style.background = escCount > 0 ? '#E31837' : '#16a34a';
-    }
-
     // Citas badge — total count
     const totalCitas = appCitasData.length;
     const badgeCitas = document.getElementById('badge-citas');
@@ -267,17 +249,7 @@
             <span class="sp-taller-ciudad">${escapeHTML(t.CIUDAD)}</span>
           </div>
           <div class="sp-taller-marca">${escapeHTML(t.MARCA)}</div>
-          ${contactos.length > 0 ? `
-            <div class="sp-taller-actions">
-              ${contactos.slice(0, 2).map(num => {
-                const c = num.replace(/\D/g, '');
-                return `
-                  <a href="tel:${c}" class="sp-btn-call"><i class="bi bi-telephone-fill"></i> ${c}</a>
-                  <a href="https://wa.me/591${c}" target="_blank" class="sp-btn-wa"><i class="bi bi-whatsapp"></i> WA</a>
-                `;
-              }).join('')}
-            </div>
-          ` : '<p style="font-size:0.72rem;color:#94a3b8;text-align:center;">Sin teléfono</p>'}
+          ${contactos.length > 0 ? `<div style="font-size:0.72rem;color:#64748b;margin-top:2px;">Tel. ${escapeHTML(contactos.slice(0, 2).join(' · '))}</div>` : '<p style="font-size:0.72rem;color:#94a3b8;text-align:center;">Sin teléfono</p>'}
           ${mapHtml}
         </div>
       `;
@@ -459,41 +431,9 @@
 
     let workshopHtml = '';
     if (workshop) {
-      const textMsg = `Hola, servicio técnico ${workshop.TALLER}, por favor ayúdenos con información sobre el estado de las siguientes órdenes de trabajo:\nOrden DISMAC: ${ordenDismac}\nNombre del cliente: ${nombreCliente}\nActivo: ${activo}\nNumero de orden: ${nroOrdenMarca}\nDías en el ST de marca: ${diasST}`;
-      const encodedMsg = encodeURIComponent(textMsg);
-      const nums = (workshop.CONTACTO || '').split(/[-/,]/).map(n => n.trim()).filter(n => n.length >= 7);
       workshopHtml = `
         <div class="sp-detail-section">
           <h4><i class="bi bi-tools"></i> Taller: ${escapeHTML(workshop.TALLER)}</h4>
-          <div class="sp-taller-actions" style="margin-top:6px;">
-            ${nums.slice(0, 2).map(num => {
-              const c = num.replace(/\D/g, '');
-              return `
-                <a href="tel:${c}" class="sp-btn-call"><i class="bi bi-telephone-fill"></i> Ll. ${c}</a>
-                <a href="https://wa.me/?text=${encodedMsg}" target="_blank" class="sp-btn-wa"><i class="bi bi-whatsapp"></i> Mensaje</a>
-              `;
-            }).join('')}
-          </div>
-        </div>`;
-    }
-
-    const contactPhone = o.adicTelefono || '';
-    let clientHtml = '';
-    if (contactPhone) {
-      const nums = contactPhone.split(/[-/,]/).map(n => n.trim()).filter(n => n.length >= 7);
-      const clientMsg = `Hola ${nombreCliente}, le saludamos de Dismac para brindarle información sobre su orden ${ordenDismac}.`;
-      clientHtml = `
-        <div class="sp-detail-section" style="border-color:#c8e6c9;">
-          <h4 style="color:#16a34a;"><i class="bi bi-person-fill"></i> Contacto Cliente</h4>
-          <div class="sp-taller-actions" style="margin-top:6px;">
-            ${nums.slice(0, 2).map(num => {
-              const c = num.replace(/\D/g, '');
-              return `
-                <a href="tel:${c}" class="sp-btn-call"><i class="bi bi-telephone-fill"></i> Llamar</a>
-                <a href="https://wa.me/591${c}?text=${encodeURIComponent(clientMsg)}" target="_blank" class="sp-btn-wa"><i class="bi bi-whatsapp"></i> WA</a>
-              `;
-            }).join('')}
-          </div>
         </div>`;
     }
 
@@ -529,7 +469,6 @@
       </div>
 
       ${workshopHtml}
-      ${clientHtml}
     `;
 
     container.innerHTML = detail;
@@ -588,18 +527,9 @@
               <span class="sp-taller-name">${escapeHTML(t.TALLER)}</span>
               <span class="sp-taller-ciudad">${escapeHTML(t.CIUDAD)}</span>
             </div>
-            <div class="sp-taller-marca">${escapeHTML(t.MARCA)}</div>
-            ${nums.length > 0 ? `
-              <div class="sp-taller-actions">
-                ${nums.slice(0, 1).map(num => {
-                  const c = num.replace(/\D/g, '');
-                  return `
-                    <a href="tel:${c}" class="sp-btn-call"><i class="bi bi-telephone-fill"></i> Ll. ${c}</a>
-                    <a href="https://wa.me/591${c}" target="_blank" class="sp-btn-wa"><i class="bi bi-whatsapp"></i> WA</a>
-                  `;
-                }).join('')}
-              </div>` : ''}
-          </div>`;
+<div class="sp-taller-marca">${escapeHTML(t.MARCA)}</div>
+          ${nums.length > 0 ? `<div style="font-size:0.72rem;color:#64748b;margin-top:2px;">Tel. ${escapeHTML(nums[0])}</div>` : ''}
+        </div>`;
       }).join('');
     }
 
@@ -628,38 +558,6 @@
     }
 
     container.innerHTML = html;
-  }
-
-  function renderEncuesta() {
-    const container = document.getElementById('encuesta-content');
-    if (!container) return;
-
-    if (appEncuestaData.length === 0) {
-      container.innerHTML = '<div class="sp-empty">Sin datos de encuestas disponibles.</div>';
-      return;
-    }
-
-    let promo = 0, pasivo = 0, detractor = 0;
-    appEncuestaData.forEach(r => {
-      const st = r['NPS Status'] || '';
-      if (st.includes('Promoter')) promo++;
-      else if (st.includes('Passive')) pasivo++;
-      else if (st.includes('Detractor')) detractor++;
-    });
-    const total = appEncuestaData.length;
-    const nps = total ? Math.round(((promo / total) - (detractor / total)) * 100) : 0;
-
-    container.innerHTML = `
-      <div class="sp-detail-section">
-        <h4><i class="bi bi-emoji-smile"></i> Resumen NPS</h4>
-        <div class="sp-kpi-grid" style="margin-top:6px;">
-          <div class="sp-kpi-card"><div class="sp-kpi-icon" style="background:#3b82f620;color:#3b82f6;"><i class="bi bi-file-earmark"></i></div><div><div class="sp-kpi-val">${total}</div><div class="sp-kpi-label">Encuestas</div></div></div>
-          <div class="sp-kpi-card"><div class="sp-kpi-icon" style="background:${nps>=0?'#16a34a20':'#ef444420'};color:${nps>=0?'#16a34a':'#ef4444'};"><i class="bi bi-graph-up"></i></div><div><div class="sp-kpi-val">${nps}</div><div class="sp-kpi-label">NPS</div></div></div>
-          <div class="sp-kpi-card"><div class="sp-kpi-icon" style="background:#16a34a20;color:#16a34a;"><i class="bi bi-emoji-smile"></i></div><div><div class="sp-kpi-val">${promo}</div><div class="sp-kpi-label">Promotores</div></div></div>
-          <div class="sp-kpi-card"><div class="sp-kpi-icon" style="background:#ef444420;color:#ef4444;"><i class="bi bi-emoji-frown"></i></div><div><div class="sp-kpi-val">${detractor}</div><div class="sp-kpi-label">Detractores</div></div></div>
-        </div>
-      </div>
-    `;
   }
 
   function renderCitas(query) {
@@ -786,8 +684,11 @@
     else if (estNorm.includes('proceso') || estNorm.includes('en curso')) { statusColor = '#1e40af'; statusBg = '#dbeafe'; }
 
     const nums = (cita.contactoCel || '').split(/[-/,]/).map(n => n.trim()).filter(n => n.length >= 7);
-    const cliente = encodeURIComponent(cita.cliente || 'Cliente');
-    const prod = encodeURIComponent(cita.producto || 'Producto');
+
+    let contactoHtml = '';
+    if (nums.length > 0) {
+      contactoHtml = `<div class="sp-cita-detail-row"><span class="sp-cita-detail-label">Contacto</span><span class="sp-cita-detail-val">${escapeHTML(nums.slice(0, 2).join(' · '))}</span></div>`;
+    }
 
     container.innerHTML = `
       <div class="sp-cita-detail-card">
@@ -803,15 +704,7 @@
         <div class="sp-cita-detail-row"><span class="sp-cita-detail-label">Dirección</span><span class="sp-cita-detail-val">${escapeHTML(cita.direccion || '—')}</span></div>
         <div class="sp-cita-detail-row"><span class="sp-cita-detail-label">Estado TidyWork</span><span class="sp-cita-detail-val">${escapeHTML(cita.estado || '—')}</span></div>
         ${cita.subEstadoCita ? `<div class="sp-cita-detail-row"><span class="sp-cita-detail-label">Sub-estado</span><span class="sp-cita-detail-val">${escapeHTML(cita.subEstadoCita)}</span></div>` : ''}
-        <div class="sp-cita-detail-actions">
-          ${nums.slice(0,1).map(n => {
-            const c = n.replace(/\D/g, '');
-            const msg = encodeURIComponent(`Hola, sobre ODT ${cita.odt}: Cliente ${cita.cliente}, Producto ${cita.producto}.`);
-            return `
-              <a href="tel:${c}" class="sp-cita-action-call">Ll. ${c}</a>
-              <a href="https://wa.me/?text=${msg}" target="_blank" class="sp-cita-action-wa">WhatsApp</a>`;
-          }).join('')}
-        </div>
+        ${contactoHtml}
       </div>`;
 
     showView('view-cita-detail');
@@ -822,7 +715,6 @@
       case 'go-home': showView('view-dashboard'); break;
       case 'red-talleres': showView('view-talleres'); break;
       case 'estados-menu': showView('view-estados-menu'); break;
-      case 'encuesta': renderEncuesta(); showView('view-encuesta'); break;
       case 'ultima-mod': {
         const sinModificar4 = appOrdersData.filter(o => {
           const dm = diasDesde(o['Fecha de la última modificación']);
@@ -830,15 +722,6 @@
         });
         currentOrdenesPage = 1;
         renderOrdenes('Última Modificación', sinModificar4, { titulo: 'Órdenes sin cambios (≥4d)', ordenarPor: 'modificacion' });
-        break;
-      }
-      case 'escalamientos': {
-        const esc = appOrdersData.filter(o => {
-          const dc = diasEntre(o['Fecha de compra'], o['Fecha de inicio']);
-          return dc !== null && dc <= 30;
-        });
-        currentOrdenesPage = 1;
-        renderOrdenes('Escalamientos', esc, { titulo: 'Escalamientos (≤30d)' });
         break;
       }
       case 'talleres-region': {

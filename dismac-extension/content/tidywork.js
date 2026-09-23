@@ -153,14 +153,6 @@
     });
   }
 
-  async function findMatchingWorkshop(name) {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ type: 'FIND_WORKSHOP', name: name }, (response) => {
-        resolve(response?.found || []);
-      });
-    });
-  }
-
   function removePanel() {
     const existing = document.getElementById(DISMAC_PANEL_ID);
     if (existing) existing.remove();
@@ -199,7 +191,7 @@
     document.body.insertBefore(panel, document.body.firstChild);
   }
 
-  function renderDismacBadge(matchingOrders, workshopData, odt, pageData) {
+  function renderDismacBadge(matchingOrders, odt, pageData) {
     const warrantyInfo = (matchingOrders.length > 0 || pageData.fechaCompra) 
       ? getWarrantyInfoExt(matchingOrders.length > 0 ? matchingOrders[0] : null, pageData) 
       : null;
@@ -255,32 +247,6 @@
         </div>`;
     }
 
-    // Workshop contact buttons
-    let workshopHtml = '';
-    if (workshopData.length > 0) {
-      const w = workshopData[0];
-      const nums = (w.CONTACTO || '').split(/[-/,]/).map(n => n.trim()).filter(n => n.length >= 7);
-      workshopHtml = `
-        <div style="background:#f0f7ff; border:1px solid #dbeafe; border-radius:8px; padding:8px; margin-top:8px;">
-          <div style="font-weight:700; font-size:0.75rem; color:#1e40af; margin-bottom:6px;">
-            Taller: ${escapeHTML(w.TALLER)}
-          </div>
-          <div style="display:flex; flex-direction:column; gap:4px;">
-            ${nums.slice(0, 2).map(num => {
-              const c = num.replace(/\D/g, '');
-              const cliente = pageData.cliente || 'Cliente';
-              const prod = pageData.producto || 'Producto';
-              const msg = encodeURIComponent(`Hola ${w.TALLER}, sobre ODT ${odt}: Cliente ${cliente}, Producto ${prod}.`);
-              return `
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
-                  <a href="tel:${c}" style="background:#dbeafe; color:#1e40af; text-decoration:none; padding:5px; border-radius:6px; font-size:0.7rem; text-align:center; font-weight:700;">Ll. ${c}</a>
-                  <a href="https://wa.me/?text=${msg}" target="_blank" style="background:#dcfce7; color:#15803d; text-decoration:none; padding:5px; border-radius:6px; font-size:0.7rem; text-align:center; font-weight:700;">WhatsApp</a>
-                </div>`;
-            }).join('')}
-          </div>
-        </div>`;
-    }
-
     // Extra fields from TidyWork
     let extraFieldsHtml = '';
     const extraFields = [];
@@ -312,7 +278,6 @@
         ${warrantyHtml ? `<div style="margin-bottom:8px;">${warrantyHtml}</div>` : ''}
         ${orderInfoHtml}
         ${extraFieldsHtml}
-        ${workshopHtml}
       </div>`;
 
     injectPanel(panelHtml);
@@ -384,17 +349,7 @@
     const matchingOrders = await findMatchingOrder(odt);
     console.log('[Dismac Assist] Resultado busqueda:', matchingOrders.length, 'ordenes encontradas');
 
-    let workshopData = [];
-    const workshopName = (matchingOrders.length > 0 
-      ? matchingOrders[0]['¿Qué servicio técnico ?'] 
-      : pageData.servicioTecnico) || '';
-    
-    if (workshopName.trim()) {
-      workshopData = await findMatchingWorkshop(workshopName.trim());
-      console.log('[Dismac Assist] Taller encontrado:', workshopData.length > 0 ? workshopData[0].TALLER : 'ninguno');
-    }
-
-    renderDismacBadge(matchingOrders, workshopData, odt, pageData);
+    renderDismacBadge(matchingOrders, odt, pageData);
 
     chrome.runtime.sendMessage({
       type: 'TIDYWORK_ORDER_EXTRACTED',
