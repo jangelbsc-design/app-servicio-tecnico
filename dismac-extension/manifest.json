@@ -35,9 +35,15 @@
   "content_scripts": [
     {
       "matches": ["https://tidywork.dismac.com.bo/*"],
-      "js": ["content/tidywork.js"],
+      "js": ["content/tidywork.js", "content/tidywork-live.js"],
       "css": ["content/tidywork.css"],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["content/fetch-watcher.js"],
+      "matches": ["https://tidywork.dismac.com.bo/*"]
     }
   ]
 }

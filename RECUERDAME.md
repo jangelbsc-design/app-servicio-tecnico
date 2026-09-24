@@ -83,3 +83,80 @@
 ## SCRIPTS (temp, verificar contenido antes de correr)
 - reapuntar-sheets-bot.js -> PATCH + activate (ya aplicado, reemplazos 0 = ya estaba bueno)
 - lector-sheets.md -> subagente opencode (ya creado, falta reiniciar opencode)
+
+---
+
+# DISMAC ASSIST - EXTENSIÓN CHROME (MV3) + TIDYWORK
+
+## CONTEXTO
+- Repo: https://github.com/jangelbsc-design/app-servicio-tecnico.git (rama main, local:
+  C:\Users\jabustos\Desktop\APP y N8N\App\dismac-extension).
+- Extensión MV3: sidepanel (panel.html/js/css), content scripts en https://tidywork.dismac.com.bo/*
+  (content/tidywork.js + content/tidywork-live.js + content/tidywork.css), background/service-worker.js
+  (sync + SHEETS_CONFIG), icons/.
+- Config local (NO subir): .agents/ (reglas), .opencode/ (subagentes, node_modules ignorado),
+  exec-72.json, archivos en Temp\opencode.
+
+## SESION 2026-09-23
+### LIMPIEZA YA PUSHEADO (commit 5e7ead5, origin/main)
+- Se QUITARON de la extensión: Satisfacción/NPS (tarjeta + vista view-encuesta + renderEncuesta),
+  Escalamientos (tarjeta + badge-esc), Contacto Rápido, y botones WhatsApp ("wa.me") / Llamar
+  ("tel:") en tarjetas de taller, detalle de orden, búsqueda global y detalle de cita. Se
+  conserva seguimiento: Estados de Servicio, Última Modificación, Citas, Red de Talleres, KPIs.
+- Archivos en el commit: content/tidywork.js, sidepanel/panel.html, sidepanel/panel.js, RECUERDAME.md.
+- PENDIENTE menor: limpiar CSS muerto en sidepanel/panel.css (.sp-btn-call, .sp-btn-wa,
+  .sp-contact-*, .sp-cita-action-*) - preguntar a Juan si los borra.
+
+### FLUJO 2 "TIDYWORK -> EXTENSION" (EN PROGRESO, NO terminado)
+Objetivo: la extensión refleja EN VIVO cambios de TidyWork (citas/control) usando la API real.
+Elegido por Juan (de 3 opciones): espejo en vivo de citas + espejo del Control/mapa +
+reacción instantánea a cambios. NO se eligió refrescar el ODT en pantalla.
+
+- content/tidywork-live.js (NUEVO): cliente API ("tidyFetch") + espejos + watchers.
+  - Cliente: same-origin (cookies de sesion del usuario), headers Tidy-Fetch:true y
+    X-XSRF-TOKEN (meta[name="x-xsrf-token"] o cookie .AspNetCore.Antiforgery.*). Detección 401.
+  - Espejo citas: POST /Appointment/Filter (body form filter=JSON{TerritoryId, WokTypeIds,
+    Technicals, StatusIds, StartDate, EndDate, Coment:'NONE'}). Territorios: POST
+    /WorkOrder/GetTerritorys {territoryId:1} devuelve TODOS (27 ids).
+  - Espejo control/mapa: GET /Control/GetEvents (Appoiments/Events/Markers).
+  - Reaccion instantanea: content/fetch-watcher.js (NUEVO) inyectado via chrome-extension://
+    (web_accessible_resources en manifest.json; CSP de TidyWork BLOQUEA scripts inline),
+    reenvia por window.postMessage src:'dismac-tidy-live'; el content script refresca espejos.
+    Endpoints trigger: SendAppointmentTechnical, ChangeStatus, WorkOrder/Update|Create,
+    ReOpenWo, AddAppointment, RescheduleAppointment, CreateScheduleSpecial, CompleteWorkShop.
+  - Tambien refresh por URL (1500ms), visibilidad, y cada 60s. Fallback a DOM (lo de
+    extractAppointmentRows de tidywork.js) si la API falla.
+- sidepanel/panel.js: escucha CITAS_LIVE_UPDATED -> recarga storage + render al instante +
+  footer "live-status-text" (Live TidyWork: N citas · fuente · hora).
+- manifest.json: content_scripts += tidywork-live.js; web_accessible_resources += fetch-watcher.js.
+
+### HALLAZGOS DE API (por tests en el navegador de Juan)
+- Respuesta de /Appointment/Filter: { Data:object, Object:object, Success:boolean,
+  Error:object, Errors:array[1], ErrosAll:string }. Data/Object encierran el payload DataTable.
+- PRIMER intento fallo con Errors[0] = "SqlDateTime overflow. Must be between 1/1/1753...".
+  Causa probable: el servidor parsea fechas como dd/MM/yyyy (o campo obligatorio omitido
+  rellenado con DateTime.MinValue). FIX: auto-curativo con 2 intentos de formato de fecha
+  (yyyy/MM/dd y dd/MM/yyyy); lee Errors y avanza. PENDIENTE CONFIRMAR cual formato da filas.
+- Estado de verificación: Territorios 27 OK, filter ok=true error=0. Aun sin citas por API
+  (citas:0 -> source=none), el DOM fallback SÍ guarda (total 128 en storage.local['citas']).
+- Warning inofensivo en consola: tidywork.js "No se pudo cambiar page length: $ is not defined"
+  (jQuery no disponible al cierre) - solo ruido.
+- COMO PROBAR: recargar extension en chrome://extensions + F5 en la pestana de TidyWork
+  (sin F5 el content script NUEVO no se reinyecta en pestanas ya abiertas). Consola: filtrar
+  por "[Dismac Assist][Live]". Buscar "Estructura [Filter]" (claves) y "Forma respuesta
+  [Appointment/Filter.data]" (forma de una fila) para afinar el mapeo de columnas.
+
+### PROXIMOS PASOS
+1. Confirmar formato de fecha que responde sin overflow (que aparezca "dd/MM/yyyy citas: N").
+2. Con una fila real a la vista (logShape), ajustar normalizeFilterRow a los campos/indices exactos.
+3. Probar /Control (GetEvents) y la reaccion instantanea (cambiar estado a ENVIADO en TidyWork).
+4. Cuando el espejo api funcione, limpiar el intento fallido de formato de fecha.
+5. Opcional escenario 1 "extension -> TidyWork" (escribir cambios a TidyWork): NO definido aun.
+
+## API TIDYWORK (resumen, detalle en MAPEO-TIDYWORK.md)
+- Auth: cookies de sesion del usuario en el navegador (same-origin, sin CORS). NO guardar credenciales.
+- Ruta de citas /Appointment: Filter, SaveFilter, GetTerritorys, GetTechnicalsByTerritories, Manage/{id}.
+- Ruta /Control (mapa/derivacion): GetEvents, SendAppointmentTechnical {Id,StatusId,StatusName,
+  TechnicalReference}, GetDetailById {id}, GetTechnicals {territoryId}, RescheduleAppointment.
+- EnumAppointmentStatus: 1 NINGUNO, 2 PROGRAMADO, 3 ENVIADO, 4 EN_CAMINO, 5 EN_CURSO,
+  6 NO_SE_PUEDE_COMPLETAR, 7 COMPLETADO, 8 CANCELADO, 9 ERROR.

@@ -176,6 +176,18 @@
     }
   }
 
+  function showLiveStatus() {
+    chrome.storage.local.get(['liveStatus'], function(data) {
+      var el = document.getElementById('live-status-text');
+      if (!el) return;
+      var ls = data.liveStatus;
+      if (!ls || !ls.at) { el.textContent = 'Live TidyWork: —'; return; }
+      var d = new Date(ls.at);
+      el.textContent = 'Live TidyWork: ' + (ls.total || 0) + ' citas · ' + (ls.source || '?') + ' · ' +
+        d.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    });
+  }
+
   function renderKPIs() {
     const estadosExcluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
     const activas = appOrdersData.filter(o => {
@@ -883,6 +895,13 @@
           updateSyncIndicator(data.syncStatus, data.lastSync);
         });
       }
+      if (message.type === 'CITAS_LIVE_UPDATED') {
+        loadDataFromStorage().then(function() {
+          renderKPIs();
+          showLiveStatus();
+          if (currentView === 'view-citas') renderCitas();
+        });
+      }
     });
 
     // 2) THEN load data asynchronously
@@ -892,6 +911,7 @@
         updateSyncIndicator(data.syncStatus, data.lastSync);
       });
       renderKPIs();
+      showLiveStatus();
     }).catch(function(err) {
       console.error('Error loading data:', err);
     });
