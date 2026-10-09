@@ -516,8 +516,10 @@
         </main>
 
         <div id="sync-status" class="sync-bar hidden">
-            <span id="sync-status-text"><i class="bi bi-exclamation-triangle" style="margin-right:8px;"></i> Fallo de
-                conexión</span>
+            <span id="sync-status-text"><i class="bi bi-arrow-repeat spin" style="margin-right:8px;"></i> Sincronizando
+                datos...</span>
+            <button id="sync-retry-btn" class="hidden"
+                style="margin-left:10px; background:#E31837; color:white; border:none; border-radius:8px; padding:5px 12px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.8rem; cursor:pointer;">Reintentar</button>
         </div>
 
         <nav class="bottom-nav">
@@ -543,7 +545,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=59"></script>
+    <script src="app.js?v=60"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
