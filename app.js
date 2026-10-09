@@ -27,40 +27,52 @@ const SHEETS_CONFIG = {
     }
 };
 
+// Municipios de Santa Cruz: agrupación usada por la vista "Municipios (SCZ)".
+const MUNICIPIOS_SCZ = ['montero', 'la guardia', 'el torno', 'cotoca', 'satelite', 'camiri', 'san julian', 'guabira', 'warnes', 'pailon', 'samaipata', 'buena vista', 'la angostura', 'yapacani'];
+
+// Regionales que además supervisan los municipios de Santa Cruz (acuerdo interno).
+const REGIONALES_CON_MUNICIPIOS = ['tarija', 'sucre'];
+
+// La regla de escalamiento exige una falla confirmada (columna "Detalle de falla" de ADICIONALES).
+// Poner en false para volver al criterio anterior (solo los 30 días compra -> inicio).
+const ESCALAMIENTO_REQUIERE_FALLA = true;
+
+// Normaliza rol y regional: minúsculas, sin acentos y sin espacios sobrantes
+// (así "Regional", "REGIONAL" o "Súcre" se comparan igual).
+function normalizarRol(valor) {
+    return (valor || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+// Trazas de diagnóstico: en la consola del navegador, ejecutar  DEBUG_APP = true  para verlas.
+let DEBUG_APP = false;
+const debugLog = (...args) => { if (DEBUG_APP) console.log(...args); };
+
 // Utilidad debounce para buscadores
 function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
         clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
+        timeout = setTimeout(() => func(...args), wait);
     };
 }
 
 async function fetchGoogleSheet(id, sheet) {
-    return new Promise(async (resolve, reject) => {
-        try {
-            const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${sheet}`;
-            const res = await fetch(url);
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-            const csvText = await res.text();
+    const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${sheet}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    const csvText = await res.text();
             
-            window.Papa.parse(csvText, {
-                header: true,
-                skipEmptyLines: true,
-                complete: (results) => {
-                    resolve(results.data);
-                },
-                error: (error) => {
-                    reject(error);
-                }
-            });
-        } catch (error) {
-            reject(error);
-        }
+    return new Promise((resolve, reject) => {
+        window.Papa.parse(csvText, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+                resolve(results.data);
+            },
+            error: (error) => {
+                reject(error);
+            }
+        });
     });
 }
 
@@ -342,7 +354,7 @@ function checkSessionOnLoad() {
 checkSessionOnLoad();
 
 function isAdmin() {
-    const rol = (localStorage.getItem('usuario_rol') || '').toLowerCase().trim();
+    const rol = normalizarRol(localStorage.getItem('usuario_rol'));
     return rol === 'admin' || rol === 'administrador';
 }
 
@@ -369,16 +381,15 @@ let appOrdersData = [];
 let appTransporteData = [];
 let appEncuestaData = [];
 let tipoFiltroOrdenes = 'todas';
-let estadosCurrentPage = 1;
 let estadosCurrentRegion = undefined;
 let estadosCurrentOrdenes = null;
 let estadosCurrentOpciones = null;
 // ────────────────────────────────────────────────────────────────────────────
 
-console.log("🔧 APP.JS CARGADO");
+debugLog("🔧 APP.JS CARGADO");
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log("✅ DOMContentLoaded DISPARADO");
+    debugLog("✅ DOMContentLoaded DISPARADO");
 
     const loginBtn = document.getElementById('login-btn');
     if (loginBtn) {
@@ -492,9 +503,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (adminEncuestaCard) adminEncuestaCard.classList.toggle('hidden', !isAdmin());
     document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !isAdmin()));
 
-    console.log("📥 Cargando datos...");
+    debugLog("📥 Cargando datos...");
     await loadAllData();
-    console.log(`✅ ${appWorkshopData.length} talleres, ${appOrdersData.length} órdenes`);
+    debugLog(`✅ ${appWorkshopData.length} talleres, ${appOrdersData.length} órdenes`);
     renderKPIs();
 
     // Variables de estado para búsqueda regional
@@ -504,6 +515,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     let filteredOrdenes = [];
     let ultimaModFiltro = 'todas';
     let escFiltro = 'todas';
+    // Vista a la que regresa el botón "Volver" de #view-details (talleres o protocolo).
+    let detailsBackView = null;
 
     // Buscador Regional de Talleres
     const workshopSearchInput = document.getElementById('workshop-search-input');
@@ -530,12 +543,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (esUltimaMod) {
             base = (ultimaModFiltro === 'todas' ? appOrdersData : appOrdersData.filter(o => isOrderInRegion(o, ultimaModFiltro)));
         } else {
-            const regNorm = (currentRegionOrdenes || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            if (query.length > 0 && (regNorm === 'tarija' || regNorm === 'sucre')) {
-                base = appOrdersData.filter(o => isOrderInRegion(o, currentRegionOrdenes) || isOrderInRegion(o, 'Municipios'));
-            } else {
-                base = appOrdersData.filter(o => isOrderInRegion(o, currentRegionOrdenes));
-            }
+            // Tarija y Sucre incluyen los municipios de Santa Cruz, con o sin texto en el buscador.
+            const incluyeMunicipios = regionalIncluyeMunicipios(currentRegionOrdenes);
+            base = appOrdersData.filter(o =>
+                isOrderInRegion(o, currentRegionOrdenes) || (incluyeMunicipios && isOrderInRegion(o, 'Municipios'))
+            );
         }
 
         filteredOrdenes = base.filter(o =>
@@ -557,9 +569,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 (o.adicDetalleFalla || "").toLowerCase().includes(query) ||
                 (o.adicObservaciones || "").toLowerCase().includes(query))
         );
-        estadosCurrentPage = 1;
         renderOrdenes(currentRegionOrdenes, filteredOrdenes,
-            esUltimaMod ? { ordenarPor: 'modificacion', titulo: 'Órdenes por última modificación' } : undefined);
+            esUltimaMod ? { ordenarPor: 'modificacion', titulo: 'Órdenes por última modificación' } : undefined, 1);
     }, 300));
 
     // Lógica de Búsqueda Global
@@ -615,6 +626,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderGlobalSearchResults(matchedTalleres, matchedOrdenes);
     }, 300));
 
+    // Definición única de "escalamiento": cambio de equipo dentro de los 30 días entre la
+    // fecha de compra y la fecha de inicio, sobre una orden activa y con falla confirmada
+    // (regla interna en .agents/rules/escalamientos.md).
+    function esEscalamiento(o) {
+        const e = normalizarTexto(o.Estado);
+        if (['cancelado', 'error', 'entregado', 'cerrado'].some(ex => e.includes(ex))) return false;
+        const diasCompra = diasEntre(o['Fecha de compra'], o['Fecha de inicio']);
+        if (diasCompra === null || diasCompra > 30) return false;
+        if (!ESCALAMIENTO_REQUIERE_FALLA) return true;
+        return String(o.adicDetalleFalla || '').trim().length > 0;
+    }
+
     function renderKPIs() {
         const estados_excluidos = ['cancelado', 'error', 'entregado', 'cerrado'];
         const isExcluido = (o) => {
@@ -622,13 +645,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             return estados_excluidos.some(ex => e.includes(ex));
         };
 
-        let activas = appOrdersData.filter(o => !isExcluido(o));
-
         const rol = localStorage.getItem('usuario_rol');
         const regional = localStorage.getItem('usuario_regional');
-        if (rol === 'regional' && regional) {
-            activas = activas.filter(o => isOrderInRegion(o, regional));
-        }
+
+        let activas = appOrdersData.filter(o => !isExcluido(o) && estaEnAlcanceRegional(o, rol, regional));
 
         const estancadas = activas.filter(o => {
             const diasCreacion = parseInt(o['Tiempo desde apertura (Días)'] || '0', 10);
@@ -636,10 +656,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             return (diasMod !== null && diasMod >= 4) || diasCreacion >= 8;
         });
 
-        const escalamientos = appOrdersData.filter(o => {
-            const diasCompra = diasEntre(o['Fecha de compra'], o['Fecha de inicio']);
-            return diasCompra !== null && diasCompra <= 30;
-        });
+        // Mismo universo que la vista de Escalamientos (orden activa + alcance del usuario).
+        const escalamientos = appOrdersData.filter(o => esEscalamiento(o) && estaEnAlcanceRegional(o, rol, regional));
 
         const contadorEsc = document.getElementById('contador-escalamientos');
         if (contadorEsc) {
@@ -782,13 +800,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return !estados_excluidos.some(ex => e.includes(ex));
             });
 
-            // FILTRO DE USUARIO (NUEVO)
-            const rol = localStorage.getItem('usuario_rol');
-            const regional = localStorage.getItem('usuario_regional');
-            if (rol === 'regional' && regional) {
-                ordenesActivas = ordenesActivas.filter(o => isOrderInRegion(o, regional));
-            }
-
+            // El alcance por rol ya se aplicó al construir la búsqueda (dataFiltradaPorRol).
             if (ordenesActivas.length > 0) {
                 html += `<h3 style="font-size:1.1rem; font-weight:800; margin:1.5rem 0 1rem 0; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-file-earmark-text"></i> Órdenes Activas (${ordenesActivas.length})</h3>`;
                 html += ordenesActivas.map(o => {
@@ -820,11 +832,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Función global para manejar el click en una orden desde la búsqueda global
     window.handleGlobalOrderClick = (odt) => {
         const orden = appOrdersData.find(o => o['Número de orden de trabajo'] === odt);
-        if (orden) {
-            const region = orden['Territorio de servicio: Nombre'] || "Resultado";
-            renderOrdenes(region, [orden]);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (!orden) return;
+        const rol = localStorage.getItem('usuario_rol');
+        const regional = localStorage.getItem('usuario_regional');
+        if (!estaEnAlcanceRegional(orden, rol, regional)) {
+            alert('Esta orden pertenece a otra regional.');
+            return;
         }
+        const region = orden['Territorio de servicio: Nombre'] || "Resultado";
+        renderOrdenes(region, [orden], undefined, 1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     // Event listeners para botones principales
@@ -832,69 +849,62 @@ document.addEventListener('DOMContentLoaded', async () => {
         btn.addEventListener('click', function (e) {
             e.preventDefault();
             const action = this.getAttribute('data-action');
-            console.log(`\n👆 CLICK: ${action}`);
+            debugLog(`\n👆 CLICK: ${action}`);
             handleNavigation(action);
         });
     });
 
     // Botones de volver
     document.getElementById('btn-back-red-talleres')?.addEventListener('click', () => {
-        console.log("← Volver al dashboard");
+        debugLog("← Volver al dashboard");
         showView(viewDashboard);
     });
 
     document.getElementById('btn-back-estados-menu')?.addEventListener('click', () => {
-        console.log("← Volver al dashboard");
+        debugLog("← Volver al dashboard");
         showView(viewDashboard);
     });
 
     document.getElementById('btn-back')?.addEventListener('click', () => {
-        const title = viewTitle ? viewTitle.textContent : '';
-        if (title === 'Protocolo de recepción') {
-            console.log("← Volver al dashboard");
-            showView(viewDashboard);
-        } else {
-            console.log("← Volver a regiones");
-            showView(viewRedTalleres);
-        }
+        showView(detailsBackView || viewRedTalleres);
     });
 
     document.getElementById('btn-back-estados-list')?.addEventListener('click', () => {
         if (currentRegionOrdenes === 'Última Modificación') {
-            console.log("← Volver al dashboard (vista última modificación)");
+            debugLog("← Volver al dashboard (vista última modificación)");
             currentRegionOrdenes = "";
             ultimaModFiltro = 'todas';
             const filtroEl = document.getElementById('modificacion-filtro');
             if (filtroEl) filtroEl.classList.add('hidden');
             showView(viewDashboard);
         } else if (currentRegionOrdenes === 'Escalamientos') {
-            console.log("← Volver al dashboard (vista escalamientos)");
+            debugLog("← Volver al dashboard (vista escalamientos)");
             currentRegionOrdenes = "";
             escFiltro = 'todas';
             const filtroEl = document.getElementById('modificacion-filtro');
             if (filtroEl) filtroEl.classList.add('hidden');
             showView(viewDashboard);
         } else if (globalSearchInput && globalSearchInput.value.trim() !== "") {
-            console.log("← Volver al dashboard (resultado de búsqueda)");
+            debugLog("← Volver al dashboard (resultado de búsqueda)");
             showView(viewDashboard);
         } else {
-            console.log("← Volver a menú estados");
+            debugLog("← Volver a menú estados");
             showView(viewEstadosMenu);
         }
     });
 
     document.getElementById('btn-back-reportes')?.addEventListener('click', () => {
-        console.log("← Volver al menú de estados");
+        debugLog("← Volver al menú de estados");
         showView(viewEstadosMenu);
     });
 
     document.getElementById('btn-back-encuesta')?.addEventListener('click', () => {
-        console.log("← Volver al dashboard");
+        debugLog("← Volver al dashboard");
         showView(viewDashboard);
     });
 
     document.getElementById('btn-back-ejecutivo')?.addEventListener('click', () => {
-        console.log("← Volver al dashboard");
+        debugLog("← Volver al dashboard");
         showView(viewDashboard);
     });
 
@@ -902,12 +912,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btn-export-pdf')?.addEventListener('click', exportReportesPDF);
 
     document.getElementById('dismac-logo-btn')?.addEventListener('click', () => {
-        console.log("← Volver al dashboard (Logo)");
+        debugLog("← Volver al dashboard (Logo)");
         showView(viewDashboard);
     });
 
     function handleNavigation(action) {
-        console.log(`🧭 Action: ${action}`);
+        debugLog(`🧭 Action: ${action}`);
 
         switch (action) {
             case 'go-home':
@@ -986,7 +996,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function showRegionTalleres(region) {
-        console.log(`\n🏢 Mostrando talleres de: ${region}`);
+        debugLog(`\n🏢 Mostrando talleres de: ${region}`);
         currentRegionTalleres = region;
         const regionUpper = region.toUpperCase();
         filteredTalleres = appWorkshopData.filter(t =>
@@ -997,6 +1007,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function renderTalleres(region, talleres) {
+        detailsBackView = viewRedTalleres;
         if (viewTitle) viewTitle.textContent = `Talleres en ${region}`;
         if (viewContent) viewContent.innerHTML = '';
 
@@ -1092,19 +1103,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     function isOrderInRegion(o, region) {
         if (!o || !region) return false;
         const terr = (o['Territorio de servicio: Nombre'] || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        const municipios = ['montero', 'la guardia', 'el torno', 'cotoca', 'satelite', 'camiri', 'san julian', 'guabira', 'warnes', 'pailon', 'samaipata', 'buena vista', 'la angostura', 'yapacani'];
 
         if (region === 'Municipios') {
-            return municipios.some(m => terr.includes(m));
+            return MUNICIPIOS_SCZ.some(m => terr.includes(m));
         }
 
         if (region === 'Regionales') {
             const noSupervisadas = ['santa cruz', 'el alto', 'cochabamba', 'la paz', 'achocalla'];
-            return !noSupervisadas.some(x => terr.includes(x)) && !municipios.some(m => terr.includes(m));
+            return !noSupervisadas.some(x => terr.includes(x)) && !MUNICIPIOS_SCZ.some(m => terr.includes(m));
         }
 
         if (region === 'Santa Cruz') {
-            const isMunicipio = municipios.some(m => terr.includes(m));
+            const isMunicipio = MUNICIPIOS_SCZ.some(m => terr.includes(m));
             return terr.includes('santa cruz') && !isMunicipio;
         }
 
@@ -1115,6 +1125,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         return terr.includes(regionNormalized);
+    }
+
+    // ¿La regional del usuario supervisa además los municipios de Santa Cruz?
+    function regionalIncluyeMunicipios(regional) {
+        return REGIONALES_CON_MUNICIPIOS.includes(normalizarRol(regional));
+    }
+
+    // Alcance de datos del usuario: sin rol regional no hay restricción; con rol regional se limita
+    // a su territorio y, en el caso de Tarija y Sucre, también a los municipios de Santa Cruz.
+    // El rol se compara normalizado, así "Regional" o "REGIONAL" también restringen.
+    function estaEnAlcanceRegional(o, rol, regional) {
+        if (normalizarRol(rol) !== 'regional' || !regional) return true;
+        if (isOrderInRegion(o, regional)) return true;
+        return regionalIncluyeMunicipios(regional) && isOrderInRegion(o, 'Municipios');
     }
 
     function renderTipoOrdenFiltro(region, ordenesBase) {
@@ -1159,7 +1183,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function showRegionOrdenes(region) {
-        console.log(`\n📋 Mostrando órdenes de: ${region}`);
+        debugLog(`\n📋 Mostrando órdenes de: ${region}`);
         currentRegionOrdenes = region;
 
         const modFiltro = document.getElementById('modificacion-filtro');
@@ -1177,8 +1201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (estadosSearchInput) estadosSearchInput.value = "";
-        estadosCurrentPage = 1;
-        renderOrdenes(region, filteredOrdenes);
+        renderOrdenes(region, filteredOrdenes, undefined, 1);
     }
 
     function renderUltimaModFiltro() {
@@ -1206,7 +1229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function showUltimaModificacion() {
-        console.log("\n📋 Mostrando órdenes por última modificación (antiguas primero)");
+        debugLog("\n📋 Mostrando órdenes por última modificación (antiguas primero)");
         currentRegionOrdenes = 'Última Modificación';
 
         const filtroEl = document.getElementById('modificacion-filtro');
@@ -1227,7 +1250,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             titulo: ultimaModFiltro === 'todas'
                 ? 'Órdenes por última modificación'
                 : `Última modificación — ${ultimaModFiltro}`
-        });
+        }, 1);
     }
 
     function renderEscFiltro(ordenes) {
@@ -1251,7 +1274,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function showEscalamientos() {
-        console.log("\n📋 Mostrando órdenes para Escalamiento (Cambio de equipo)");
+        debugLog("\n📋 Mostrando órdenes para Escalamiento (Cambio de equipo)");
         currentRegionOrdenes = 'Escalamientos';
 
         const filtroEl = document.getElementById('modificacion-filtro');
@@ -1259,13 +1282,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tipoEl = document.getElementById('tipo-orden-filtro');
         if (tipoEl) tipoEl.classList.add('hidden');
 
-        const estados_excluidos_esc = ['cancelado', 'error', 'entregado', 'cerrado'];
-        let ordenesBase = appOrdersData.filter(o => {
-            const e = (o.Estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            if (estados_excluidos_esc.some(ex => e.includes(ex))) return false;
-            const diasCompra = diasEntre(o['Fecha de compra'], o['Fecha de inicio']);
-            return diasCompra !== null && diasCompra <= 30;
-        });
+        // Misma definición de escalamiento que el contador del dashboard.
+        const ordenesBase = appOrdersData.filter(esEscalamiento);
 
         renderEscFiltro(ordenesBase);
 
@@ -1283,10 +1301,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ? 'Escalamientos (Cambio de equipo ≤ 30 días)'
                 : `Escalamientos — ${escFiltro}`,
             incluirCompletado: true
-        });
+        }, 1);
     }
 
-    function renderOrdenes(region, ordenes, opciones) {
+    function renderOrdenes(region, ordenes, opciones, pagina) {
         estadosCurrentRegion = region;
         estadosCurrentOrdenes = ordenes;
         estadosCurrentOpciones = opciones;
@@ -1307,12 +1325,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             return !estados_excluidos_re.some(ex => e.includes(ex)) && !e.includes('completado');
         });
 
-        // FILTRO DE USUARIO (NUEVO)
+        // ALCANCE DEL USUARIO (su regional y, para Tarija/Sucre, también los municipios de SCZ)
         const rol = localStorage.getItem('usuario_rol');
         const regional = localStorage.getItem('usuario_regional');
-        if (rol === 'regional' && regional) {
-            ordenesFiltradas = ordenesFiltradas.filter(o => isOrderInRegion(o, regional));
-        }
+        ordenesFiltradas = ordenesFiltradas.filter(o => estaEnAlcanceRegional(o, rol, regional));
 
         // ORDENAMIENTO
         if (opciones && opciones.ordenarPor === 'modificacion') {
@@ -1345,9 +1361,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         // PAGINACIÓN: 10 órdenes por página
         const ORDENES_POR_PAGINA = 10;
         const totalPaginas = Math.max(1, Math.ceil(ordenesFiltradas.length / ORDENES_POR_PAGINA));
-        const currentPage = (estadosCurrentPage || 1);
-        if (currentPage > totalPaginas) estadosCurrentPage = totalPaginas;
-        const page = currentPage > totalPaginas ? totalPaginas : currentPage;
+        // La pagina llega por parametro: el render ya no muta estado global.
+        const page = Math.min(Math.max(1, parseInt(pagina, 10) || 1), totalPaginas);
         const inicio = (page - 1) * ORDENES_POR_PAGINA;
         const paginaOrdenes = ordenesFiltradas.slice(inicio, inicio + ORDENES_POR_PAGINA);
 
@@ -1355,8 +1370,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             const workshopNameRaw = (o['¿Qué servicio técnico ?'] || "").trim();
             const workshopName = workshopNameRaw.toUpperCase();
             
-            let cityForWorkshop = region.toUpperCase();
-            if (cityForWorkshop === 'MUNICIPIOS') cityForWorkshop = 'SANTA CRUZ';
+            // La ciudad del taller se deduce del territorio de la propia orden: en las vistas
+            // "Última Modificación" y "Escalamientos" el parámetro `region` no es una ciudad.
+            const territorioOrden = (o['Territorio de servicio: Nombre'] || "").toUpperCase();
+            const territorioNorm = territorioOrden.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const esMunicipioOrden = MUNICIPIOS_SCZ.some(m => territorioNorm.includes(m));
+            const ciudadRegion = (region || "").toUpperCase();
+            const cityForWorkshop = (esMunicipioOrden || ciudadRegion === 'MUNICIPIOS')
+                ? 'SANTA CRUZ'
+                : (territorioOrden || ciudadRegion);
 
             let workshop = null;
             if (workshopName) {
@@ -1468,7 +1490,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 `;
             }
-            let zapiaInfoHtml = "";
             // Preparar información del reporte adicional
             let adicionalesInfoHtml = "";
             if (o.adicionalesEnriched) {
@@ -1538,17 +1559,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         }).join('');
 
         contentEl.innerHTML = html;
-        renderEstadosPagination(ordenesFiltradas.length);
+        renderEstadosPagination(ordenesFiltradas.length, page);
         showView(viewEstadosServicio);
     }
 
-    function renderEstadosPagination(totalOrdenes) {
+    function renderEstadosPagination(totalOrdenes, pagina) {
         const pagEl = document.getElementById('estados-pagination');
         if (!pagEl) return;
 
         const ORDENES_POR_PAGINA = 10;
         const totalPaginas = Math.max(1, Math.ceil(totalOrdenes / ORDENES_POR_PAGINA));
-        const page = (estadosCurrentPage || 1);
+        const page = Math.min(Math.max(1, parseInt(pagina, 10) || 1), totalPaginas);
 
         if (totalPaginas <= 1) {
             pagEl.innerHTML = `<div style="text-align:center;color:#64748b;font-size:0.85rem;padding:10px;">${totalOrdenes} órdenes</div>`;
@@ -1600,17 +1621,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             btn.addEventListener('click', function () {
                 const p = parseInt(this.dataset.page, 10);
                 if (!this.disabled && p >= 1 && p <= totalPaginas) {
-                    estadosCurrentPage = p;
                     const region = estadosCurrentRegion;
                     const ordenes = estadosCurrentOrdenes;
                     const opciones = estadosCurrentOpciones;
-                    if (region !== undefined && ordenes) renderOrdenes(region, ordenes, opciones);
+                    if (region !== undefined && ordenes) renderOrdenes(region, ordenes, opciones, p);
                 }
             });
         });
     }
 
     function showProtocol() {
+        detailsBackView = viewDashboard;
         if (viewTitle) viewTitle.textContent = 'Protocolo de recepción';
         const contentHtml = `
             <div style="padding: 10px;">
@@ -1783,17 +1804,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function dataFiltradaPorRol() {
-        let data = appOrdersData;
         const rol = localStorage.getItem('usuario_rol');
-        const regional = (localStorage.getItem('usuario_regional') || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        if (rol === 'regional' && regional) {
-            if (regional === 'tarija' || regional === 'sucre') {
-                data = data.filter(o => isOrderInRegion(o, regional) || isOrderInRegion(o, 'Municipios'));
-            } else {
-                data = data.filter(o => isOrderInRegion(o, regional));
-            }
-        }
-        return data;
+        const regional = localStorage.getItem('usuario_regional');
+        return appOrdersData.filter(o => estaEnAlcanceRegional(o, rol, regional));
     }
 
     function getReportesData() {
@@ -2364,7 +2377,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function showReportes() {
-        console.log('📊 Abriendo Reportes y Gráficas');
+        debugLog('📊 Abriendo Reportes y Gráficas');
         initReporteSelects();
         fillReporteSelects();
         renderReportes();
@@ -2407,7 +2420,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function showEjecutivo() {
-        console.log('📈 Abriendo Dashboard Ejecutivo');
+        debugLog('📈 Abriendo Dashboard Ejecutivo');
         showView(viewEjecutivo);
         renderEjecutivo();
     }
@@ -2604,7 +2617,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function showEncuesta() {
-        console.log('⭐ Abriendo Encuestas NPS (Admin)');
+        debugLog('⭐ Abriendo Encuestas NPS (Admin)');
         const contentEl = document.getElementById('encuesta-content');
         if (!contentEl) return;
 
@@ -3007,6 +3020,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.querySelectorAll('.main-content').forEach(v => v.classList.add('hidden'));
         view?.classList.remove('hidden');
 
+        // Resaltar en la barra inferior la vista actual (hoy la barra solo tiene "Inicio")
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            const esInicio = (view === viewDashboard && btn.getAttribute('data-action') === 'go-home');
+            btn.classList.toggle('active', esInicio);
+        });
+
         // Al volver al menú principal, limpiar la búsqueda global (input + resultados)
         if (view === viewDashboard) {
             if (globalSearchInput) globalSearchInput.value = "";
@@ -3049,7 +3068,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             appOrdersData = [...parsed.parsedOrdersData, ...parsedTransporte];
             appEncuestaData = encuestaData;
 
-            console.log('Datos procesados:', {
+            debugLog('Datos procesados:', {
                 talleres: appWorkshopData.length,
                 ordenesServicio: parsed.parsedOrdersData.length,
                 ordenesTransporte: appTransporteData.length,

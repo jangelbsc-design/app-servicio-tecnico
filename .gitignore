@@ -1,0 +1,6 @@
+# Residuos locales y herramientas de desarrollo (no versionar)
+exec-72.json
+UsersjabustosAppDataLocalTempopencodeexec388-raw.txt
+.agents/
+.opencode/
+*.log
