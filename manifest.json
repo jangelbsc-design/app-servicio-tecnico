@@ -1,15 +1,28 @@
 {
   "name": "Soporte Técnico Dismac",
   "short_name": "Dismac ST",
+  "id": "dismac-soporte-tecnico",
   "description": "Dashboard de soporte técnico Dismac: órdenes de trabajo, últimas modificaciones, satisfacción del cliente (NPS) y alertas.",
   "lang": "es",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#E31837",
   "categories": ["business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Estados de Servicio",
+      "short_name": "Órdenes",
+      "url": "./index.html?accion=open-estados-servicio"
+    },
+    {
+      "name": "Red de Talleres",
+      "short_name": "Talleres",
+      "url": "./index.html?accion=open-red-talleres"
+    }
+  ],
   "icons": [
     {
       "src": "icon-192.png",

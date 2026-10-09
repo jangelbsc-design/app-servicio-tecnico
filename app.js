@@ -3123,6 +3123,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderKPIs();
     }
 
+    // Accesos directos de la PWA instalada (manifest.shortcuts).
+    // Ej.: ./index.html?accion=open-estados-servicio
+    function aplicarAccesoDirecto() {
+        let accion = null;
+        try {
+            accion = new URLSearchParams(window.location.search).get('accion');
+        } catch (err) {
+            return false;
+        }
+        if (!accion) return false;
+        // Se limpia la URL para que un refresco no vuelva a forzar la vista.
+        try {
+            history.replaceState(null, '', window.location.pathname);
+        } catch (err) {
+            debugLog('No se pudo limpiar la URL del acceso directo:', err);
+        }
+        debugLog('🔗 Acceso directo:', accion);
+        handleNavigation(accion);
+        return true;
+    }
+
     // Aplica un volcado (CSV por hoja) al estado de la app.
     function aplicarDatos(csv) {
         const filas = (texto) => parseCsvLocal(texto);
@@ -3230,4 +3251,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             behavior: 'smooth'
         });
     });
+
+    // Accesos directos de la PWA instalada (manifest.shortcuts): index.html?accion=<data-action>
+    aplicarAccesoDirecto();
 });

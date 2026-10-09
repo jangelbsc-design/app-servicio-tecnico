@@ -1,20 +1,25 @@
 /* Service Worker — Soporte Técnico Dismac
    Funciones: caching PWA (instalable/offline) + notificaciones FCM de fondo.
    Actualizar CACHE_VERSION al publicar cambios en el shell de la app. */
-const CACHE_VERSION = 'dismac-app-v62';
-const PRECACHE_URLS = [
+const CACHE_VERSION = 'dismac-app-v63';
+
+// Shell local: debe estar completo para que la app funcione sin conexión.
+const PRECACHE_LOCAL = [
     './',
     './index.html',
-    './style.css?v=20',
-    './app.js?v=60',
-    './icono-servicio-tecnico.png',
-    './mapa-talleres.png',
-    './icono%20para%20botones.png',
+    './style.css?v=21',
+    './app.js?v=61',
+    './mapa-talleres.webp',
+    './icono-servicio-tecnico.webp',
     './icon-192.png',
     './icon-512.png',
     './icon-512-maskable.png',
     './apple-touch-icon.png',
-    './manifest.json',
+    './manifest.json'
+];
+
+// Recursos de CDN: si alguno falla, el SW igual se instala.
+const PRECACHE_CDN = [
     'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap',
     'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css',
     'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js',
@@ -54,11 +59,23 @@ messaging.onBackgroundMessage((payload) => {
 
 // --- Instalación / Activación ---
 self.addEventListener('install', (event) => {
-    event.waitUntil(
-        caches.open(CACHE_VERSION)
-            .then((cache) => cache.addAll(PRECACHE_URLS))
-            .then(() => self.skipWaiting())
-    );
+    event.waitUntil((async () => {
+        const cache = await caches.open(CACHE_VERSION);
+        // 1) Shell local: primero atómico (rápido); si algo falla, se cachea lo que se pueda
+        //    para no dejar la PWA sin service worker.
+        try {
+            await cache.addAll(PRECACHE_LOCAL);
+        } catch (err) {
+            console.warn('[sw] Precaché local incompleto, se reintenta recurso por recurso:', err);
+            await Promise.allSettled(PRECACHE_LOCAL.map((url) => cache.add(url)));
+        }
+        // 2) CDN: nunca bloquean la instalación.
+        const cdn = await Promise.allSettled(PRECACHE_CDN.map((url) => cache.add(url)));
+        cdn.forEach((r, i) => {
+            if (r.status === 'rejected') console.warn('[sw] No se pudo precachear:', PRECACHE_CDN[i]);
+        });
+        await self.skipWaiting();
+    })());
 });
 
 self.addEventListener('activate', (event) => {
@@ -69,6 +86,19 @@ self.addEventListener('activate', (event) => {
             ))
             .then(() => self.clients.claim())
     );
+});
+
+// --- Notificaciones: al tocar, abrir o enfocar la app ---
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const destino = (event.notification.data && event.notification.data.url) || './index.html';
+    event.waitUntil((async () => {
+        const clientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        for (const cliente of clientes) {
+            if ('focus' in cliente) return cliente.focus();
+        }
+        if (self.clients.openWindow) return self.clients.openWindow(destino);
+    })());
 });
 
 // --- Fetch: network-first para navegación, stale-while-revalidate para estáticos ---

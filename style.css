@@ -82,46 +82,10 @@ body {
     border-bottom: 1px solid var(--border-color);
 }
 
-.blur-effect {
-    background: rgba(248, 250, 252, 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-}
-
 .header-content {
     display: flex;
     align-items: center;
     gap: 1rem;
-}
-
-.logo-wrapper {
-    width: 48px;
-    height: 48px;
-    background-color: white;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-color);
-}
-
-.text-primary {
-    color: var(--primary);
-}
-
-.header-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--text-main);
-    letter-spacing: -0.025em;
-}
-
-.header-subtitle {
-    font-size: 0.875rem;
-    color: var(--text-muted);
-    font-weight: 400;
 }
 
 /* Main Content */
@@ -137,17 +101,6 @@ body {
 
 .hidden {
     display: none !important;
-}
-
-.welcome-section h2 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-}
-
-.welcome-section p {
-    color: var(--text-muted);
-    font-size: 0.95rem;
 }
 
 /* Dashboard Grid */
@@ -242,25 +195,10 @@ body {
     transform: translateX(4px);
 }
 
-/* Info Card Special Styling */
-.info-card {
-    margin-top: 0.5rem;
-    border: 1px solid var(--red-100);
-    background: linear-gradient(to right, #ffffff, #fffdfd);
-}
-
-.info-card:hover {
-    border-color: var(--red-500);
-}
-
 .card-text-container {
     display: flex;
     flex-direction: column;
     flex: 1;
-}
-
-.text-red {
-    color: var(--red-500) !important;
 }
 
 .card-subtitle {
@@ -474,25 +412,6 @@ body {
     background-color: rgba(255, 255, 255, 0.2);
 }
 
-/* Map Button */
-.action-map {
-    background-color: var(--green-100);
-    color: var(--green-500);
-}
-
-.action-map .action-icon {
-    background-color: rgba(34, 197, 94, 0.2);
-}
-
-.action-map:hover {
-    background-color: var(--green-500);
-    color: white;
-}
-
-.action-map:hover .action-icon {
-    background-color: rgba(255, 255, 255, 0.2);
-}
-
 /* Map Preview Container */
 .map-preview-container {
     transition: var(--transition);
@@ -537,91 +456,6 @@ body {
 .action-wa:hover .action-icon {
     background-color: rgba(255, 255, 255, 0.3);
     color: white;
-}
-
-/* Search UI */
-.btn-icon {
-    background: none;
-    border: none;
-    font-size: 1.25rem;
-    color: var(--text-main);
-    cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 50%;
-    transition: var(--transition);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-}
-
-.btn-icon:hover {
-    background-color: var(--bg-card);
-    box-shadow: var(--shadow-sm);
-}
-
-.search-container {
-    margin-top: 1rem;
-    transition: var(--transition);
-    overflow: hidden;
-}
-
-.search-container.hidden {
-    display: none !important;
-    margin-top: 0;
-}
-
-.search-input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.search-input-wrapper .search-icon {
-    position: absolute;
-    left: 1rem;
-    color: var(--text-muted);
-    font-size: 1.1rem;
-}
-
-#search-input {
-    width: 100%;
-    padding: 0.875rem 2.5rem 0.875rem 2.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    font-family: inherit;
-    font-size: 0.95rem;
-    outline: none;
-    transition: var(--transition);
-    background-color: var(--bg-card);
-}
-
-#search-input:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-}
-
-.btn-clear {
-    position: absolute;
-    right: 0.5rem;
-    background: none;
-    border: none;
-    font-size: 1.1rem;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 0.5rem;
-    display: flex;
-    align-items: center;
-    transition: var(--transition);
-}
-
-.btn-clear:hover {
-    color: var(--text-main);
-}
-
-.btn-clear.hidden {
-    display: none !important;
 }
 
 /* Updated Actions Grid to support more buttons seamlessly */
