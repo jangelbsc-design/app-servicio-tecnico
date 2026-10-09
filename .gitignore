@@ -1,6 +1,9 @@
-# Residuos locales y herramientas de desarrollo (no versionar)
+﻿# Residuos locales y herramientas de desarrollo (no versionar)
 exec-72.json
 UsersjabustosAppDataLocalTempopencodeexec388-raw.txt
 .agents/
 .opencode/
 *.log
+
+# Mapeo tecnico interno: no publicar (GitHub Pages sirve la raiz del repo)
+MAPEO-APP.md
