@@ -153,6 +153,53 @@ reacción instantánea a cambios. NO se eligió refrescar el ODT en pantalla.
 4. Cuando el espejo api funcione, limpiar el intento fallido de formato de fecha.
 5. Opcional escenario 1 "extension -> TidyWork" (escribir cambios a TidyWork): NO definido aun.
 
+## SESION 2026-09-24 - BOTON "EXTRAER DATOS DE LA ORDEN" (EXITO, funcional)
+Objetivo (pedido por Juan): boton en el sidepanel de la orden de TidyWork que extraiga
+10 campos (9 originales + N° control), los muestre en una tarjeta y los copie al
+portapapeles. IMPLEMENTADO y FUNCIONANDO.
+
+### MAPEO FINAL DE CAMPOS (validado contra HTML real de la orden 51065)
+- Tidy (N° interno): URL /WorkOrder/Edit/<id> -> 51065
+- nombre: #CustomerFullName -> EVER RICHARD CONDORI TUMIRI
+- producto: #ProductName -> Freezer Kernig de 194 Litros - 1 puerta
+- Código de producto: #ProductCode -> KDR-252C/1
+- tipo de compra: #PurchaseType (seccion "Datos Venta", label "Condición") -> MINICUOTAS
+- fecha de compra: #InvoiceDate (label "Fecha Factura", misma seccion) -> 22/12/2025 23:51:00
+- N° control (agregado 2026-09-24 por pedido): #ControlNumber (label "N° Control",
+  "Datos Venta"; fallback #InvoiceService) -> 3255081
+- descripción de la falla: #TechnicalServiceOrder_Description -> texto libre del tecnico
+- motivo de cambio: #cbChangeRepairType (label "Porque se realizo el cambio?";
+  alternativo taller: #cbWsChangeRepairType) -> select (vacio = "—")
+- lugar del equipo: #cbWorkPlaceType (label "Lugar de Trabajo") -> select Domicilio/Taller
+
+### COMO SE RESOLVIO (lecciones para reusar)
+- El form de WorkOrder/Edit usa `<label for="id">` + input/select; para el boton NO sirve
+  adivinar labels: se leyeron los `id` reales del HTML guardado y se usaron selectores
+  exactos (document.getElementById), con fallback a getField() por label.
+- "tipo de compra"≈PurchaseType y "fecha de compra"≈InvoiceDate NO estan en REPORTE
+  GLOBAL/ADICIONALES para toda orden: viven en la seccion "Datos Venta" del form
+  (control #mcInvoice). La hoja ADICIONALES solo tiene "Tipo de compra" (CONTADO/
+  CREDITO) y "Fecha de compra" como columnas; la extension YA baja ADICIONALES pero NO
+  extrae aun adicTipoCompra/adicFechaCompra (pendiente opcional para el flujo sheets).
+- "Porque se realizo el cambio?" existe x2 en la pagina: #cbChangeRepairType (seccion
+  servicio) y #cbWsChangeRepairType (seccion taller) - mismo label, cambiar ambos.
+- El HTML guardado (C:\Users\jabustos\Downloads\Tidy Work _ Orden de Trabajo.html,
+  linea ~7806) contiene el output del propio panel inyectado: ignorar esos falsos
+  positivos al buscar labels.
+- Selects con option -1 "Seleccionar" => seleccion vacia (helper selectText devuelve "").
+
+### CODIGO
+- content/tidywork.js (~L289): inputVal(id), selectText(id) y extractOrderCopyFields()
+  reescrito con los selectores exactos; buildExtractResult + handleExtractClick ya existian
+  y muestran tarjeta + copian. node --check OK.
+
+### PENDIENTE / OPCIONAL
+- Probar el boton en otros tipos de orden (Instalacion/Cambio) por si el id cambia.
+- (antes en el dia, sin verificar aun) tidywork-live.js: se relajo el filtro de errores
+  (solo aborta si Success===false u overflow; los demas Errors se loguean), parseErrors
+  mejorado (Description/Message/ErrorMessage) y diagnostico profundo "Estructura [Filter]"
+  + "Forma respuesta" cuando no llegan filas. Falta confirmar en navegador.
+
 ## API TIDYWORK (resumen, detalle en MAPEO-TIDYWORK.md)
 - Auth: cookies de sesion del usuario en el navegador (same-origin, sin CORS). NO guardar credenciales.
 - Ruta de citas /Appointment: Filter, SaveFilter, GetTerritorys, GetTechnicalsByTerritories, Manage/{id}.

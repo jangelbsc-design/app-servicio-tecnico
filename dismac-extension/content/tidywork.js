@@ -278,9 +278,103 @@
         ${warrantyHtml ? `<div style="margin-bottom:8px;">${warrantyHtml}</div>` : ''}
         ${orderInfoHtml}
         ${extraFieldsHtml}
+
+        <button id="dismac-extract-btn" type="button" style="display:block;width:100%;margin-top:10px;padding:8px;background:#E31837;color:white;border:none;border-radius:8px;font-weight:700;font-size:0.75rem;cursor:pointer;">Extraer datos de la orden</button>
       </div>`;
 
     injectPanel(panelHtml);
+    bindExtractButton();
+  }
+
+  function inputVal(id) {
+    const el = document.getElementById(id);
+    if (el && el.value !== undefined && el.value !== null) return el.value.trim();
+    return '';
+  }
+
+  function selectText(id) {
+    const el = document.getElementById(id);
+    if (!el) return '';
+    const opt = el.options && el.options[el.selectedIndex];
+    if (!opt) return '';
+    if (opt.value === '-1' || (opt.text || '').trim().toLowerCase() === 'seleccionar') return '';
+    return opt.text.trim();
+  }
+
+  function extractOrderCopyFields() {
+    return [
+      { label: 'Tidy', value: extractODTFromPage() },
+      { label: 'nombre', value: inputVal('CustomerFullName') || getField('Nombre Completo') || inputVal('Client') },
+      { label: 'producto', value: inputVal('ProductName') || getField('Descripción') },
+      { label: 'Código de producto', value: inputVal('ProductCode') || getField('Código') },
+      { label: 'tipo de compra', value: inputVal('PurchaseType') },
+      { label: 'fecha de compra', value: inputVal('InvoiceDate') || inputVal('DateCancellation') },
+      { label: 'N° control', value: inputVal('ControlNumber') || inputVal('InvoiceService') },
+      { label: 'descripción de la falla', value: inputVal('TechnicalServiceOrder_Description') || getField('Descripción de la Falla') || getField('Descripción de la falla') },
+      { label: 'motivo de cambio', value: selectText('cbChangeRepairType') || selectText('cbWsChangeRepairType') || getField('Porque se realizo el cambio?') },
+      { label: 'lugar donde se encuentra el equipo', value: selectText('cbWorkPlaceType') }
+    ];
+  }
+
+  function buildExtractResult(fields) {
+    const rows = fields.map(f => {
+      return '<div style="font-size:0.7rem;color:#334155;padding:2px 0;border-bottom:1px dashed #e2e8f0;"><span style="font-weight:700;">' + escapeHTML(f.label) + ':</span> ' + escapeHTML(f.value || '—') + '</div>';
+    }).join('');
+    return '' +
+      '<div style="margin-top:10px;padding:8px;background:#f0f7ff;border:1px solid #dbeafe;border-radius:8px;">' +
+        '<div style="font-weight:800;font-size:0.72rem;color:#1e40af;margin-bottom:6px;">Datos de la orden</div>' +
+        rows +
+        '<div id="dismac-extract-copied" style="margin-top:6px;font-size:0.7rem;color:#166534;font-weight:700;">Copiando...</div>' +
+      '</div>';
+  }
+
+  function handleExtractClick() {
+    const fields = extractOrderCopyFields();
+    const texto = fields.map(f => f.label + ': ' + (f.value || '—')).join('\n');
+    console.log('[Dismac Assist] Datos extraidos:', fields);
+
+    const panel = document.getElementById(DISMAC_PANEL_ID);
+    if (panel) {
+      let res = document.getElementById('dismac-extract-result');
+      if (!res) {
+        res = document.createElement('div');
+        res.id = 'dismac-extract-result';
+        panel.appendChild(res);
+      }
+      res.innerHTML = buildExtractResult(fields);
+    }
+
+    copyToClipboard(texto).then(ok => {
+      const status = document.getElementById('dismac-extract-copied');
+      if (status) status.textContent = ok ? 'OK Copiado al portapapeles' : 'No se pudo copiar automatico (selecciona y copia manual)';
+    });
+  }
+
+  function copyToClipboard(text) {
+    return new Promise((resolve) => {
+      function fallback() {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(ta);
+        resolve(ok);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => resolve(true), fallback);
+      } else fallback();
+    });
+  }
+
+  function bindExtractButton() {
+    const btn = document.getElementById('dismac-extract-btn');
+    if (!btn || btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', handleExtractClick);
   }
 
   function escapeHTML(str) {

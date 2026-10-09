@@ -204,6 +204,14 @@
     var data = findDataArray(json);
     if (!data) {
       console.warn(LIVE_PREFIX, 'Appointment/Filter: sin arreglo reconocible, claves:', Object.keys(json).join(', '));
+      ['Data', 'Object', 'Result'].forEach(function(k) {
+        var v = json[k];
+        if (v && typeof v === 'object' && !Array.isArray(v)) {
+          console.log(LIVE_PREFIX, 'Appointment/Filter[' + k + '] claves internas:', Object.keys(v).join(', '));
+          var s = JSON.stringify(v);
+          if (s) console.log(LIVE_PREFIX, 'Appointment/Filter[' + k + '] muestra:', s.slice(0, 500));
+        }
+      });
       return [];
     }
     var headers = readDataTableHeaders();
@@ -251,8 +259,18 @@
     function parseErrors(json) {
       var errs = [];
       if (!json) return errs;
-      if (Array.isArray(json.Errors)) errs = errs.concat(json.Errors);
-      if (json.Error && typeof json.Error === 'object' && json.Error.Description) errs.push(json.Error);
+      if (Array.isArray(json.Errors)) {
+        json.Errors.forEach(function(e) {
+          if (!e) return;
+          var d = e.Description || e.Message || e.ErrorMessage;
+          if (d) errs.push({ Description: d, ErrorCode: e.ErrorCode });
+          else if (typeof e === 'string' && e) errs.push({ Description: e });
+        });
+      }
+      if (json.Error && typeof json.Error === 'object') {
+        var ed = json.Error.Description || json.Error.Message || json.Error.ErrorMessage;
+        if (ed) errs.push({ Description: ed });
+      }
       if (typeof json.ErrosAll === 'string' && json.ErrosAll) errs.push({ Description: json.ErrosAll });
       return errs;
     }
@@ -286,9 +304,20 @@
       }
 
       var errs = parseErrors(r.json);
-      if (errs.length) {
-        console.warn(LIVE_PREFIX, 'Appointment/Filter[' + attempt.name + '] errores:', errs.map(function(e) { return (e && e.Description) || JSON.stringify(e); }).join(' | '));
+      var hasOverflow = errs.some(function(e) {
+        var d = (e && (e.Description || e.Message)) || '';
+        return typeof d === 'string' && d.toLowerCase().indexOf('overflow') !== -1;
+      });
+      if (hasOverflow) {
+        console.warn(LIVE_PREFIX, 'Appointment/Filter[' + attempt.name + '] overflow de fecha, probando otro formato');
         continue;
+      }
+      if (r.json.Success === false) {
+        console.warn(LIVE_PREFIX, 'Appointment/Filter[' + attempt.name + '] Success=false:', errs.map(function(e) { return (e && e.Description) || JSON.stringify(e); }).join(' | '));
+        continue;
+      }
+      if (errs.length) {
+        console.log(LIVE_PREFIX, 'Appointment/Filter[' + attempt.name + '] errores NO bloqueantes (Success!=false):', errs.map(function(e) { return (e && e.Description) || JSON.stringify(e); }).join(' | '));
       }
 
       var citas = extractCitasFromFilterJson(r.json);
