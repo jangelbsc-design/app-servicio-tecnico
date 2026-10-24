@@ -410,10 +410,16 @@ function parseTransporteData(transporteRaw) {
 function checkSessionOnLoad() {
     const sesionActiva = localStorage.getItem('dismatec_session');
     const overlay = document.getElementById('login-overlay');
+    const userInp = document.getElementById('login-usuario');
+    const passInp = document.getElementById('login-password');
     if (sesionActiva !== 'true') {
         if (overlay) overlay.style.display = 'flex';
+        if (userInp) userInp.disabled = false;
+        if (passInp) passInp.disabled = false;
     } else {
         if (overlay) overlay.style.display = 'none';
+        if (userInp) userInp.disabled = true;
+        if (passInp) passInp.disabled = true;
     }
 }
 checkSessionOnLoad();
@@ -456,10 +462,20 @@ debugLog("🔧 APP.JS CARGADO");
 document.addEventListener('DOMContentLoaded', async () => {
     debugLog("✅ DOMContentLoaded DISPARADO");
 
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('login-btn');
+            if (btn && !btn.disabled) btn.click();
+        });
+    }
+
     const loginBtn = document.getElementById('login-btn');
     if (loginBtn) {
-        loginBtn.addEventListener('click', async () => {            const user = document.getElementById('login-usuario').value;
-            const pass = document.getElementById('login-password').value;
+        loginBtn.addEventListener('click', async () => {
+            const user = (document.getElementById('login-usuario')?.value || '').trim();
+            const pass = (document.getElementById('login-password')?.value || '').trim();
             const errorEl = document.getElementById('login-error');
             
             if (!user || !pass) {
@@ -482,6 +498,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     localStorage.setItem('usuario_rol', foundUser.Rol);
                     localStorage.setItem('usuario_regional', foundUser.Regional);
                     
+                    const userInp = document.getElementById('login-usuario');
+                    const passInp = document.getElementById('login-password');
+                    if (userInp) userInp.disabled = true;
+                    if (passInp) passInp.disabled = true;
+
                     const overlay = document.getElementById('login-overlay');
                     if (overlay) overlay.style.display = 'none';
                     location.reload(); 
@@ -513,6 +534,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 localStorage.removeItem('usuario_actual');
                 localStorage.removeItem('usuario_rol');
                 localStorage.removeItem('usuario_regional');
+                const userInp = document.getElementById('login-usuario');
+                const passInp = document.getElementById('login-password');
+                if (userInp) userInp.disabled = false;
+                if (passInp) passInp.disabled = false;
                 location.reload();
             }
         });
@@ -608,10 +633,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (esUltimaMod) {
             base = (ultimaModFiltro === 'todas' ? appOrdersData : appOrdersData.filter(o => isOrderInRegion(o, ultimaModFiltro)));
         } else {
+            const regTarget = currentRegionOrdenes || estadosCurrentRegion || '';
             // Tarija y Sucre incluyen los municipios de Santa Cruz, con o sin texto en el buscador.
-            const incluyeMunicipios = regionalIncluyeMunicipios(currentRegionOrdenes);
+            const incluyeMunicipios = regionalIncluyeMunicipios(regTarget);
             base = appOrdersData.filter(o =>
-                isOrderInRegion(o, currentRegionOrdenes) || (incluyeMunicipios && isOrderInRegion(o, 'Municipios'))
+                isOrderInRegion(o, regTarget) || (incluyeMunicipios && isOrderInRegion(o, 'Municipios'))
             );
         }
 
@@ -634,8 +660,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 (o.adicDetalleFalla || "").toLowerCase().includes(query) ||
                 (o.adicObservaciones || "").toLowerCase().includes(query))
         );
-        renderOrdenes(currentRegionOrdenes, filteredOrdenes,
-            esUltimaMod ? { ordenarPor: 'modificacion', titulo: 'Órdenes por última modificación' } : undefined, 1);
+        const regionDestino = currentRegionOrdenes || estadosCurrentRegion || 'Órdenes';
+        renderOrdenes(regionDestino, filteredOrdenes,
+            esUltimaMod ? { ordenarPor: 'modificacion', titulo: 'Órdenes por última modificación' } : (query.length > 0 ? { incluirCompletado: true, queryBusqueda: query } : undefined), 1);
     }, 300));
 
     // Lógica de Búsqueda Global
@@ -893,7 +920,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Función global para manejar el click en una orden desde la búsqueda global
     window.handleGlobalOrderClick = (odt) => {
-        const orden = appOrdersData.find(o => o['Número de orden de trabajo'] === odt);
+        const odtStr = (odt || '').toString().trim();
+        const orden = appOrdersData.find(o => (o['Número de orden de trabajo'] || '').toString().trim() === odtStr);
         if (!orden) return;
         const rol = localStorage.getItem('usuario_rol');
         const regional = localStorage.getItem('usuario_regional');
@@ -902,7 +930,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         const region = orden['Territorio de servicio: Nombre'] || "Resultado";
-        renderOrdenes(region, [orden], undefined, 1);
+        currentRegionOrdenes = region;
+
+        // Ocultar filtros secundarios que puedan interferir con la orden seleccionada
+        const modFiltro = document.getElementById('modificacion-filtro');
+        if (modFiltro) modFiltro.classList.add('hidden');
+        const tipoFiltro = document.getElementById('tipo-orden-filtro');
+        if (tipoFiltro) tipoFiltro.classList.add('hidden');
+        if (estadosSearchInput) estadosSearchInput.value = "";
+        const clearEstados = document.getElementById('clear-estados-search');
+        if (clearEstados) clearEstados.style.display = 'none';
+
+        renderOrdenes(region, [orden], {
+            ignorarFiltroEstado: true,
+            incluirCompletado: true,
+            expandirPrimero: true,
+            titulo: `Orden ${odtStr} — ${region}`,
+            desdeBusquedaGlobal: true
+        }, 1);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -1271,6 +1316,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (estadosSearchInput) estadosSearchInput.value = "";
+        const clearEstados = document.getElementById('clear-estados-search');
+        if (clearEstados) clearEstados.style.display = 'none';
         renderOrdenes(region, filteredOrdenes, undefined, 1);
     }
 
@@ -1387,6 +1434,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // FILTRO DE ESTADOS: se excluyen los estados finales (y "completado" salvo que se pida)
         let ordenesFiltradas = ordenes.filter(o => {
+            if (opciones && opciones.ignorarFiltroEstado) return true;
             if (esEstadoFinal(o.Estado)) return false;
             if (opciones && opciones.incluirCompletado) return true;
             return !normalizarTexto(o.Estado).includes('completado');
@@ -1578,8 +1626,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ${o.Destino ? `<p style="margin:0;"><strong>Destino:</strong> ${escapeHTML(o.Destino)}</p>` : ''}
             ` : '';
 
+            const estaExpandido = Boolean(opciones && opciones.expandirPrimero && idx === 0);
+
             return `
-                <div class="accordion-item" style="margin-bottom:12px; border-radius:15px; border:1px solid #e2e8f0; border-left:4px solid ${o.esTransporte ? '#f59e0b' : '#3b82f6'}; background:white; overflow:hidden;">
+                <div class="accordion-item ${estaExpandido ? 'active' : ''}" style="margin-bottom:12px; border-radius:15px; border:1px solid #e2e8f0; border-left:4px solid ${o.esTransporte ? '#f59e0b' : '#3b82f6'}; background:white; overflow:hidden;">
                     <button class="accordion-header" style="width:100%; border:none; background:none; padding:15px; text-align:left; cursor:pointer;" onclick="this.parentElement.classList.toggle('active')">
                         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                             <div style="flex:1; padding-right:10px;">

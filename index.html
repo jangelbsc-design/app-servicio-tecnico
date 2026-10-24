@@ -95,7 +95,7 @@
                 <div class="global-search-container" style="position: relative;">
                     <i class="bi bi-search search-icon"
                         style="position: absolute; left: 1.2rem; top: 50%; transform: translateY(-50%); color: #6b7280; font-size: 1.1rem;"></i>
-                    <input type="text" id="global-search-input" placeholder="Buscar servicios o talleres..."
+                    <input type="search" id="global-search-input" name="search-global" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Buscar servicios o talleres..."
                         style="width: 100%; padding: 1rem 2.5rem 1rem 3.5rem; background: #E2E8F0; border: none; border-radius: 12px; font-size: 1rem; outline: none; font-family: inherit; box-sizing:border-box;">
                     <i class="bi bi-x-circle-fill clear-search" id="clear-global-search"
                         style="position: absolute; right: 1.2rem; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 1.1rem; cursor: pointer; display: none;"></i>
@@ -337,7 +337,7 @@
             </div>
             <div id="estados-search-container" style="padding: 0 10px 10px 10px;">
                 <div style="position: relative;">
-                    <input type="text" id="estados-search-input" placeholder="Buscar por ODT, cliente o producto..."
+                    <input type="search" id="estados-search-input" name="search-estados" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Buscar por ODT, cliente o producto..."
                         style="width:100%;padding:10px 2.5rem 10px 15px;border-radius:10px;border:1px solid #ddd;font-family:'Outfit',sans-serif;box-sizing:border-box;">
                     <i class="bi bi-x-circle-fill clear-search" id="clear-estados-search"
                         style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 1.1rem; cursor: pointer; display: none;"></i>
@@ -358,7 +358,7 @@
             </div>
             <div id="workshop-search-container" style="padding: 0 10px 10px 10px;">
                 <div style="position: relative;">
-                    <input type="text" id="workshop-search-input" placeholder="Buscar por taller o marca..."
+                    <input type="search" id="workshop-search-input" name="search-talleres" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Buscar por taller o marca..."
                         style="width:100%;padding:10px 2.5rem 10px 15px;border-radius:10px;border:1px solid #ddd;font-family:'Outfit',sans-serif;box-sizing:border-box;">
                     <i class="bi bi-x-circle-fill clear-search" id="clear-workshop-search"
                         style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 1.1rem; cursor: pointer; display: none;"></i>
@@ -513,20 +513,20 @@
 
     <!-- Pantalla de Login -->
     <div id="login-overlay" style="position: fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9999; display:none; flex-direction:column; align-items:center; justify-content:center; font-family:'Outfit',sans-serif;">
-        <div style="background:#f8fafc; padding:2rem; border-radius:15px; box-shadow:0 10px 25px rgba(0,0,0,0.1); width:90%; max-width:400px; text-align:center;">
+        <form id="login-form" autocomplete="on" style="background:#f8fafc; padding:2rem; border-radius:15px; box-shadow:0 10px 25px rgba(0,0,0,0.1); width:90%; max-width:400px; text-align:center; box-sizing:border-box;">
             <div style="margin-bottom:1.5rem; display:flex; justify-content:center; align-items:center;">
                 <div style="background-color: #E31837; color: white; padding: 2px 4px 2px 8px; font-weight:900; font-size:1.8rem; border-radius:6px 0 0 6px;">dis</div>
                 <div style="background-color: white; color: black; padding: 2px 8px 2px 2px; font-weight:900; font-size:1.8rem; border-radius:0 6px 6px 0; border:1px solid #eee;">mac<sup style="font-size: 0.45em; margin-top: -12px; margin-left: 1px;">®</sup></div>
             </div>
             <h2 style="margin-bottom:1.5rem; color:#111; font-weight:800;">Iniciar Sesión</h2>
-            <input type="text" id="login-usuario" placeholder="Usuario" style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #cbd5e1; border-radius:8px; font-family:inherit; font-size:1rem; box-sizing:border-box; outline:none;">
-            <input type="password" id="login-password" placeholder="Contraseña" style="width:100%; padding:12px; margin-bottom:20px; border:1px solid #cbd5e1; border-radius:8px; font-family:inherit; font-size:1rem; box-sizing:border-box; outline:none;">
-            <button id="login-btn" style="width:100%; padding:12px; background:#E31837; color:white; border:none; border-radius:8px; font-weight:700; font-size:1rem; cursor:pointer;">Ingresar</button>
+            <input type="text" id="login-usuario" name="username" placeholder="Usuario" autocomplete="username" style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #cbd5e1; border-radius:8px; font-family:inherit; font-size:1rem; box-sizing:border-box; outline:none;">
+            <input type="password" id="login-password" name="password" placeholder="Contraseña" autocomplete="current-password" style="width:100%; padding:12px; margin-bottom:20px; border:1px solid #cbd5e1; border-radius:8px; font-family:inherit; font-size:1rem; box-sizing:border-box; outline:none;">
+            <button type="submit" id="login-btn" style="width:100%; padding:12px; background:#E31837; color:white; border:none; border-radius:8px; font-weight:700; font-size:1rem; cursor:pointer;">Ingresar</button>
             <p id="login-error" style="color:#ef4444; margin-top:15px; font-size:0.9rem; display:none;"></p>
-        </div>
+        </form>
     </div>
 
-    <script src="app.js?v=61"></script>
+    <script src="app.js?v=62"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
