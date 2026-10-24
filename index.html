@@ -480,12 +480,34 @@
             </section>
         </main>
 
+        <!-- Menú regional de encuestas -->
         <main class="main-content hidden" id="view-encuesta">
             <div class="view-header">
                 <button class="btn-back" id="btn-back-encuesta"><i class="bi bi-arrow-left"></i> Volver</button>
                 <h2>Satisfacción del Cliente</h2>
             </div>
             <div id="encuesta-content" style="padding: 10px;"></div>
+        </main>
+
+        <!-- Detalle de encuestas por regional -->
+        <main class="main-content hidden" id="view-encuesta-region">
+            <div class="view-header">
+                <button class="btn-back" id="btn-back-encuesta-region"><i class="bi bi-arrow-left"></i> Volver</button>
+                <h2 id="encuesta-region-title">Regional</h2>
+            </div>
+            <!-- Filtros de clasificación NPS -->
+            <div id="encuesta-region-filtros" style="padding: 0 10px 8px 10px; display:flex; flex-wrap:wrap; gap:6px;"></div>
+            <!-- Buscador -->
+            <div style="padding: 0 10px 10px 10px;">
+                <div style="position:relative;">
+                    <input type="search" id="encuesta-region-buscador" name="search-encuesta" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                        placeholder="Buscar por técnico, producto, ODT..."
+                        style="width:100%;padding:10px 2.5rem 10px 15px;border-radius:10px;border:1px solid #ddd;font-family:'Outfit',sans-serif;box-sizing:border-box;">
+                    <i class="bi bi-x-circle-fill" id="clear-encuesta-search"
+                        style="position:absolute;right:15px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1.1rem;cursor:pointer;display:none;"></i>
+                </div>
+            </div>
+            <div id="encuesta-region-content" style="padding: 0 10px 10px 10px;"></div>
         </main>
 
         <main class="main-content hidden" id="view-ejecutivo">
@@ -526,7 +548,7 @@
         </form>
     </div>
 
-    <script src="app.js?v=62"></script>
+    <script src="app.js?v=64"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

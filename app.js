@@ -417,9 +417,7 @@ function checkSessionOnLoad() {
         if (userInp) userInp.disabled = false;
         if (passInp) passInp.disabled = false;
     } else {
-        if (overlay) overlay.style.display = 'none';
-        if (userInp) userInp.disabled = true;
-        if (passInp) passInp.disabled = true;
+        if (overlay) overlay.remove();
     }
 }
 checkSessionOnLoad();
@@ -455,6 +453,8 @@ let tipoFiltroOrdenes = 'todas';
 let estadosCurrentRegion = undefined;
 let estadosCurrentOrdenes = null;
 let estadosCurrentOpciones = null;
+let encuestaCurrentRegion = null;
+let encuestaFiltroStatus = 'todas';
 // ────────────────────────────────────────────────────────────────────────────
 
 debugLog("🔧 APP.JS CARGADO");
@@ -550,6 +550,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const viewDetails = document.getElementById('view-details');
     const viewReportes = document.getElementById('view-reportes');
     const viewEncuesta = document.getElementById('view-encuesta');
+    const viewEncuestaRegion = document.getElementById('view-encuesta-region');
     const viewEjecutivo = document.getElementById('view-ejecutivo');
     const viewTitle = document.getElementById('view-title');
     const viewContent = document.getElementById('view-content');
@@ -1008,6 +1009,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btn-back-encuesta')?.addEventListener('click', () => {
         debugLog("← Volver al dashboard");
         showView(viewDashboard);
+    });
+
+    document.getElementById('btn-back-encuesta-region')?.addEventListener('click', () => {
+        debugLog("← Volver al menú de encuestas");
+        encuestaCurrentRegion = null;
+        showView(viewEncuesta);
     });
 
     document.getElementById('btn-back-ejecutivo')?.addEventListener('click', () => {
@@ -2696,13 +2703,180 @@ document.addEventListener('DOMContentLoaded', async () => {
         }[clasif] || { bg: '#f8fafc', border: '#cbd5e1', color: '#64748b', label: '—', icon: 'bi-question-circle' };
     }
 
-    function encuestaFiltrada() {
-        const fRegion = document.getElementById('encuesta-filtro-region')?.value || 'todas';
-        const fStatus = document.getElementById('encuesta-filtro-status')?.value || 'todas';
-        const q = normalizarTexto(document.getElementById('encuesta-buscador')?.value);
-        return appEncuestaData.filter(r => {
-            if (fRegion !== 'todas' && encuestaRegion(r) !== fRegion) return false;
-            if (fStatus !== 'todas' && !((r['NPS Status'] || '').includes(fStatus))) return false;
+    // ── NIVEL 1: Menú de regionales ────────────────────────────────────────
+    function showEncuesta() {
+        debugLog('⭐ Abriendo Encuestas NPS (Admin) - Menú Regional');
+        const contentEl = document.getElementById('encuesta-content');
+        if (!contentEl) return;
+
+        if (appEncuestaData.length === 0) {
+            contentEl.innerHTML = '<div style="text-align:center;padding:3rem;color:#64748b;"><i class="bi bi-emoji-smile" style="font-size:2rem; display:block; margin-bottom:10px;"></i>Sin datos de encuestas disponibles.</div>';
+            showView(viewEncuesta);
+            return;
+        }
+
+        // Agrupar por regional
+        const byRegion = new Map();
+        appEncuestaData.forEach(r => {
+            const reg = encuestaRegion(r);
+            if (!byRegion.has(reg)) byRegion.set(reg, []);
+            byRegion.get(reg).push(r);
+        });
+
+        // Estadísticas globales
+        const globalStats = getEncuestaStats(appEncuestaData);
+        const npsGlobalColor = globalStats.nps >= 50 ? '#16a34a' : (globalStats.nps >= 0 ? '#d97706' : '#ef4444');
+
+        const summaryHtml = `
+            <section style="background:linear-gradient(135deg,#fff5f5,#ffffff); border:1px solid #fecaca; border-radius:16px; padding:1.25rem; margin-bottom:1.25rem; box-shadow:0 2px 10px rgba(227,24,55,0.08);">
+                <h3 style="font-size:1rem; font-weight:800; color:#111; margin:0 0 1rem 0; display:flex; align-items:center; gap:8px;">
+                    <i class="bi bi-emoji-smile-fill" style="color:#E31837;"></i> Resumen Global NPS
+                </h3>
+                <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:0.7rem;">
+                    <div style="background:white; border-radius:12px; padding:0.85rem; text-align:center; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+                        <div style="font-size:1.6rem; font-weight:800; color:#3b82f6; line-height:1;">${globalStats.total}</div>
+                        <div style="font-size:0.72rem; color:#64748b; margin-top:3px;">Encuestas totales</div>
+                    </div>
+                    <div style="background:white; border-radius:12px; padding:0.85rem; text-align:center; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+                        <div style="font-size:1.6rem; font-weight:800; color:${npsGlobalColor}; line-height:1;">${globalStats.nps}</div>
+                        <div style="font-size:0.72rem; color:#64748b; margin-top:3px;">NPS Global</div>
+                    </div>
+                    <div style="background:#f0fdf4; border-radius:12px; padding:0.85rem; text-align:center;">
+                        <div style="font-size:1.4rem; font-weight:800; color:#16a34a; line-height:1;">${globalStats.promo}</div>
+                        <div style="font-size:0.72rem; color:#16a34a; margin-top:3px;"><i class="bi bi-emoji-smile-fill"></i> Promotores (${globalStats.pProm}%)</div>
+                    </div>
+                    <div style="background:#fef2f2; border-radius:12px; padding:0.85rem; text-align:center;">
+                        <div style="font-size:1.4rem; font-weight:800; color:#ef4444; line-height:1;">${globalStats.detractor}</div>
+                        <div style="font-size:0.72rem; color:#ef4444; margin-top:3px;"><i class="bi bi-emoji-frown-fill"></i> Detractores (${globalStats.pDet}%)</div>
+                    </div>
+                </div>
+            </section>
+        `;
+
+        // Tarjetas por regional
+        const regionCards = [...byRegion.entries()]
+            .sort((a, b) => b[1].length - a[1].length)
+            .map(([reg, list]) => {
+                const s = getEncuestaStats(list);
+                const npsColor = s.nps >= 50 ? '#16a34a' : (s.nps >= 0 ? '#d97706' : '#ef4444');
+                const npsBg = s.nps >= 50 ? '#f0fdf4' : (s.nps >= 0 ? '#fffbeb' : '#fef2f2');
+                return `
+                    <button onclick="window._showEncuestaRegion(${JSON.stringify(reg)})"
+                        style="width:100%; background:white; border:1px solid #e2e8f0; border-radius:16px; padding:1rem 1.25rem; box-shadow:0 2px 8px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer; text-align:left; font-family:'Outfit',sans-serif; transition:box-shadow 0.2s, transform 0.15s; margin-bottom:0.7rem;"
+                        onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform=''" ontouchstart="this.style.transform='scale(0.98)'" ontouchend="this.style.transform=''">
+                        <div style="flex:1;">
+                            <div style="font-weight:800; font-size:1.05rem; color:#111; margin-bottom:6px;">${escapeHTML(reg)}</div>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <span style="background:#f0fdf4; color:#16a34a; font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:8px;">
+                                    <i class="bi bi-emoji-smile-fill"></i> ${s.promo} Prom.
+                                </span>
+                                <span style="background:#fffbeb; color:#d97706; font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:8px;">
+                                    <i class="bi bi-emoji-neutral-fill"></i> ${s.pasivo} Pas.
+                                </span>
+                                <span style="background:#fef2f2; color:#ef4444; font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:8px;">
+                                    <i class="bi bi-emoji-frown-fill"></i> ${s.detractor} Det.
+                                </span>
+                            </div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; margin-left:12px; flex-shrink:0;">
+                            <span style="background:${npsBg}; color:${npsColor}; font-size:0.75rem; font-weight:800; padding:4px 12px; border-radius:12px; border:1px solid ${npsColor}33;">NPS ${s.nps}</span>
+                            <span style="font-size:0.72rem; color:#94a3b8;">${s.total} encuestas</span>
+                            <i class="bi bi-chevron-right" style="color:#cbd5e1; font-size:0.9rem;"></i>
+                        </div>
+                    </button>`;
+            }).join('');
+
+        contentEl.innerHTML = summaryHtml + `
+            <section>
+                <h3 style="font-size:1rem; font-weight:800; color:#111; margin:0 0 0.9rem 0; display:flex; align-items:center; gap:8px;">
+                    <i class="bi bi-geo-alt-fill" style="color:#E31837;"></i> Por Regional
+                </h3>
+                ${regionCards}
+            </section>
+        `;
+
+        // Exponer función global para los botones onclick
+        window._showEncuestaRegion = function(region) { showEncuestaRegion(region); };
+
+        showView(viewEncuesta);
+    }
+
+    // ── NIVEL 2: Encuestas de una regional ─────────────────────────────────
+    function showEncuestaRegion(region) {
+        debugLog(`📋 Encuestas NPS regional: ${region}`);
+        encuestaCurrentRegion = region;
+        encuestaFiltroStatus = 'todas';
+
+        const titleEl = document.getElementById('encuesta-region-title');
+        if (titleEl) titleEl.textContent = region;
+
+        // Limpiar buscador
+        const buscador = document.getElementById('encuesta-region-buscador');
+        if (buscador) buscador.value = '';
+        const clearBtn = document.getElementById('clear-encuesta-search');
+        if (clearBtn) clearBtn.style.display = 'none';
+
+        renderEncuestaRegionFiltros();
+        renderEncuestaRegionList();
+
+        // Evento del buscador
+        if (buscador) {
+            buscador.oninput = () => {
+                if (clearBtn) clearBtn.style.display = buscador.value ? 'block' : 'none';
+                renderEncuestaRegionList();
+            };
+        }
+        if (clearBtn) {
+            clearBtn.onclick = () => {
+                if (buscador) buscador.value = '';
+                clearBtn.style.display = 'none';
+                renderEncuestaRegionList();
+            };
+        }
+
+        showView(viewEncuestaRegion);
+    }
+
+    function renderEncuestaRegionFiltros() {
+        const cont = document.getElementById('encuesta-region-filtros');
+        if (!cont) return;
+
+        const regionData = appEncuestaData.filter(r => encuestaRegion(r) === encuestaCurrentRegion);
+        const s = getEncuestaStats(regionData);
+
+        const opciones = [
+            { key: 'todas',      label: `Todas (${s.total})`,               icon: 'bi-grid-fill' },
+            { key: 'Promoter',   label: `Promotores (${s.promo})`,          icon: 'bi-emoji-smile-fill' },
+            { key: 'Passive',    label: `Pasivos (${s.pasivo})`,            icon: 'bi-emoji-neutral-fill' },
+            { key: 'Detractor',  label: `Detractores (${s.detractor})`,     icon: 'bi-emoji-frown-fill' }
+        ];
+
+        const baseStyle = 'padding:6px 14px;border-radius:16px;border:1px solid #e2e8f0;background:#ffffff;color:#334155;font-family:"Outfit",sans-serif;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.2s;';
+        const activeStyle = 'padding:6px 14px;border-radius:16px;border:1px solid #dc2626;background:#dc2626;color:#ffffff;font-family:"Outfit",sans-serif;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;box-shadow:0 2px 6px rgba(220,38,38,0.25);';
+
+        cont.innerHTML = opciones.map(op => {
+            const active = op.key === encuestaFiltroStatus;
+            return `<button type="button" data-nps="${op.key}" style="${active ? activeStyle : baseStyle}"><i class="bi ${op.icon}"></i> ${escapeHTML(op.label)}</button>`;
+        }).join('');
+
+        cont.querySelectorAll('[data-nps]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                encuestaFiltroStatus = btn.getAttribute('data-nps');
+                renderEncuestaRegionFiltros();
+                renderEncuestaRegionList();
+            });
+        });
+    }
+
+    function renderEncuestaRegionList() {
+        const container = document.getElementById('encuesta-region-content');
+        if (!container || !encuestaCurrentRegion) return;
+
+        const q = normalizarTexto(document.getElementById('encuesta-region-buscador')?.value || '');
+
+        let list = appEncuestaData.filter(r => {
+            if (encuestaRegion(r) !== encuestaCurrentRegion) return false;
+            if (encuestaFiltroStatus !== 'todas' && !((r['NPS Status'] || '').includes(encuestaFiltroStatus))) return false;
             if (q) {
                 const campos = [
                     r['Tecnico'], r['Activo: Nombre de activo'], r['Tipo de Servicio'],
@@ -2714,160 +2888,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             return true;
         });
-    }
-
-    function showEncuesta() {
-        debugLog('⭐ Abriendo Encuestas NPS (Admin)');
-        const contentEl = document.getElementById('encuesta-content');
-        if (!contentEl) return;
-
-        if (appEncuestaData.length === 0) {
-            contentEl.innerHTML = '<div style="text-align:center;padding:3rem;color:#64748b;"><i class="bi bi-emoji-smile" style="font-size:2rem; display:block; margin-bottom:10px;"></i>Sin datos de encuestas disponibles.</div>';
-            showView(viewEncuesta);
-            return;
-        }
-
-        const allRegiones = [...new Set(appEncuestaData.map(encuestaRegion))]
-            .sort((a, b) => a.localeCompare(b, 'es'))
-            .map(r => `<option value="${escapeHTML(r)}">${escapeHTML(r)}</option>`).join('');
-
-        const filtersHtml = `
-            <section style="margin-bottom:1rem;">
-                <h3 style="font-size:1.1rem; font-weight:800; margin-bottom:0.75rem; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-funnel-fill" style="color:#E31837;"></i> Filtros</h3>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.7rem;">
-                    <div>
-                        <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Regional</label>
-                        <select id="encuesta-filtro-region"
-                            style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;">
-                            <option value="todas">Todas</option>
-                            ${allRegiones}
-                        </select>
-                    </div>
-                    <div>
-                        <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Clasificación</label>
-                        <select id="encuesta-filtro-status"
-                            style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;">
-                            <option value="todas">Todas</option>
-                            <option value="Promoter">Promotores</option>
-                            <option value="Passive">Pasivos</option>
-                            <option value="Detractor">Detractores</option>
-                        </select>
-                    </div>
-                </div>
-                <div style="margin-top:0.7rem;">
-                    <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:5px;">Buscar (técnico, producto, tipo, ODT, comentario)</label>
-                    <input type="search" id="encuesta-buscador" placeholder="Ej: Lavadora, 139471, Kernig..."
-                        style="width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e2e8f0; font-family:'Outfit',sans-serif; font-size:0.95rem; background:white; color:#111; box-sizing:border-box; outline:none;">
-                </div>
-            </section>
-            <div id="encuesta-lista"></div>
-        `;
-
-        contentEl.innerHTML = `
-            <div id="encuesta-resumen"></div>
-            ${filtersHtml}
-        `;
-
-        ['encuesta-filtro-region', 'encuesta-filtro-status'].forEach(id => {
-            document.getElementById(id)?.addEventListener('change', renderEncuestaView);
-        });
-        document.getElementById('encuesta-buscador')?.addEventListener('input', renderEncuestaView);
-
-        renderEncuestaView();
-        showView(viewEncuesta);
-    }
-
-    function renderEncuestaView() {
-        renderEncuestaResumen();
-        renderEncuestaList();
-    }
-
-    function renderEncuestaResumen() {
-        const el = document.getElementById('encuesta-resumen');
-        if (!el) return;
-
-        const data = encuestaFiltrada();
-        const stats = getEncuestaStats(data);
-
-        const kpiCard = (label, value, color, icon, sub) => `
-            <div style="background:white; border:1px solid ${color}33; border-radius:14px; padding:1rem; display:flex; align-items:center; gap:12px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-                <div style="background:${color}1a; color:${color}; width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i class="bi ${icon}"></i></div>
-                <div>
-                    <div style="font-size:1.4rem; font-weight:800; color:#111; line-height:1;">${value}</div>
-                    <div style="font-size:0.75rem; color:#64748b;">${label}</div>
-                    ${sub ? `<div style="font-size:0.7rem; color:${color}; font-weight:700; margin-top:2px;">${sub}</div>` : ''}
-                </div>
-            </div>
-        `;
-
-        const fRegion = document.getElementById('encuesta-filtro-region')?.value || 'todas';
-        const fStatus = document.getElementById('encuesta-filtro-status')?.value || 'todas';
-        const activos = [];
-        if (fRegion !== 'todas') activos.push(`Regional: ${fRegion}`);
-        if (fStatus !== 'todas') activos.push(`Clasificación: ${fStatus}`);
-
-        const kpiHtml = `
-            <section style="margin-bottom:1.5rem;">
-                <h3 style="font-size:1.1rem; font-weight:800; margin-bottom:0.75rem; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-emoji-smile-fill" style="color:#E31837;"></i> Resumen de Encuestas NPS</h3>
-                ${activos.length ? `<p style="font-size:0.78rem; color:#b45309; font-weight:700; margin:0 0 0.75rem 0;"><i class="bi bi-funnel-fill"></i> Filtrado por: ${activos.join(' · ')}</p>` : ''}
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;">
-                    ${kpiCard('Encuestas', stats.total, '#3b82f6', 'bi-file-earmark-text')}
-                    ${kpiCard('NPS Global', stats.nps, stats.nps >= 0 ? '#16a34a' : '#ef4444', 'bi-graph-up-arrow')}
-                    ${kpiCard('Promotores', `${stats.promo}`, '#16a34a', 'bi-emoji-smile-fill', `${stats.pProm}%`)}
-                    ${kpiCard('Detractores', `${stats.detractor}`, '#ef4444', 'bi-emoji-frown-fill', `${stats.pDet}%`)}
-                </div>
-            </section>
-        `;
-
-        const byRegion = new Map();
-        data.forEach(r => {
-            const reg = encuestaRegion(r);
-            if (!byRegion.has(reg)) byRegion.set(reg, []);
-            byRegion.get(reg).push(r);
-        });
-
-        const regionCards = [...byRegion.entries()]
-            .sort((a, b) => b[1].length - a[1].length)
-            .map(([reg, list]) => {
-                const s = getEncuestaStats(list);
-                const npsColor = s.nps >= 50 ? '#16a34a' : (s.nps >= 0 ? '#d97706' : '#ef4444');
-                return `
-                    <div style="background:white; border:1px solid #e2e8f0; border-radius:14px; padding:1rem; box-shadow:0 2px 8px rgba(0,0,0,0.04); display:flex; flex-direction:column; gap:10px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-weight:800; font-size:1rem; color:#111;">${escapeHTML(reg)}</span>
-                            <span style="background:${npsColor}; color:white; font-size:0.75rem; font-weight:800; padding:3px 10px; border-radius:12px;">NPS ${s.nps}</span>
-                        </div>
-                        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px; text-align:center; font-size:0.72rem; color:#64748b;">
-                            <div style="background:#f0fdf4; border-radius:10px; padding:8px 4px;"><div style="font-size:1.1rem; font-weight:800; color:#16a34a;">${s.promo}</div>Promotores</div>
-                            <div style="background:#fffbeb; border-radius:10px; padding:8px 4px;"><div style="font-size:1.1rem; font-weight:800; color:#d97706;">${s.pasivo}</div>Pasivos</div>
-                            <div style="background:#fef2f2; border-radius:10px; padding:8px 4px;"><div style="font-size:1.1rem; font-weight:800; color:#ef4444;">${s.detractor}</div>Detractores</div>
-                        </div>
-                        <div style="font-size:0.72rem; color:#64748b;"><i class="bi bi-check2-circle" style="color:#16a34a;"></i> ${s.total} encuestas</div>
-                    </div>`;
-            }).join('');
-
-        const regionSection = `
-            <section style="margin-bottom:1.5rem;">
-                <h3 style="font-size:1.1rem; font-weight:800; margin-bottom:0.75rem; color:#111; display:flex; align-items:center; gap:8px;"><i class="bi bi-geo-alt-fill" style="color:#E31837;"></i> Por Regional</h3>
-                <div style="display:grid; grid-template-columns:1fr; gap:0.8rem;">${regionCards}</div>
-            </section>
-        `;
-
-        el.innerHTML = kpiHtml + regionSection;
-    }
-
-    function renderEncuestaList() {
-        const container = document.getElementById('encuesta-lista');
-        if (!container) return;
-
-        let list = encuestaFiltrada();
 
         const orden = { detractor: 0, passive: 1, promoter: 2 };
         list.sort((a, b) => {
             const d = (orden[encuestaClasif(a)] || 1) - (orden[encuestaClasif(b)] || 1);
             if (d !== 0) return d;
-            const na = (a['NPS Q1'] || '') + '', nb = (b['NPS Q1'] || '') + '';
-            return na.localeCompare(nb, 'es', { numeric: true });
+            return ((a['NPS Q1'] || '') + '').localeCompare((b['NPS Q1'] || '') + '', 'es', { numeric: true });
         });
 
         if (list.length === 0) {
@@ -2881,7 +2907,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const nota = (r['NPS Q1'] || '').trim();
             const tecnico = (r['Tecnico'] || '').trim() || '—';
             const producto = escapeHTML((r['Activo: Nombre de activo'] || '').trim() || 'Sin producto');
-            const region = escapeHTML(encuestaRegion(r));
             const tipo = escapeHTML((r['Tipo de Servicio'] || '').trim() || '—');
             const odt = escapeHTML((r['Número de orden de trabajo'] || '').trim() || '—');
             const num = escapeHTML((r['Numero'] || '').trim() || '—');
@@ -2905,7 +2930,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                             <div style="flex:1;">
                                 <p style="margin:0 0 4px 0; font-weight:800; color:#111; font-size:0.98rem; line-height:1.2;">${producto}</p>
-                                <p style="margin:0; font-size:0.78rem; color:#475569;"><i class="bi bi-person-badge"></i> ${escapeHTML(tecnico)} · <i class="bi bi-geo-alt-fill"></i> ${region}</p>
+                                <p style="margin:0; font-size:0.78rem; color:#475569;"><i class="bi bi-person-badge"></i> ${escapeHTML(tecnico)}</p>
                             </div>
                             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px; flex-shrink:0;">
                                 <span style="background:${c.color}; color:white; padding:3px 10px; border-radius:12px; font-size:0.65rem; font-weight:800; white-space:nowrap;"><i class="bi ${c.icon}"></i> ${c.label}</span>
@@ -2929,8 +2954,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>`;
         }).join('');
 
-        const count = list.length;
-        container.innerHTML = `<div style="font-size:0.8rem; font-weight:700; color:#64748b; margin-bottom:10px;">${count} respuesta(s)</div>` + html;
+        container.innerHTML = `<div style="font-size:0.8rem; font-weight:700; color:#64748b; margin-bottom:10px;">${list.length} respuesta(s)</div>` + html;
+    }
+
+    // Mantener compatibilidad (refrescarVistaActual lo llama)
+    function renderEncuestaView() {
+        if (encuestaCurrentRegion) {
+            renderEncuestaRegionFiltros();
+            renderEncuestaRegionList();
+        } else {
+            showEncuesta();
+        }
     }
 
     function garantiaTexto(o) {
@@ -3164,7 +3198,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return el && !el.classList.contains('hidden');
         };
         if (visible('view-reportes')) { renderReportes(); return; }
-        if (visible('view-encuesta')) { renderEncuestaView(); return; }
+        if (visible('view-encuesta') || visible('view-encuesta-region')) { renderEncuestaView(); return; }
         if (visible('view-ejecutivo')) { renderEjecutivo(); return; }
         if (visible('view-details') && currentRegionTalleres) { showRegionTalleres(currentRegionTalleres); return; }
         if (currentRegionOrdenes === 'Última Modificación') { showUltimaModificacion(); return; }
