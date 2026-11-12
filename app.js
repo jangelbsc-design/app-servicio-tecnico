@@ -1,29 +1,37 @@
+// El gid es obligatorio para leer con /export (ver fetchSheetCsv): Google
+// cachea /gviz durante horas y deja las hojas desactualizadas.
 const USERS_SHEET_CONFIG = {
     id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
-    sheetName: 'Usuarios_App'
+    sheetName: 'Usuarios_App',
+    gid: '932622720'
 };
 
 const SHEETS_CONFIG = {
     talleres: {
         id: '1wV3Ch5U-HWfsnvDoc56mL-4JCy22e7STdYzvJgFoI2I',
-        sheetName: 'RED%20DE%20TALLERES'
+        sheetName: 'RED%20DE%20TALLERES',
+        gid: '0'
     },
     seguimiento: {
         id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
-        sheetName: 'REPORTE%20GLOBAL'
+        sheetName: 'REPORTE%20GLOBAL',
+        gid: '0'
     },
     // zapia removed
     adicionales: {
         id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
-        sheetName: 'REPORTE%20GLOBAL%20ADICIONALES'
+        sheetName: 'REPORTE%20GLOBAL%20ADICIONALES',
+        gid: '1801135280'
     },
     encuesta: {
         id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
-        sheetName: 'nps%20por%20regional'
+        sheetName: 'nps%20por%20regional',
+        gid: '1279258090'
     },
     transporte: {
         id: '1CG6jiQEjqU4FePm94Y2wPSRs6GaI5UIVuI5H4AkUNX0',
-        sheetName: 'TRANSPORTE'
+        sheetName: 'TRANSPORTE',
+        gid: '669612858'
     }
 };
 
@@ -69,22 +77,44 @@ function debounce(func, wait) {
     };
 }
 
-// Descarga el CSV crudo de una hoja, con corte por timeout y un reintento.
-async function fetchSheetCsv(id, sheet) {
-    const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${sheet}`;
+// Descarga el CSV crudo de una hoja.
+// Se usa /export?format=csv&gid=... porque /gviz/tq sirve una copia cacheada
+// por Google durante horas (eso dejaba talleres sin teléfono aunque la hoja ya
+// los tuviera). Si no hay gid o /export falla, se intenta /gviz como respaldo.
+function urlExportHoja(id, gid) {
+    return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
+}
+
+function urlGvizHoja(id, sheet) {
+    return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${sheet}`;
+}
+
+async function fetchSheetCsv(id, sheet, gid) {
+    const urls = [];
+    if (gid !== undefined && gid !== null && gid !== '') urls.push(urlExportHoja(id, gid));
+    urls.push(urlGvizHoja(id, sheet));
+
     let ultimoError = null;
-    for (let intento = 0; intento <= FETCH_REINTENTOS; intento++) {
-        const controlador = new AbortController();
-        const temporizador = setTimeout(() => controlador.abort(), FETCH_TIMEOUT_MS);
-        try {
-            const res = await fetch(url, { signal: controlador.signal });
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-            return await res.text();
-        } catch (err) {
-            ultimoError = err;
-            debugLog(`Fallo al leer la hoja "${sheet}" (intento ${intento + 1}):`, err);
-        } finally {
-            clearTimeout(temporizador);
+    for (const url of urls) {
+        for (let intento = 0; intento <= FETCH_REINTENTOS; intento++) {
+            const controlador = new AbortController();
+            const temporizador = setTimeout(() => controlador.abort(), FETCH_TIMEOUT_MS);
+            try {
+                const res = await fetch(url, { signal: controlador.signal, cache: 'no-store' });
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                const texto = await res.text();
+                if (!texto || !texto.trim()) throw new Error('La hoja devolvió una respuesta vacía');
+                const limpio = texto.replace(/^\uFEFF/, '');
+                // Si Google responde una página de error/login en vez del CSV,
+                // se descarta y se prueba la siguiente URL.
+                if (limpio.trim().startsWith('<')) throw new Error('La hoja devolvió HTML en vez de CSV');
+                return limpio;
+            } catch (err) {
+                ultimoError = err;
+                debugLog(`Fallo al leer la hoja "${sheet}" (intento ${intento + 1}):`, err);
+            } finally {
+                clearTimeout(temporizador);
+            }
         }
     }
     throw ultimoError || new Error(`No se pudo leer la hoja "${sheet}"`);
@@ -97,8 +127,8 @@ function parseCsvLocal(csvText) {
     return res && res.data ? res.data : [];
 }
 
-async function fetchGoogleSheet(id, sheet) {
-    return parseCsvLocal(await fetchSheetCsv(id, sheet));
+async function fetchGoogleSheet(id, sheet, gid) {
+    return parseCsvLocal(await fetchSheetCsv(id, sheet, gid));
 }
             
 // ── Respaldo local del volcado (permite ver la app sin conexión) ────────────
@@ -286,13 +316,20 @@ function parseAllData(workshopData, globalData, adicionalesData) {
         const taller = getVal(row, 'TALLER', 'Taller', 'taller');
         const marca = getVal(row, 'MARCA', 'Marca', 'marca');
 
+        // Los números pueden venir en CONTACTO o en columnas alternativas
+        // ("CONTACTO 2", "CELULAR", "TELÉFONO"...). Se juntan todas las que
+        // tengan valor: antes se tomaba la primera columna que coincidía por
+        // nombre aunque estuviera vacía y se perdían los demás números.
         let contacto = getVal(row, 'CONTACTO', 'Contacto', 'contacto', 'CONTACTOS', 'CELULAR', 'TELEFONO');
-        if (!contacto) {
-            const rowKeys = Object.keys(row);
-            const contactKey = rowKeys.find(k => k.toUpperCase().includes('CONTACTO') || k.toUpperCase().includes('TEL') || k.toUpperCase().includes('CEL'));
-            if (contactKey && row[contactKey]) {
-                contacto = row[contactKey].toString().trim();
-            }
+        const contactosExtra = [];
+        Object.keys(row).forEach((k) => {
+            const nombre = k.toUpperCase();
+            if (!(nombre.includes('CONTACTO') || nombre.includes('TEL') || nombre.includes('CEL'))) return;
+            const valor = (row[k] || '').toString().trim();
+            if (valor && valor !== contacto && !contactosExtra.includes(valor)) contactosExtra.push(valor);
+        });
+        if (contactosExtra.length) {
+            contacto = [contacto, ...contactosExtra].filter(Boolean).join(' - ');
         }
 
         if (taller && taller.toUpperCase().includes("ELECTRONICA DIGITAL JKA") && !contacto) {
@@ -432,7 +469,7 @@ async function syncSessionUser() {
     const usuarioActual = localStorage.getItem('usuario_actual');
     if (sesionActiva !== 'true' || !usuarioActual) return;
     try {
-        const users = await fetchGoogleSheet(USERS_SHEET_CONFIG.id, USERS_SHEET_CONFIG.sheetName);
+        const users = await fetchGoogleSheet(USERS_SHEET_CONFIG.id, USERS_SHEET_CONFIG.sheetName, USERS_SHEET_CONFIG.gid);
         const foundUser = users.find(u => u.Usuario === usuarioActual);
         if (foundUser) {
             if (foundUser.Rol) localStorage.setItem('usuario_rol', foundUser.Rol);
@@ -489,7 +526,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             errorEl.style.display = 'none';
             
             try {
-                const users = await fetchGoogleSheet(USERS_SHEET_CONFIG.id, USERS_SHEET_CONFIG.sheetName);
+                const users = await fetchGoogleSheet(USERS_SHEET_CONFIG.id, USERS_SHEET_CONFIG.sheetName, USERS_SHEET_CONFIG.gid);
                 const foundUser = users.find(u => u.Usuario === user && u.Contraseña === pass);
                 
                 if (foundUser) {
@@ -3264,7 +3301,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         let falloObligatoria = null;
         await Promise.all(hojas.map(async (h) => {
             try {
-                csv[h.clave] = await fetchSheetCsv(h.cfg.id, h.cfg.sheetName);
+                csv[h.clave] = await fetchSheetCsv(h.cfg.id, h.cfg.sheetName, h.cfg.gid);
             } catch (err) {
                 csv[h.clave] = '';
                 if (h.obligatoria) {
