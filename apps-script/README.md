@@ -60,9 +60,26 @@ Si en cambio aparece una pantalla de login de Google, el acceso quedó en
    una celda vacía haría que el taller herede la ciudad anterior).
 4. La app recarga los datos y ofrece **Ver talleres de [ciudad]**.
 
+### Agregar una marca a un taller existente
+
+1. **Red de talleres → Editar taller**.
+2. Elegir la ciudad y el taller. La app muestra la marca actual.
+3. Escribir la marca nueva en **Agregar marca**. Se suma al final de la lista,
+   separada por coma, sin borrar las anteriores y sin repetirla si ya estaba.
+4. También se puede corregir el **contacto** o la **ubicación GPS**.
+5. Guardar. La app recarga los datos y permite ver los talleres de esa ciudad.
+
+> Esta acción usa `accion: "actualizar"` en el mismo Web App. Si el script
+> desplegado es el anterior (solo crea), la app muestra un aviso pidiendo
+> actualizarlo: pegar el nuevo `AgregarTaller.gs`, guardar y publicar
+> **Nueva versión** (la URL `/exec` no cambia).
+
+Cada actualización queda registrada en la pestaña **LOG CAMBIOS** (se crea sola):
+fecha, usuario, ciudad, taller, fila y el detalle de lo que cambió.
+
 > Si tocás **Agregar taller** sin conexión configurada, la app abre primero
 > **Conectar Drive**. Para cambiarla después, usá la tarjeta **Conectar Drive**
-> o el enlace **Cambiar** del formulario de alta.
+> o el enlace **Cambiar** del formulario de alta o de edición.
 
 ## Qué valida el script
 
@@ -71,10 +88,12 @@ Si en cambio aparece una pantalla de login de Google, el acceso quedó en
 - Al menos un teléfono **o** una ubicación.
 - **Duplicados:** mismo nombre normalizado (sin tildes, mayúsculas ni signos)
   en la misma ciudad. Devuelve la fila donde ya existe.
+- **Actualizar:** busca la fila por taller + ciudad (arrastrando la ciudad),
+  suma la marca sin repetirla y solo escribe las celdas que cambiaron.
 - Escribe como texto, así no se pierden ceros ni se interpretan fórmulas.
 - `LockService` evita que dos altas simultáneas se pisen.
-- Deja registro en la pestaña `LOG AGREGADOS` (se crea sola): fecha, usuario,
-  ciudad, taller y fila.
+- Deja registro en la pestaña `LOG AGREGADOS` (altas) y `LOG CAMBIOS`
+  (actualizaciones): fecha, usuario, ciudad, taller, fila y detalle.
 
 ## Seguridad
 

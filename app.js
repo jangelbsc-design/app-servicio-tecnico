@@ -1167,6 +1167,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             case 'agregar-taller':
                 abrirFormularioTaller();
                 break;
+            case 'editar-taller':
+                abrirEditorTaller();
+                break;
             case 'conexion-taller':
                 abrirConexionTaller(false);
                 break;
@@ -1207,7 +1210,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Configuración aparte: la URL y la clave se guardan una sola vez,
     // sin obligar a cargar un taller.
-    function abrirConexionTaller(volverAlta) {
+    // despues: 'alta' | 'editar' | false. Si se guarda, reabre ese formulario.
+    function abrirConexionTaller(despues) {
         if (!isAdmin()) return;
         if (document.getElementById('conexion-taller-overlay')) return;
 
@@ -1264,7 +1268,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const cerrar = () => {
             const el = document.getElementById('conexion-taller-overlay');
             if (el) el.remove();
-            if (!document.getElementById('alta-taller-overlay')) {
+            if (!document.getElementById('alta-taller-overlay') &&
+                !document.getElementById('editar-taller-overlay')) {
                 document.body.style.overflow = '';
             }
         };
@@ -1294,9 +1299,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             guardarConfigAlta({ endpoint: endpoint, token: token });
 
-            if (volverAlta) {
+            if (despues === 'alta') {
                 cerrar();
                 abrirFormularioTaller();
+                return;
+            }
+            if (despues === 'editar') {
+                cerrar();
+                abrirEditorTaller();
                 return;
             }
 
@@ -1322,7 +1332,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const cfg = leerConfigAlta();
         if (!cfg.endpoint || !cfg.token) {
-            abrirConexionTaller(true);
+            abrirConexionTaller('alta');
             return;
         }
 
@@ -1504,6 +1514,292 @@ document.addEventListener('DOMContentLoaded', async () => {
             boton.textContent = 'Cargando…';
             await recarga;
             cerrarFormularioTaller();
+            showRegionTalleres(data.ciudad);
+        });
+    }
+
+    // ── Edición de talleres existentes (solo administradores) ───────────────
+    // Agrega marcas a la celda D y permite corregir contacto/GPS.
+    // Usa la acción "actualizar" del Web App (apps-script/AgregarTaller.gs).
+
+    function cerrarEditorTaller() {
+        const overlay = document.getElementById('editar-taller-overlay');
+        if (overlay) overlay.remove();
+        if (!document.getElementById('alta-taller-overlay') &&
+            !document.getElementById('conexion-taller-overlay')) {
+            document.body.style.overflow = '';
+        }
+    }
+
+    function abrirEditorTaller() {
+        if (!isAdmin()) return;
+        if (document.getElementById('editar-taller-overlay')) return;
+
+        const cfg = leerConfigAlta();
+        if (!cfg.endpoint || !cfg.token) {
+            abrirConexionTaller('editar');
+            return;
+        }
+
+        const ciudadesMap = new Map();
+        appWorkshopData.forEach(t => {
+            const c = (t.CIUDAD || '').trim();
+            if (c && !ciudadesMap.has(c.toUpperCase())) ciudadesMap.set(c.toUpperCase(), c);
+        });
+        const ciudades = [...ciudadesMap.values()].sort((a, b) => a.localeCompare(b, 'es'));
+
+        const estiloInput = 'width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #cbd5e1;border-radius:10px;font-size:0.95rem;font-family:inherit;background:#fff;color:#0f172a;margin-bottom:14px;';
+        const estiloLabel = 'display:block;font-size:0.78rem;font-weight:700;color:#334155;margin-bottom:6px;';
+
+        const overlay = document.createElement('div');
+        overlay.id = 'editar-taller-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;';
+        overlay.innerHTML = `
+            <div role="dialog" aria-modal="true" aria-labelledby="editar-taller-titulo"
+                 style="background:#fff;width:100%;max-width:480px;max-height:92vh;overflow:auto;border-radius:18px;padding:22px;box-shadow:0 24px 60px rgba(0,0,0,.28);">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px;">
+                    <h3 id="editar-taller-titulo" style="margin:0;font-size:1.15rem;color:#0f172a;">Editar taller</h3>
+                    <button type="button" id="editar-taller-cerrar" aria-label="Cerrar"
+                            style="border:0;background:#f1f5f9;width:34px;height:34px;border-radius:50%;font-size:1.25rem;line-height:1;cursor:pointer;color:#334155;">&times;</button>
+                </div>
+                <p style="margin:0 0 16px;font-size:0.8rem;color:#64748b;">
+                    Agregá una marca o corregí los datos. Se guarda en <strong>RED DE TALLERES</strong>.
+                </p>
+
+                <form id="editar-taller-form" novalidate>
+                    <label for="editar-ciudad" style="${estiloLabel}">Ciudad *</label>
+                    <select id="editar-ciudad" style="${estiloInput}">
+                        <option value="">Elegí una ciudad</option>
+                        ${ciudades.map(c => `<option value="${escapeAttr(c)}">${escapeHTML(c)}</option>`).join('')}
+                    </select>
+
+                    <label for="editar-taller" style="${estiloLabel}">Taller *</label>
+                    <select id="editar-taller" style="${estiloInput}" disabled>
+                        <option value="">Elegí primero la ciudad</option>
+                    </select>
+
+                    <div id="editar-taller-actual" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:14px;font-size:0.82rem;color:#475569;line-height:1.5;">
+                        <div><strong>Marca actual:</strong> <span id="editar-marca-actual"></span></div>
+                    </div>
+
+                    <label for="editar-marca" style="${estiloLabel}">Agregar marca</label>
+                    <input id="editar-marca" autocomplete="off" placeholder="Ej: LG" style="${estiloInput}">
+                    <p style="margin:-8px 0 14px;font-size:0.75rem;color:#64748b;">
+                        Se suma al final de la lista. No borra las marcas que ya tiene.
+                    </p>
+
+                    <label for="editar-contacto" style="${estiloLabel}">Contacto</label>
+                    <input id="editar-contacto" inputmode="tel" autocomplete="off" style="${estiloInput}">
+
+                    <label for="editar-gps" style="${estiloLabel}">Ubicación GPS</label>
+                    <input id="editar-gps" autocomplete="off" style="${estiloInput}">
+
+                    <div id="editar-taller-error" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:10px;padding:10px 12px;font-size:0.82rem;margin-bottom:14px;"></div>
+
+                    <button type="submit" id="editar-taller-guardar"
+                            style="width:100%;border:0;border-radius:12px;padding:13px;background:#E31837;color:#fff;font-size:0.95rem;font-weight:700;font-family:inherit;cursor:pointer;">
+                        Guardar cambios
+                    </button>
+                    <p style="margin:14px 0 0;font-size:0.75rem;color:#94a3b8;text-align:center;">
+                        Conexión con Drive configurada ·
+                        <button type="button" id="editar-cambiar-conexion"
+                                style="border:0;background:none;color:#E31837;font:inherit;font-weight:700;cursor:pointer;padding:0;">
+                            Cambiar
+                        </button>
+                    </p>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        document.body.style.overflow = 'hidden';
+
+        const form = document.getElementById('editar-taller-form');
+        const selectCiudad = document.getElementById('editar-ciudad');
+        const selectTaller = document.getElementById('editar-taller');
+        const bloqueActual = document.getElementById('editar-taller-actual');
+        const marcaActualEl = document.getElementById('editar-marca-actual');
+        const marcaInput = document.getElementById('editar-marca');
+        const contactoInput = document.getElementById('editar-contacto');
+        const gpsInput = document.getElementById('editar-gps');
+        const errorBox = document.getElementById('editar-taller-error');
+        const btn = document.getElementById('editar-taller-guardar');
+
+        const mostrarError = (texto) => {
+            errorBox.textContent = texto;
+            errorBox.style.display = 'block';
+        };
+
+        const tallerActual = () => {
+            const ciudadKey = (selectCiudad.value || '').trim().toUpperCase();
+            const nombre = (selectTaller.value || '').trim();
+            return appWorkshopData.find(t =>
+                (t.CIUDAD || '').trim().toUpperCase() === ciudadKey &&
+                (t.TALLER || '').trim() === nombre
+            );
+        };
+
+        const cargarTalleres = () => {
+            const ciudadKey = (selectCiudad.value || '').trim().toUpperCase();
+            const talleres = appWorkshopData
+                .filter(t => (t.CIUDAD || '').trim().toUpperCase() === ciudadKey)
+                .map(t => (t.TALLER || '').trim())
+                .filter(Boolean)
+                .sort((a, b) => a.localeCompare(b, 'es'));
+
+            selectTaller.innerHTML = '<option value="">Elegí un taller</option>' +
+                talleres.map(n => `<option value="${escapeAttr(n)}">${escapeHTML(n)}</option>`).join('');
+            selectTaller.disabled = !ciudadKey;
+            bloqueActual.style.display = 'none';
+            marcaActualEl.textContent = '';
+            marcaInput.value = '';
+            contactoInput.value = '';
+            gpsInput.value = '';
+            errorBox.style.display = 'none';
+        };
+
+        const cargarDatos = () => {
+            const t = tallerActual();
+            if (!t) {
+                bloqueActual.style.display = 'none';
+                marcaActualEl.textContent = '';
+                marcaInput.value = '';
+                contactoInput.value = '';
+                gpsInput.value = '';
+                return;
+            }
+            bloqueActual.style.display = 'block';
+            marcaActualEl.textContent = t.MARCA || 'Sin marca';
+            contactoInput.value = t.CONTACTO || '';
+            gpsInput.value = t.UBICACION || '';
+            errorBox.style.display = 'none';
+        };
+
+        document.getElementById('editar-taller-cerrar').addEventListener('click', cerrarEditorTaller);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) cerrarEditorTaller(); });
+        overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarEditorTaller(); });
+        selectCiudad.addEventListener('change', cargarTalleres);
+        selectTaller.addEventListener('change', cargarDatos);
+        document.getElementById('editar-cambiar-conexion').addEventListener('click', () => abrirConexionTaller(false));
+
+        selectCiudad.focus();
+
+        form.addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            errorBox.style.display = 'none';
+
+            const t = tallerActual();
+            if (!t) return mostrarError('Elegí la ciudad y el taller.');
+
+            const marca = marcaInput.value.trim();
+            const contacto = contactoInput.value.trim();
+            const gps = gpsInput.value.trim();
+
+            if (!marca && contacto === (t.CONTACTO || '') && gps === (t.UBICACION || '')) {
+                return mostrarError('No hay cambios para guardar.');
+            }
+
+            // Se relee la conexión: puede haberse cambiado desde este mismo modal.
+            const cfgActual = leerConfigAlta();
+            if (!cfgActual.endpoint || !cfgActual.token) {
+                abrirConexionTaller('editar');
+                return mostrarError('Configurá la conexión con Drive.');
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Guardando…';
+
+            try {
+                const resp = await fetch(cfgActual.endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        accion: 'actualizar',
+                        token: cfgActual.token,
+                        ciudad: (t.CIUDAD || selectCiudad.value || '').trim().toUpperCase(),
+                        taller: (t.TALLER || selectTaller.value || '').trim(),
+                        marca: marca,
+                        contacto: contacto,
+                        gps: gps,
+                        usuario: localStorage.getItem('usuario_actual') || ''
+                    })
+                });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+                let data;
+                try {
+                    data = await resp.json();
+                } catch (err) {
+                    throw new Error('El Web App no devolvió JSON. Revisá que esté publicado como "Cualquier persona".');
+                }
+
+                if (!data.ok) {
+                    const mensajes = {
+                        clave_invalida: 'La clave no coincide con la del script.',
+                        no_encontrado: 'No se encontró el taller en la hoja. Recargá la app y probá de nuevo.',
+                        duplicado: 'El Web App todavía es la versión anterior. Actualizá el script y publicá una nueva versión.',
+                        falta_ciudad: 'Falta la ciudad.',
+                        falta_taller: 'Falta el nombre del taller.',
+                        ocupado: 'La hoja está ocupada. Probá de nuevo en unos segundos.',
+                        json_invalido: 'El servidor no entendió los datos.',
+                        error_interno: 'Error interno del script: ' + (data.detalle || 'sin detalle')
+                    };
+                    if (data.error === 'clave_invalida') {
+                        abrirConexionTaller('editar');
+                    }
+                    return mostrarError(mensajes[data.error] || ('No se pudo guardar (' + data.error + ').'));
+                }
+
+                if (data.sinCambios) {
+                    return mostrarError(data.marcaDuplicada
+                        ? 'Esa marca ya estaba cargada en este taller.'
+                        : 'No había cambios para guardar.');
+                }
+
+                const recarga = loadAllData();
+                mostrarExitoEdicion(form, data, recarga);
+            } catch (err) {
+                console.error('Editar taller:', err);
+                mostrarError(
+                    err && err.message && err.message.indexOf('JSON') !== -1
+                        ? err.message
+                        : 'No se pudo conectar con el Web App. Verificá la URL y que el acceso sea "Cualquier persona".'
+                );
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Guardar cambios';
+            }
+        });
+    }
+
+    function mostrarExitoEdicion(form, data, recarga) {
+        form.innerHTML = `
+            <div style="text-align:center;padding:6px 0 2px;">
+                <div style="width:56px;height:56px;border-radius:50%;background:#dcfce7;color:#16a34a;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:1.7rem;">
+                    <i class="bi bi-check-lg"></i>
+                </div>
+                <p style="margin:0 0 4px;font-weight:700;color:#0f172a;font-size:1rem;">Taller actualizado</p>
+                <p style="margin:0 0 12px;font-size:0.82rem;color:#64748b;">${escapeHTML(data.taller || '')} · ${escapeHTML(data.ciudad || '')}</p>
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:18px;font-size:0.82rem;color:#334155;line-height:1.5;text-align:left;">
+                    <strong>Marca:</strong> ${escapeHTML(data.marca || 'Sin marca')}
+                </div>
+                ${data.marcaDuplicada ? '<p style="margin:-8px 0 14px;font-size:0.78rem;color:#b45309;">Esa marca ya estaba cargada; se guardaron los demás cambios.</p>' : ''}
+                <button type="button" id="editar-ver-ciudad"
+                        style="width:100%;border:0;border-radius:12px;padding:12px;background:#E31837;color:#fff;font-size:0.92rem;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:8px;">
+                    Ver talleres de ${escapeHTML(data.ciudad || '')}
+                </button>
+                <button type="button" id="editar-cerrar-ok"
+                        style="width:100%;border:1px solid #e2e8f0;border-radius:12px;padding:12px;background:#fff;color:#334155;font-size:0.92rem;font-weight:700;font-family:inherit;cursor:pointer;">
+                    Cerrar
+                </button>
+            </div>
+        `;
+        document.getElementById('editar-cerrar-ok').addEventListener('click', cerrarEditorTaller);
+        document.getElementById('editar-ver-ciudad').addEventListener('click', async () => {
+            const boton = document.getElementById('editar-ver-ciudad');
+            boton.disabled = true;
+            boton.textContent = 'Cargando…';
+            await recarga;
+            cerrarEditorTaller();
             showRegionTalleres(data.ciudad);
         });
     }
