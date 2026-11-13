@@ -296,6 +296,20 @@
 
                 <button class="dash-card" data-action="view-protocolo"><span class="card-title">Protocolo de recepción</span></button>
             </div>
+
+            <div class="dashboard-grid" style="margin-top: 1rem;">
+                <button class="dash-card admin-only hidden" data-action="agregar-taller"
+                    style="border:2px dashed var(--red-100); background:linear-gradient(135deg,#fff5f5,#ffffff);">
+                    <div class="card-icon-wrapper bg-red">
+                        <i class="bi bi-plus-lg"></i>
+                    </div>
+                    <div class="card-text-container">
+                        <span class="card-title">Agregar taller</span>
+                        <span class="card-subtitle">Se guarda en la hoja RED DE TALLERES</span>
+                    </div>
+                    <i class="bi bi-chevron-right card-arrow"></i>
+                </button>
+            </div>
         </main>
 
         <main class="main-content hidden" id="view-estados-menu">
@@ -548,7 +562,7 @@
         </form>
     </div>
 
-    <script src="app.js?v=65"></script>
+    <script src="app.js?v=66"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

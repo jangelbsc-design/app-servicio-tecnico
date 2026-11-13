@@ -35,6 +35,14 @@ const SHEETS_CONFIG = {
     }
 };
 
+// Alta de talleres desde la app (Web App de Apps Script, ver apps-script/README.md).
+// La URL /exec y la clave se piden una vez y quedan en este dispositivo.
+// Si se deja endpoint vacío, cada administrador lo pega la primera vez.
+const AGREGAR_TALLER_CONFIG = {
+    endpoint: '',
+    storageKey: 'dismatec_agregar_taller_v1'
+};
+
 // Municipios de Santa Cruz: agrupación usada por la vista "Municipios (SCZ)".
 const MUNICIPIOS_SCZ = ['montero', 'la guardia', 'el torno', 'cotoca', 'satelite', 'camiri', 'san julian', 'guabira', 'warnes', 'pailon', 'samaipata', 'buena vista', 'la angostura', 'yapacani'];
 
@@ -168,6 +176,11 @@ function escapeHTML(str) {
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
+}
+
+// Igual que escapeHTML pero también escapa comillas: para interpolar en atributos.
+function escapeAttr(str) {
+    return escapeHTML(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function mesValido(mes) {
@@ -1151,7 +1164,240 @@ document.addEventListener('DOMContentLoaded', async () => {
             case 'view-estados-potosi':
                 showRegionOrdenes('Potosí');
                 break;
+            case 'agregar-taller':
+                abrirFormularioTaller();
+                break;
         }
+    }
+
+    // ── Alta de talleres (solo administradores) ─────────────────────────────
+    // Escribe en la hoja RED DE TALLERES a través de un Web App de Apps Script.
+    // Ver apps-script/AgregarTaller.gs y apps-script/README.md.
+
+    function leerConfigAlta() {
+        const base = { endpoint: AGREGAR_TALLER_CONFIG.endpoint || '', token: '' };
+        try {
+            const raw = localStorage.getItem(AGREGAR_TALLER_CONFIG.storageKey);
+            const guardado = raw ? JSON.parse(raw) : {};
+            return {
+                endpoint: guardado.endpoint || base.endpoint,
+                token: guardado.token || ''
+            };
+        } catch (err) {
+            return base;
+        }
+    }
+
+    function guardarConfigAlta(cfg) {
+        try {
+            localStorage.setItem(AGREGAR_TALLER_CONFIG.storageKey, JSON.stringify(cfg));
+        } catch (err) {
+            // Modo privado o storage lleno: se vuelve a pedir la próxima vez.
+        }
+    }
+
+    function cerrarFormularioTaller() {
+        const overlay = document.getElementById('alta-taller-overlay');
+        if (overlay) overlay.remove();
+        document.body.style.overflow = '';
+    }
+
+    function abrirFormularioTaller() {
+        if (!isAdmin()) return;
+        if (document.getElementById('alta-taller-overlay')) return;
+
+        const cfg = leerConfigAlta();
+        const ciudades = [...new Set(
+            appWorkshopData.map(t => (t.CIUDAD || '').trim()).filter(Boolean)
+        )].sort((a, b) => a.localeCompare(b, 'es'));
+
+        const estiloInput = 'width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #cbd5e1;border-radius:10px;font-size:0.95rem;font-family:inherit;background:#fff;color:#0f172a;margin-bottom:14px;';
+        const estiloLabel = 'display:block;font-size:0.78rem;font-weight:700;color:#334155;margin-bottom:6px;';
+
+        const overlay = document.createElement('div');
+        overlay.id = 'alta-taller-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;';
+        overlay.innerHTML = `
+            <div role="dialog" aria-modal="true" aria-labelledby="alta-taller-titulo"
+                 style="background:#fff;width:100%;max-width:480px;max-height:92vh;overflow:auto;border-radius:18px;padding:22px;box-shadow:0 24px 60px rgba(0,0,0,.28);">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px;">
+                    <h3 id="alta-taller-titulo" style="margin:0;font-size:1.15rem;color:#0f172a;">Agregar taller</h3>
+                    <button type="button" id="alta-taller-cerrar" aria-label="Cerrar"
+                            style="border:0;background:#f1f5f9;width:34px;height:34px;border-radius:50%;font-size:1.25rem;line-height:1;cursor:pointer;color:#334155;">&times;</button>
+                </div>
+                <p style="margin:0 0 16px;font-size:0.8rem;color:#64748b;">Se guarda en la hoja <strong>RED DE TALLERES</strong> de Drive.</p>
+
+                <form id="alta-taller-form" novalidate>
+                    <label for="alta-ciudad" style="${estiloLabel}">Ciudad *</label>
+                    <input id="alta-ciudad" list="alta-ciudades" autocomplete="off" placeholder="SANTA CRUZ" style="${estiloInput}">
+                    <datalist id="alta-ciudades">${ciudades.map(c => `<option value="${escapeAttr(c)}"></option>`).join('')}</datalist>
+
+                    <label for="alta-taller" style="${estiloLabel}">Taller *</label>
+                    <input id="alta-taller" autocomplete="off" placeholder="ST GLEECON" style="${estiloInput}">
+
+                    <label for="alta-marca" style="${estiloLabel}">Marca</label>
+                    <input id="alta-marca" autocomplete="off" placeholder="SAMSUNG, LG" style="${estiloInput}">
+
+                    <label for="alta-contacto" style="${estiloLabel}">Contacto</label>
+                    <input id="alta-contacto" inputmode="tel" autocomplete="off" placeholder="76383305 - 71540343" style="${estiloInput}">
+
+                    <label for="alta-gps" style="${estiloLabel}">Ubicación GPS</label>
+                    <input id="alta-gps" autocomplete="off" placeholder="lat,lng o link de Google Maps" style="${estiloInput}">
+
+                    <details id="alta-conexion" ${(!cfg.endpoint || !cfg.token) ? 'open' : ''}
+                             style="margin-bottom:14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;">
+                        <summary style="cursor:pointer;font-size:0.8rem;font-weight:700;color:#475569;">Conexión con Drive</summary>
+                        <div style="padding-top:10px;">
+                            <label for="alta-endpoint" style="${estiloLabel}">URL del Web App</label>
+                            <input id="alta-endpoint" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec"
+                                   value="${escapeAttr(cfg.endpoint)}" style="${estiloInput}">
+                            <label for="alta-token" style="${estiloLabel}">Clave de administración</label>
+                            <input id="alta-token" type="password" autocomplete="off"
+                                   placeholder="${cfg.token ? 'Guardada en este dispositivo' : 'Clave del script'}" style="${estiloInput.replace('margin-bottom:14px;', 'margin-bottom:0;')}">
+                        </div>
+                    </details>
+
+                    <div id="alta-taller-error" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:10px;padding:10px 12px;font-size:0.82rem;margin-bottom:14px;"></div>
+
+                    <button type="submit" id="alta-taller-guardar"
+                            style="width:100%;border:0;border-radius:12px;padding:13px;background:#E31837;color:#fff;font-size:0.95rem;font-weight:700;font-family:inherit;cursor:pointer;">
+                        Guardar taller
+                    </button>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        document.body.style.overflow = 'hidden';
+
+        const form = document.getElementById('alta-taller-form');
+        const errorBox = document.getElementById('alta-taller-error');
+        const btn = document.getElementById('alta-taller-guardar');
+
+        const mostrarError = (texto) => {
+            errorBox.textContent = texto;
+            errorBox.style.display = 'block';
+        };
+
+        document.getElementById('alta-taller-cerrar').addEventListener('click', cerrarFormularioTaller);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) cerrarFormularioTaller(); });
+        overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarFormularioTaller(); });
+
+        document.getElementById('alta-taller').focus();
+
+        form.addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            errorBox.style.display = 'none';
+
+            const ciudad = document.getElementById('alta-ciudad').value.trim().toUpperCase();
+            const taller = document.getElementById('alta-taller').value.trim();
+            const marca = document.getElementById('alta-marca').value.trim();
+            const contacto = document.getElementById('alta-contacto').value.trim();
+            const gps = document.getElementById('alta-gps').value.trim();
+            const endpoint = document.getElementById('alta-endpoint').value.trim();
+            const tokenNuevo = document.getElementById('alta-token').value.trim();
+            const token = tokenNuevo || cfg.token;
+
+            if (!ciudad) return mostrarError('Escribí la ciudad.');
+            if (!taller) return mostrarError('Escribí el nombre del taller.');
+            if (!contacto && !gps) return mostrarError('Cargá al menos un teléfono o la ubicación.');
+            if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec/.test(endpoint)) {
+                return mostrarError('La URL tiene que ser la del Web App y terminar en /exec.');
+            }
+            if (!token) {
+                document.getElementById('alta-conexion').open = true;
+                document.getElementById('alta-token').focus();
+                return mostrarError('Escribí la clave de administración.');
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Guardando…';
+
+            try {
+                const resp = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        token: token,
+                        ciudad: ciudad,
+                        taller: taller,
+                        marca: marca,
+                        contacto: contacto,
+                        gps: gps,
+                        usuario: localStorage.getItem('usuario_actual') || ''
+                    })
+                });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+                let data;
+                try {
+                    data = await resp.json();
+                } catch (err) {
+                    throw new Error('El Web App no devolvió JSON. Revisá que esté publicado como "Cualquier persona".');
+                }
+
+                if (!data.ok) {
+                    const mensajes = {
+                        clave_invalida: 'La clave no coincide con la del script.',
+                        duplicado: `Ya existe "${data.taller || taller}" en ${data.ciudad || ciudad} (fila ${data.fila}).`,
+                        falta_ciudad: 'Falta la ciudad.',
+                        falta_taller: 'Falta el nombre del taller.',
+                        sin_contacto: 'Cargá al menos un teléfono o la ubicación.',
+                        hoja_no_encontrada: 'No se encontró la hoja RED DE TALLERES.',
+                        ocupado: 'La hoja está ocupada. Probá de nuevo en unos segundos.',
+                        json_invalido: 'El servidor no entendió los datos.',
+                        error_interno: 'Error interno del script: ' + (data.detalle || 'sin detalle')
+                    };
+                    if (data.error === 'clave_invalida') {
+                        document.getElementById('alta-conexion').open = true;
+                        document.getElementById('alta-token').focus();
+                    }
+                    return mostrarError(mensajes[data.error] || ('No se pudo guardar (' + data.error + ').'));
+                }
+
+                guardarConfigAlta({ endpoint: endpoint, token: token });
+                const recarga = loadAllData();
+                mostrarExito(form, data, recarga);
+            } catch (err) {
+                console.error('Alta de taller:', err);
+                mostrarError(
+                    err && err.message && err.message.indexOf('JSON') !== -1
+                        ? err.message
+                        : 'No se pudo conectar con el Web App. Verificá la URL y que el acceso sea "Cualquier persona".'
+                );
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Guardar taller';
+            }
+        });
+    }
+
+    function mostrarExito(form, data, recarga) {
+        form.innerHTML = `
+            <div style="text-align:center;padding:6px 0 2px;">
+                <div style="width:56px;height:56px;border-radius:50%;background:#dcfce7;color:#16a34a;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:1.7rem;">
+                    <i class="bi bi-check-lg"></i>
+                </div>
+                <p style="margin:0 0 4px;font-weight:700;color:#0f172a;font-size:1rem;">Taller agregado</p>
+                <p style="margin:0 0 18px;font-size:0.82rem;color:#64748b;">Fila ${data.fila} · ${escapeHTML(data.ciudad || '')}</p>
+                <button type="button" id="alta-ver-ciudad"
+                        style="width:100%;border:0;border-radius:12px;padding:12px;background:#E31837;color:#fff;font-size:0.92rem;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:8px;">
+                    Ver talleres de ${escapeHTML(data.ciudad || '')}
+                </button>
+                <button type="button" id="alta-cerrar-ok"
+                        style="width:100%;border:1px solid #e2e8f0;border-radius:12px;padding:12px;background:#fff;color:#334155;font-size:0.92rem;font-weight:700;font-family:inherit;cursor:pointer;">
+                    Cerrar
+                </button>
+            </div>
+        `;
+        document.getElementById('alta-cerrar-ok').addEventListener('click', cerrarFormularioTaller);
+        document.getElementById('alta-ver-ciudad').addEventListener('click', async () => {
+            const boton = document.getElementById('alta-ver-ciudad');
+            boton.disabled = true;
+            boton.textContent = 'Cargando…';
+            await recarga;
+            cerrarFormularioTaller();
+            showRegionTalleres(data.ciudad);
+        });
     }
 
     function showRegionTalleres(region) {

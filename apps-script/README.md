@@ -1,0 +1,82 @@
+# Agregar talleres desde la app
+
+Este script es el único camino de **escritura** de la PWA hacia Google Sheets.
+La app sigue leyendo las hojas como siempre (CSV público); para agregar un
+taller le pega un POST a este Web App y el script escribe la fila.
+
+## 1. Pegar el script
+
+1. Abrir la hoja **RED DE TALLERES**:
+   `https://docs.google.com/spreadsheets/d/1wV3Ch5U-HWfsnvDoc56mL-4JCy22e7STdYzvJgFoI2I`
+2. Menú **Extensiones → Apps Script**.
+3. Borrar el `function myFunction() {}` que viene por defecto.
+4. Pegar todo el contenido de `AgregarTaller.gs`.
+5. Cambiar la línea:
+   ```js
+   TOKEN: 'CAMBIA-ESTA-CLAVE',
+   ```
+   por una clave propia, por ejemplo `dismac-talleres-2026`. Es la que se va a
+   pedir una sola vez en la app. No hace falta que sea larga, pero no la
+   compartas.
+6. Guardar (Ctrl+S).
+
+## 2. Publicar el Web App
+
+1. Botón **Implementar → Nueva implementación**.
+2. Engranaje → **Aplicación web**.
+3. Completar:
+   - **Descripción:** `Agregar taller`
+   - **Ejecutar como:** `Yo (tu cuenta)`
+   - **Quién tiene acceso:** `Cualquier persona`
+4. **Implementar**. Google va a pedir autorización la primera vez:
+   *Revisar permisos → Avanzado → Ir a (nombre del proyecto) (no seguro)*.
+   Es normal: el script es tuyo y solo toca tu hoja.
+5. Copiar la **URL de la aplicación web**. Termina en `/exec`.
+
+> Si más adelante cambiás el código, no alcanza con guardar: hay que ir a
+> **Implementar → Administrar implementaciones → lápiz → Versión: Nueva versión**.
+
+## 3. Comprobación rápida
+
+Abrir la URL `/exec` en el navegador. Tiene que responder:
+
+```json
+{"ok":true,"servicio":"agregar-taller","version":1}
+```
+
+Si en cambio aparece una pantalla de login de Google, el acceso quedó en
+"Cualquier persona con cuenta de Google": hay que volver a implementar con
+**Cualquier persona**.
+
+## 4. Usarla desde la app
+
+1. Entrar como administrador.
+2. **Red de talleres → Agregar taller**.
+3. La primera vez en cada dispositivo se piden dos datos:
+   - **URL del Web App** (`.../exec`)
+   - **Clave de administración** (el `TOKEN` del paso 1)
+4. Completar ciudad, taller, marca, contacto y ubicación. Se guarda al final de
+   `RED DE TALLERES`, con la ciudad escrita explícitamente (importante: la hoja
+   arrastra la ciudad hacia abajo y una celda vacía haría que el taller herede
+   la ciudad anterior).
+
+## Qué valida el script
+
+- Clave correcta.
+- Ciudad y nombre del taller obligatorios.
+- Al menos un teléfono **o** una ubicación.
+- **Duplicados:** mismo nombre normalizado (sin tildes, mayúsculas ni signos)
+  en la misma ciudad. Devuelve la fila donde ya existe.
+- Escribe como texto, así no se pierden ceros ni se interpretan fórmulas.
+- `LockService` evita que dos altas simultáneas se pisen.
+- Deja registro en la pestaña `LOG AGREGADOS` (se crea sola): fecha, usuario,
+  ciudad, taller y fila.
+
+## Seguridad
+
+El token viaja en el cuerpo del POST y queda guardado en el `localStorage` del
+dispositivo del administrador. Alcanza para una herramienta interna, pero no es
+autenticación real: quien tenga la URL y la clave puede agregar filas. Si eso
+preocupa, el siguiente paso es validar un ID token de Google en el script
+(Opción B del análisis). Para revocar el acceso: cambiar `TOKEN` y publicar una
+versión nueva.
