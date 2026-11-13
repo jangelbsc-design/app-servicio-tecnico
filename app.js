@@ -1167,6 +1167,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             case 'agregar-taller':
                 abrirFormularioTaller();
                 break;
+            case 'conexion-taller':
+                abrirConexionTaller(false);
+                break;
         }
     }
 
@@ -1202,11 +1205,127 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.body.style.overflow = '';
     }
 
+    // Configuración aparte: la URL y la clave se guardan una sola vez,
+    // sin obligar a cargar un taller.
+    function abrirConexionTaller(volverAlta) {
+        if (!isAdmin()) return;
+        if (document.getElementById('conexion-taller-overlay')) return;
+
+        const cfg = leerConfigAlta();
+        const estiloInput = 'width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #cbd5e1;border-radius:10px;font-size:0.95rem;font-family:inherit;background:#fff;color:#0f172a;margin-bottom:14px;';
+        const estiloLabel = 'display:block;font-size:0.78rem;font-weight:700;color:#334155;margin-bottom:6px;';
+
+        const overlay = document.createElement('div');
+        overlay.id = 'conexion-taller-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:10001;display:flex;align-items:center;justify-content:center;padding:16px;';
+        overlay.innerHTML = `
+            <div role="dialog" aria-modal="true" aria-labelledby="conexion-taller-titulo"
+                 style="background:#fff;width:100%;max-width:460px;max-height:92vh;overflow:auto;border-radius:18px;padding:22px;box-shadow:0 24px 60px rgba(0,0,0,.28);">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px;">
+                    <h3 id="conexion-taller-titulo" style="margin:0;font-size:1.15rem;color:#0f172a;">Conexión con Drive</h3>
+                    <button type="button" id="conexion-taller-cerrar" aria-label="Cerrar"
+                            style="border:0;background:#f1f5f9;width:34px;height:34px;border-radius:50%;font-size:1.25rem;line-height:1;cursor:pointer;color:#334155;">&times;</button>
+                </div>
+                <p style="margin:0 0 16px;font-size:0.8rem;color:#64748b;">
+                    Se guarda <strong>una sola vez en este dispositivo</strong>. La app la usa para agregar talleres a <strong>RED DE TALLERES</strong>.
+                </p>
+                <form id="conexion-taller-form" novalidate>
+                    <label for="conexion-endpoint" style="${estiloLabel}">URL del Web App</label>
+                    <input id="conexion-endpoint" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec"
+                           value="${escapeAttr(cfg.endpoint)}" style="${estiloInput}">
+
+                    <label for="conexion-token" style="${estiloLabel}">Clave de administración</label>
+                    <input id="conexion-token" type="password" autocomplete="off"
+                           placeholder="${cfg.token ? 'Guardada en este dispositivo' : 'Clave del script'}" style="${estiloInput}">
+
+                    <div id="conexion-taller-error" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:10px;padding:10px 12px;font-size:0.82rem;margin-bottom:14px;"></div>
+
+                    <button type="submit" id="conexion-taller-guardar"
+                            style="width:100%;border:0;border-radius:12px;padding:13px;background:#E31837;color:#fff;font-size:0.95rem;font-weight:700;font-family:inherit;cursor:pointer;">
+                        Guardar conexión
+                    </button>
+                    <button type="button" id="conexion-taller-cancelar"
+                            style="width:100%;border:0;background:none;color:#64748b;font-size:0.85rem;font-family:inherit;cursor:pointer;padding:10px;">
+                        Cancelar
+                    </button>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        document.body.style.overflow = 'hidden';
+
+        const form = document.getElementById('conexion-taller-form');
+        const errorBox = document.getElementById('conexion-taller-error');
+
+        const mostrarError = (texto) => {
+            errorBox.textContent = texto;
+            errorBox.style.display = 'block';
+        };
+        const cerrar = () => {
+            const el = document.getElementById('conexion-taller-overlay');
+            if (el) el.remove();
+            if (!document.getElementById('alta-taller-overlay')) {
+                document.body.style.overflow = '';
+            }
+        };
+
+        document.getElementById('conexion-taller-cerrar').addEventListener('click', cerrar);
+        document.getElementById('conexion-taller-cancelar').addEventListener('click', cerrar);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) cerrar(); });
+        overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrar(); });
+
+        document.getElementById('conexion-endpoint').focus();
+
+        form.addEventListener('submit', (ev) => {
+            ev.preventDefault();
+            errorBox.style.display = 'none';
+
+            const endpoint = document.getElementById('conexion-endpoint').value.trim();
+            const tokenNuevo = document.getElementById('conexion-token').value.trim();
+            const token = tokenNuevo || cfg.token;
+
+            if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec/.test(endpoint)) {
+                return mostrarError('La URL tiene que ser la del Web App y terminar en /exec.');
+            }
+            if (!token) {
+                document.getElementById('conexion-token').focus();
+                return mostrarError('Escribí la clave de administración.');
+            }
+
+            guardarConfigAlta({ endpoint: endpoint, token: token });
+
+            if (volverAlta) {
+                cerrar();
+                abrirFormularioTaller();
+                return;
+            }
+
+            form.innerHTML = `
+                <div style="text-align:center;padding:4px 0 0;">
+                    <div style="width:52px;height:52px;border-radius:50%;background:#dcfce7;color:#16a34a;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:1.6rem;">
+                        <i class="bi bi-check-lg"></i>
+                    </div>
+                    <p style="margin:0 0 16px;font-weight:700;color:#0f172a;">Conexión guardada</p>
+                    <button type="button" id="conexion-taller-ok"
+                            style="width:100%;border:0;border-radius:12px;padding:12px;background:#E31837;color:#fff;font-size:0.92rem;font-weight:700;font-family:inherit;cursor:pointer;">
+                        ${document.getElementById('alta-taller-overlay') ? 'Volver al taller' : 'Cerrar'}
+                    </button>
+                </div>
+            `;
+            document.getElementById('conexion-taller-ok').addEventListener('click', cerrar);
+        });
+    }
+
     function abrirFormularioTaller() {
         if (!isAdmin()) return;
         if (document.getElementById('alta-taller-overlay')) return;
 
         const cfg = leerConfigAlta();
+        if (!cfg.endpoint || !cfg.token) {
+            abrirConexionTaller(true);
+            return;
+        }
+
         const ciudades = [...new Set(
             appWorkshopData.map(t => (t.CIUDAD || '').trim()).filter(Boolean)
         )].sort((a, b) => a.localeCompare(b, 'es'));
@@ -1244,25 +1363,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <label for="alta-gps" style="${estiloLabel}">Ubicación GPS</label>
                     <input id="alta-gps" autocomplete="off" placeholder="lat,lng o link de Google Maps" style="${estiloInput}">
 
-                    <details id="alta-conexion" ${(!cfg.endpoint || !cfg.token) ? 'open' : ''}
-                             style="margin-bottom:14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;">
-                        <summary style="cursor:pointer;font-size:0.8rem;font-weight:700;color:#475569;">Conexión con Drive</summary>
-                        <div style="padding-top:10px;">
-                            <label for="alta-endpoint" style="${estiloLabel}">URL del Web App</label>
-                            <input id="alta-endpoint" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec"
-                                   value="${escapeAttr(cfg.endpoint)}" style="${estiloInput}">
-                            <label for="alta-token" style="${estiloLabel}">Clave de administración</label>
-                            <input id="alta-token" type="password" autocomplete="off"
-                                   placeholder="${cfg.token ? 'Guardada en este dispositivo' : 'Clave del script'}" style="${estiloInput.replace('margin-bottom:14px;', 'margin-bottom:0;')}">
-                        </div>
-                    </details>
-
                     <div id="alta-taller-error" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:10px;padding:10px 12px;font-size:0.82rem;margin-bottom:14px;"></div>
 
                     <button type="submit" id="alta-taller-guardar"
                             style="width:100%;border:0;border-radius:12px;padding:13px;background:#E31837;color:#fff;font-size:0.95rem;font-weight:700;font-family:inherit;cursor:pointer;">
                         Guardar taller
                     </button>
+                    <p style="margin:14px 0 0;font-size:0.75rem;color:#94a3b8;text-align:center;">
+                        Conexión con Drive configurada ·
+                        <button type="button" id="alta-cambiar-conexion"
+                                style="border:0;background:none;color:#E31837;font:inherit;font-weight:700;cursor:pointer;padding:0;">
+                            Cambiar
+                        </button>
+                    </p>
                 </form>
             </div>
         `;
@@ -1283,6 +1396,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarFormularioTaller(); });
 
         document.getElementById('alta-taller').focus();
+        document.getElementById('alta-cambiar-conexion').addEventListener('click', () => abrirConexionTaller(false));
 
         form.addEventListener('submit', async (ev) => {
             ev.preventDefault();
@@ -1293,20 +1407,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             const marca = document.getElementById('alta-marca').value.trim();
             const contacto = document.getElementById('alta-contacto').value.trim();
             const gps = document.getElementById('alta-gps').value.trim();
-            const endpoint = document.getElementById('alta-endpoint').value.trim();
-            const tokenNuevo = document.getElementById('alta-token').value.trim();
-            const token = tokenNuevo || cfg.token;
+            const cfgActual = leerConfigAlta();
+            const endpoint = cfgActual.endpoint;
+            const token = cfgActual.token;
 
             if (!ciudad) return mostrarError('Escribí la ciudad.');
             if (!taller) return mostrarError('Escribí el nombre del taller.');
             if (!contacto && !gps) return mostrarError('Cargá al menos un teléfono o la ubicación.');
-            if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec/.test(endpoint)) {
-                return mostrarError('La URL tiene que ser la del Web App y terminar en /exec.');
-            }
-            if (!token) {
-                document.getElementById('alta-conexion').open = true;
-                document.getElementById('alta-token').focus();
-                return mostrarError('Escribí la clave de administración.');
+            if (!endpoint || !token) {
+                abrirConexionTaller(false);
+                return mostrarError('Configurá la conexión con Drive.');
             }
 
             btn.disabled = true;
@@ -1348,13 +1458,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         error_interno: 'Error interno del script: ' + (data.detalle || 'sin detalle')
                     };
                     if (data.error === 'clave_invalida') {
-                        document.getElementById('alta-conexion').open = true;
-                        document.getElementById('alta-token').focus();
+                        return mostrarError('La clave no coincide. Usá "Cambiar" abajo para corregir la conexión.');
                     }
                     return mostrarError(mensajes[data.error] || ('No se pudo guardar (' + data.error + ').'));
                 }
 
-                guardarConfigAlta({ endpoint: endpoint, token: token });
                 const recarga = loadAllData();
                 mostrarExito(form, data, recarga);
             } catch (err) {

@@ -51,14 +51,18 @@ Si en cambio aparece una pantalla de login de Google, el acceso quedó en
 ## 4. Usarla desde la app
 
 1. Entrar como administrador.
-2. **Red de talleres → Agregar taller**.
-3. La primera vez en cada dispositivo se piden dos datos:
-   - **URL del Web App** (`.../exec`)
-   - **Clave de administración** (el `TOKEN` del paso 1)
-4. Completar ciudad, taller, marca, contacto y ubicación. Se guarda al final de
-   `RED DE TALLERES`, con la ciudad escrita explícitamente (importante: la hoja
-   arrastra la ciudad hacia abajo y una celda vacía haría que el taller herede
-   la ciudad anterior).
+2. **Red de talleres → Conectar Drive** (una sola vez por dispositivo):
+   pegar la **URL del Web App** (`.../exec`) y la **clave** (el `TOKEN` del
+   paso 1) → **Guardar conexión**.
+3. **Red de talleres → Agregar taller**: completar ciudad, taller, marca,
+   contacto y ubicación. Se guarda al final de `RED DE TALLERES`, con la ciudad
+   escrita explícitamente (importante: la hoja arrastra la ciudad hacia abajo y
+   una celda vacía haría que el taller herede la ciudad anterior).
+4. La app recarga los datos y ofrece **Ver talleres de [ciudad]**.
+
+> Si tocás **Agregar taller** sin conexión configurada, la app abre primero
+> **Conectar Drive**. Para cambiarla después, usá la tarjeta **Conectar Drive**
+> o el enlace **Cambiar** del formulario de alta.
 
 ## Qué valida el script
 
