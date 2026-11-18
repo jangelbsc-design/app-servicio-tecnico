@@ -400,6 +400,7 @@ function parseAllData(workshopData, globalData, adicionalesData) {
                 adicFechaCita: adic['Fecha Cita'] || "",
                 adicEstadoCita: adic['Estado Cita'] || "",
                 adicSubEstadoCita: adic['Sub Estado Cita'] || "",
+                adicTipoCompra: adic['Tipo de compra'] || "",
                 adicionalesEnriched: true
             };
         }
@@ -434,8 +435,6 @@ function parseTransporteData(transporteRaw) {
         const fechaApertura = getVal(row, 'Fecha de creación', 'Fecha apertura', 'Fecha creación', 'Fecha inicio', 'Fecha Origen');
         const diasAperturaRaw = getVal(row, 'Tiempo desde apertura (Días)', 'Días apertura', 'Días sin movimiento', 'Días');
         const diasApertura = diasAperturaRaw !== "" ? diasAperturaRaw : (fechaApertura ? (diasDesde(fechaApertura) ?? '0') : '0');
-        const origen = getVal(row, 'Origen', 'Lugar Origen', 'Tienda Origen', 'Ubicación Origen');
-        const destino = getVal(row, 'Destino', 'Lugar Destino', 'ST Destino', 'Tienda Destino');
         const tipoServicio = getVal(row, 'Tipo de Servicio', 'Tipo Servicio') || 'TRANSPORTE';
 
         return {
@@ -450,8 +449,6 @@ function parseTransporteData(transporteRaw) {
             'Fecha de la última modificación': fechaMod,
             'Tiempo desde apertura (Días)': diasApertura.toString(),
             'Tipo de Servicio': tipoServicio,
-            'Origen': origen,
-            'Destino': destino,
             esTransporte: true
         };
     }).filter(o => o['Número de orden de trabajo'] && o['Número de orden de trabajo'].trim() !== '');
@@ -698,7 +695,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 (o['Producto ST'] || "").toLowerCase().includes(query) ||
                 (o['Referencia'] || "").toLowerCase().includes(query) ||
                 (o['Nro de orden de trabajo (Marca)'] || "").toLowerCase().includes(query) ||
-                (o['Nombre del Equipo'] || "").toLowerCase().includes(query) ||
                 (o['Tipo de Servicio'] || "").toLowerCase().includes(query) ||
                 (o['Tiempo desde apertura (Días)'] || "").toString().toLowerCase().includes(query) ||
                 (o['Fecha de compra'] || "").toLowerCase().includes(query) ||
@@ -752,7 +748,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             (o['Producto ST'] || "").toLowerCase().includes(query) ||
             (o['Referencia'] || "").toLowerCase().includes(query) ||
             (o['Nro de orden de trabajo (Marca)'] || "").toLowerCase().includes(query) ||
-            (o['Nombre del Equipo'] || "").toLowerCase().includes(query) ||
             (o['Tipo de Servicio'] || "").toLowerCase().includes(query) ||
             (o['Tiempo desde apertura (Días)'] || "").toString().toLowerCase().includes(query) ||
             (o['Fecha de compra'] || "").toLowerCase().includes(query) ||
@@ -2299,26 +2294,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 `;
             }
-            // Preparar información del reporte adicional
+            // Preparar información del reporte adicional (texto libre: se escapa para no romper el HTML)
             let adicionalesInfoHtml = "";
             if (o.adicionalesEnriched) {
                 adicionalesInfoHtml = `
-                    ${o.adicCuenta ? `<p style="margin:0;"><strong>Cuenta:</strong> ${o.adicCuenta}</p>` : ''}
-                    ${o.adicTelefono ? `<p style="margin:0;"><strong>Teléfono:</strong> ${o.adicTelefono}</p>` : ''}
-                    ${o.adicTecnico ? `<p style="margin:0;"><strong>Técnico:</strong> ${o.adicTecnico}</p>` : ''}
-                    ${o.adicFechaCita ? `<p style="margin:0;"><strong>Fecha Cita:</strong> ${o.adicFechaCita}</p>` : ''}
-                    ${o.adicEstadoCita ? `<p style="margin:0;"><strong>Estado Cita:</strong> ${o.adicEstadoCita} ${o.adicSubEstadoCita ? `(${o.adicSubEstadoCita})` : ''}</p>` : ''}
-                    ${o.adicDetalleFalla ? `<p style="margin:0; white-space: pre-line;"><strong>Detalle Falla:</strong> ${o.adicDetalleFalla}</p>` : ''}
-                    ${o.adicDetalleSolucion ? `<p style="margin:0; white-space: pre-line;"><strong>Detalle Solución:</strong> ${o.adicDetalleSolucion}</p>` : ''}
-                    ${o.adicObservaciones ? `<p style="margin:0; white-space: pre-line;"><strong>Observaciones Técnico:</strong> ${o.adicObservaciones}</p>` : ''}
-                    ${o.adicComentarios ? `<p style="margin:0; white-space: pre-line;"><strong>Comentarios:</strong> ${o.adicComentarios}</p>` : ''}
+                    ${o.adicCuenta ? `<p style="margin:0;"><strong>Cuenta:</strong> ${escapeHTML(o.adicCuenta)}</p>` : ''}
+                    ${o.adicTelefono ? `<p style="margin:0;"><strong>Teléfono:</strong> ${escapeHTML(o.adicTelefono)}</p>` : ''}
+                    ${o.adicTipoCompra ? `<p style="margin:0;"><strong>Tipo de compra:</strong> ${escapeHTML(o.adicTipoCompra)}</p>` : ''}
+                    ${o.adicTecnico ? `<p style="margin:0;"><strong>Técnico:</strong> ${escapeHTML(o.adicTecnico)}</p>` : ''}
+                    ${o.adicFechaCita ? `<p style="margin:0;"><strong>Fecha Cita:</strong> ${escapeHTML(o.adicFechaCita)}</p>` : ''}
+                    ${o.adicEstadoCita ? `<p style="margin:0;"><strong>Estado Cita:</strong> ${escapeHTML(o.adicEstadoCita)} ${o.adicSubEstadoCita ? `(${escapeHTML(o.adicSubEstadoCita)})` : ''}</p>` : ''}
+                    ${o.adicDetalleFalla ? `<p style="margin:0; white-space: pre-line;"><strong>Detalle Falla:</strong> ${escapeHTML(o.adicDetalleFalla)}</p>` : ''}
+                    ${o.adicDetalleSolucion ? `<p style="margin:0; white-space: pre-line;"><strong>Detalle Solución:</strong> ${escapeHTML(o.adicDetalleSolucion)}</p>` : ''}
+                    ${o.adicObservaciones ? `<p style="margin:0; white-space: pre-line;"><strong>Observaciones Técnico:</strong> ${escapeHTML(o.adicObservaciones)}</p>` : ''}
+                    ${o.adicComentarios ? `<p style="margin:0; white-space: pre-line;"><strong>Comentarios:</strong> ${escapeHTML(o.adicComentarios)}</p>` : ''}
                 `;
             }
-
-            const transporteInfoHtml = o.esTransporte ? `
-                ${o.Origen ? `<p style="margin:0;"><strong>Origen:</strong> ${escapeHTML(o.Origen)}</p>` : ''}
-                ${o.Destino ? `<p style="margin:0;"><strong>Destino:</strong> ${escapeHTML(o.Destino)}</p>` : ''}
-            ` : '';
 
             const estaExpandido = Boolean(opciones && opciones.expandirPrimero && idx === 0);
 
@@ -2340,6 +2331,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px;">
                                     ${o.esTransporte ? '<span style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; padding:3px 9px; border-radius:12px; font-size:0.72rem; font-weight:800; white-space:nowrap;"><i class="bi bi-truck"></i> TRANSPORTE</span>' : ''}
                                     <span style="background:${o.esTransporte ? '#fff7ed' : '#e0e7ff'}; color:${o.esTransporte ? '#c2410c' : '#3b82f6'}; padding:4px 10px; border-radius:12px; font-size:0.7rem; font-weight:700; white-space:nowrap;">${o.Estado || 'S/E'}</span>
+                                    ${o.Sub_estado ? `<span title="Sub-estado de la orden" style="background:#f8fafc; color:#475569; border:1px solid #e2e8f0; padding:3px 9px; border-radius:12px; font-size:0.68rem; font-weight:700; white-space:nowrap;">${escapeHTML(o.Sub_estado)}</span>` : ''}
                                     ${warrantyBadgeHtml(o)}
                                 </div>
                                 <i class="bi bi-chevron-down acc-arrow" style="transition: transform 0.3s ease; color:#cbd5e1; font-size:1.2rem;"></i>
@@ -2355,10 +2347,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <p style="margin:0;"><strong>Producto ST:</strong> ${o['Producto ST'] || '—'}</p>
                             <p style="margin:0;"><strong>Fecha de compra:</strong> ${o['Fecha de compra'] || '—'}</p>
                             ${warrantyDetailHtml(o)}
+                            <p style="margin:0;"><strong>Fecha de inicio:</strong> ${o['Fecha de inicio'] || '—'}</p>
                             <p style="margin:0;"><strong>Fecha de ingreso a la marca:</strong> ${o['Fecha de ingreso a la marca'] || '—'}</p>
+                            <p style="margin:0;"><strong>Fecha de la última modificación:</strong> ${o['Fecha de la última modificación'] || '—'}</p>
                             <p style="margin:0;"><strong>Referencia:</strong> ${o['Referencia'] || '—'}</p>
                             <p style="margin:0;"><strong>Estado:</strong> ${o.Estado || '—'}</p>
-                            ${transporteInfoHtml}
+                            <p style="margin:0;"><strong>Marca / ST:</strong> ${escapeHTML(marcaDeOrden(o) || '—')}</p>
                             ${workshopHtml}
                             ${adicionalesInfoHtml}
                             
